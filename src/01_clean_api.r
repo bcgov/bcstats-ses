@@ -385,67 +385,14 @@ CA21_VECTORS = c(
   # Total - Private households by housing suitability
   # Suitable
   # Not suitable
+  # Housing suitability
+  # refers to whether a private household is living in suitable accommodations according to the National Occupancy Standard (NOS); that is, whether the dwelling has enough bedrooms for the size and composition of the household. A household is deemed to be living in suitable accommodations if its dwelling has enough bedrooms, as calculated using the
+  # NOS .
   'HOME_SUITABLE_TOT' = 'v_CA21_4260', # Private households by housing suitability - Total
   'HOME_SUITABLE_YES' = 'v_CA21_4261', # Private households by housing suitability - Suitable
   'HOME_SUITABLE_NO'  = 'v_CA21_4262' # Private households by housing suitability - Not suitable Done
   
-  
-  # 'GOV_TRANS' = 'v_CA21_151',
-  # # GOV_TRANS
-  # 
-  # # 'PCT_INDIG1' = 'v_CA21_1402',
-  # # # PCT_INDIG1
-  # # 'PCT_INDIG2' = 'v_CA21_1403',
-  # # # PCT_INDIG2
-  # 
-  # 
-  # 
-  # # PCT_RENT
-  # 'PCT_RENT1' = 'v_CA21_1414',
-  # # PCT_RENT1
-  # 'PCT_RENT2' = 'v_CA21_1416',
-  # # PCT_RENT2
-  # 
-  # PCT_NPR
-  # 'PCT_NPR1' = 'v_CA21_1414',    # PCT_NPR1
-  # 'PCT_NPR2' = 'v_CA21_1537',
-  # # PCT_NPR2
-  # 
-  # # PCT_VISMIN
-  # 'PCT_VISMIN1' = 'v_CA21_1683',
-  # # PCT_VISMIN1
-  # 'PCT_VISMIN2' = 'v_CA21_1684',
-  # # PCT_VISMIN2
-  # 
-  # # PCT_NOGRAD
-  # 'PCT_NOGRAD1' = 'v_CA21_1995',
-  # # PCT_NOGRAD1
-  # 'PCT_NOGRAD2' = 'v_CA21_1996',
-  # # PCT_NOGRAD2
-  
-  
-
-  
-  
-  # 
-  # # LAB_PART_RATE
-  # 'LAB_PART_RATE1' = 'v_CA21_2223',
-  # # LAB_PART_RATE1
-  # 'LAB_PART_RATE2' = 'v_CA21_2224',
-  # # LAB_PART_RATE2
-  # 
-  # # LAB_UNEMP_RATE
-  # # 'LAB_UNEMP_RATE1' = 'v_CA21_2224',
-  # # LAB_UNEMP_RATE1
-  # 'LAB_UNEMP_RATE2' = 'v_CA21_2226',
-  # # LAB_UNEMP_RATE2
-  # 
-  # # PCT_MGMT_OCC
-  # 'PCT_MGMT_OCC1' = 'v_CA21_2246',
-  # # PCT_MGMT_OCC1
-  # 'PCT_MGMT_OCC2' = 'v_CA21_2249'
-  # # PCT_MGMT_OCC2
-)
+ )
 
 bc_da <- get_census(dataset='CA21', 
                     regions=list(PR="59"),
