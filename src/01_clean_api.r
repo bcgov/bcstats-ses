@@ -1,10 +1,10 @@
-pacman::p_load(cancensus,geojsonsf, tidyverse)
+pacman::p_load(cancensus,geojsonsf, tidyverse,config)
 # In order to speed up performance, reduce API quota usage, and reduce unnecessary network calls, please set up a persistent cache directory via `set_cancensus_cache_path('<local cache path>', install = TRUE)`.
 # This will add your cache directory as environment varianble to your .Renviron to be used across sessions and projects.
 
 # set up CENSUSMAPPER API 
 # set_cancensus_api_key(config::get("CENSUSMAPPER_API_KEY"), install = TRUE)
-# set_cancensus_cache_path('G:\\Operations\\Data Science and Analytics\\2024 SES Index\\data\\census_cache', install = TRUE)
+# set_cancensus_cache_path(file.path(config::get("lan_path"),'2024 SES Index\\data\\census_cache'), install = TRUE)
 # or
 # options(cancensus.api_key = "your_api_key")
 # options(cancensus.cache_path = "custom cache path")
@@ -406,9 +406,7 @@ bc_da %>% readr::write_csv("G:\\Operations\\Data Science and Analytics\\2024 SES
 bc_da %>% glimpse()
 ########################################################################################################
 #  Community Well-Being Index
-# install.packages("remotes")
-# remotes::install_github("vlucet/rgovcan")
-# https://open-canada.github.io/r4gc/canada-related-open-source-r-codes-and-packages.html
+
 ########################################################################################################
 
 library("rgovcan")
@@ -443,8 +441,25 @@ for (i in id_resources){
   )
 }
 
+########################################################################################################
+#  BC Housing start
+
+########################################################################################################
+
+bc_building_permit_file = "https://www2.gov.bc.ca/assets/gov/data/statistics/economy/building-permits/building_permits_monthly_from_2003.xlsx"
+bc_building_permit_total_data <- openxlsx::readWorkbook(
+  detectDates = T,
+  xlsxFile  = bc_building_permit_file,
+  sheet = "Total",
+  startRow = 2
+)
 
 
-
-
-
+bc_building_permit_total_data = bc_building_permit_total_data |> 
+  pivot_longer(
+    cols = -c(SGC.Code, X2),
+    names_to = "Month",
+    values_to = "Value"
+  ) |> 
+  mutate(Month = openxlsx::convertToDate(Month)) |> 
+  rename(CMA = X2)
