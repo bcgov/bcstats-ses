@@ -54,3 +54,7 @@ config.yml
 # renv
 renv/
 
+# data file
+*.duckdb
+*.parquet
+*.csv
