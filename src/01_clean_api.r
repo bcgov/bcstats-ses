@@ -1,4 +1,4 @@
-pacman::p_load(cancensus,geojsonsf, tidyverse,config)
+pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,cansim)
 # In order to speed up performance, reduce API quota usage, and reduce unnecessary network calls, please set up a persistent cache directory via `set_cancensus_cache_path('<local cache path>', install = TRUE)`.
 # This will add your cache directory as environment varianble to your .Renviron to be used across sessions and projects.
 
@@ -442,8 +442,8 @@ for (i in id_resources){
 }
 
 ########################################################################################################
-#  BC Housing start
-
+#  BC building permit
+# what is SGC.Code
 ########################################################################################################
 
 bc_building_permit_file = "https://www2.gov.bc.ca/assets/gov/data/statistics/economy/building-permits/building_permits_monthly_from_2003.xlsx"
@@ -463,3 +463,440 @@ bc_building_permit_total_data = bc_building_permit_total_data |>
   ) |> 
   mutate(Month = openxlsx::convertToDate(Month)) |> 
   rename(CMA = X2)
+
+########################################################################################################
+#  B.C. crime trends and statistics
+# https://www2.gov.bc.ca/gov/content/justice/criminal-justice/policing-in-bc/publications-statistics-legislation/crime-police-resource-statistics
+
+# Incident-based crime statistics, by detailed violations, police services in British Columbia 1, 2, 3, 4, 5
+# Frequency: Annual
+
+# Statistics Canada. Table 35-10-0184-01 Incident-based crime statistics, by detailed violations, police services in British Columbia, annual (number unless otherwise noted)
+
+
+# Release date: 2023-07-27
+
+# Geography: Province or territory, Policing district/zone
+
+# https://www2.gov.bc.ca/assets/gov/law-crime-and-justice/criminal-justice/police/publications/statistics/bc-crime-statistics-2022.xlsx
+########################################################################################################
+print("permit file out of date: this could take a while")
+cansim_id <- "35-10-0184-01"
+connection <- cansim::get_cansim_sqlite(cansim_id)
+connection %>% glimpse()
+
+bc_crime_rates<- connection %>%
+  filter(GEO=="British Columbia",
+         Statistics    =="Rate per 100,000 population",
+  )%>%
+  # filter(REF_DATE  > lubridate::today() - lubridate::years(11))%>%
+  cansim::collect_and_normalize()%>%
+  janitor::clean_names()%>%
+  mutate(
+    `Period Starting` = lubridate::ym(ref_date),
+    Source = paste("Statistics Canada. Table", cansim_id, "Crime Rate per 100,000 population")
+  ) %>%
+  filter(`Period Starting` > lubridate::today() - lubridate::years(11))# %>%
+  # select(`Period Starting`, Geo, Geouid, Violations, VECTOR, Value,Statistics, Source)
+
+
+
+bc_crime_rate_file = "https://www2.gov.bc.ca/assets/gov/law-crime-and-justice/criminal-justice/police/publications/statistics/bc-regional-district-crime-trends-2013-2022.xlsx"
+bc_crime_rate_data <- openxlsx::readWorkbook(
+  detectDates = T,
+  xlsxFile  = bc_crime_rate_file,
+  sheet = "Crime Rates",
+  startRow = 2
+)
+
+
+bc_crime_rate_data = bc_crime_rate_data |> 
+  pivot_longer(
+    cols = -c(SGC.Code, X2),
+    names_to = "Month",
+    values_to = "Value"
+  ) |> 
+  mutate(Month = openxlsx::convertToDate(Month)) |> 
+  rename(CMA = X2)
+
+
+
+
+
+
+
+
+
+
+########################################################################################################
+# Crime severity index and weighted clearance rates, police services in British Columbia 1, 2, 3, 4, 5
+# 
+# Frequency: Annual
+# 
+# Table: 35-10-0063-01 (formerly CANSIM 252-0089)
+# 
+# Release date: 2023-07-27
+# 
+# Geography: Province or territory, Policing district/zone
+
+# policing district. 
+########################################################################################################
+
+
+Crime_severity_index = cansim::get_cansim("35-10-0063-01")%>%
+  janitor::clean_names()
+
+
+
+
+# bcdc_search("crime", n = 5)
+# bcdc_get_record("92863e19-c061-4b0f-8794-f579081e0c3c")
+# bcdc_tidy_resources('92863e19-c061-4b0f-8794-f579081e0c3c')
+# # lmo_emp_ind_occ_raw <- bcdc_get_data(record = 'f9566991-eb97-49a9-a587-5f0725024985',
+# #                                      resource = 'aa195dc1-f3e8-413a-b38c-24af95a3276e'
+# # )
+
+
+
+
+
+########################################################################################################
+# Local Business Condition Index
+
+########################################################################################################
+
+# download from cansim and a bit of processing------------
+get_cansim_unfiltered <- function(cansim_id, add_label, multiply_value_by = 1, source_text, date_parse = lubridate::ym) {
+  temp <- cansim::get_cansim(cansim_id, factors = FALSE) %>% # change back if breaks
+    janitor::clean_names()
+  #  browser()
+  temp <- temp %>%
+    mutate(
+      geo = str_trim(geo),
+      Series = add_label,
+      `Period Starting` = date_parse(ref_date),
+      Value = value * multiply_value_by,
+      Source = paste("Statistics Canada. Table", cansim_id, source_text, sep = " ")
+    ) %>%
+    filter(`Period Starting` > today() - years(11))
+}
+
+
+# `B.C. Weekly Local Business Condition Index (Aug 2020=100)`
+
+RTLBCI <-get_cansim_unfiltered(
+  "33-10-0398-01",
+  add_label = "",
+  source_text = "Real-time Local Business Condition Index (RTLBCI)",
+  date_parse = lubridate::ymd
+) %>%
+  janitor::clean_names() %>%
+  filter(geo %in% c(
+    "Vancouver, British Columbia (0973)",
+    "Victoria, British Columbia (0984)"
+  )) %>%
+  mutate(ref_date = lubridate::ymd(ref_date)) %>%
+  select(
+    `Period Starting` = ref_date,
+    Series = geo,
+    Value = value,
+    Source = source
+  )
+
+########################################################################################################
+#  B.C. the most recent measure of population for BCs economic geographic_areas
+# 
+# Table: 17-10-0137-01 
+# Release date: 2023-07-27
+# Geography: 
+########################################################################################################
+
+
+
+
+bc_pop=cansim::get_cansim("17-10-0137-01")%>%
+  janitor::clean_names()%>%
+  filter(grepl('British Columbia', geo),
+         ref_date==max(ref_date),
+         sex=="Both sexes",
+         age_group=="All ages")%>%
+  select(geographic_area=geo, value)%>%
+  mutate(geographic_area=word(geographic_area, 1, sep = ","),
+         geographic_area = janitor::make_clean_names(geographic_area),
+         geographic_area = case_when(
+           geographic_area == "nechako" ~ "north_coast_&_nechako",
+           geographic_area == "north_coast" ~ "north_coast_&_nechako",
+           TRUE ~ geographic_area),
+         geographic_area = str_replace_all(geographic_area, "vancouver_island_and_coast", "vancouver_island_coast"),
+         geographic_area = str_replace_all(geographic_area, "lower_mainland_southwest", "mainland_south_west"),
+         geographic_area = str_replace_all(geographic_area, "northeast", "north_east"))
+
+
+bc_pop_region = cansim::get_cansim("17-10-0137-01")%>%
+  janitor::clean_names()%>%
+  filter(grepl('British Columbia', geo),
+         ref_date==max(ref_date),
+         sex=="Both sexes",
+         age_group=="All ages")%>%
+  select(geographic_area=geo, value)%>%
+  mutate(geographic_area=word(geographic_area, 1, sep = ","),
+         geographic_area = janitor::make_clean_names(geographic_area),
+         geographic_area = case_when(
+           geographic_area == "nechako" ~ "north_coast_&_nechako",
+           geographic_area == "north_coast" ~ "north_coast_&_nechako",
+           TRUE ~ geographic_area),
+         geographic_area = str_replace_all(geographic_area, "vancouver_island_and_coast", "vancouver_island_coast"),
+         geographic_area = str_replace_all(geographic_area, "lower_mainland_southwest", "mainland_south_west"),
+         geographic_area = str_replace_all(geographic_area, "northeast", "north_east"))%>%
+  group_by(geographic_area)%>%
+  summarize(value=sum(value))%>%
+  mutate(name="population")
+
+
+
+########################################################################################################
+#  B.C. the most recent measure of population for BCs by age group
+# 
+# Table: 17-10-0005-01 
+# Release date: 2023-07-27
+# Geography: 
+########################################################################################################
+
+bc_pop <- cansim::get_cansim("17-10-0005-01") %>%
+  janitor::clean_names() %>%
+  filter(
+    geo == "British Columbia",
+    !str_detect(age_group, "to"),
+    !str_detect(age_group, "and over"),
+    !str_detect(age_group, "Median"),
+    !str_detect(age_group, "Average"),
+    !str_detect(age_group, "All"),
+    # gender != "Both sexes"
+  ) %>%
+  mutate(
+    age_group = as.numeric(gsub(".*?([0-9]+).*", "\\1", age_group)),
+    ref_date = as.numeric(ref_date)
+  ) #%>%
+  # select(ref_date, value, age_group, gender)
+
+########################################################################################################
+#  B.C. population projections need to be manually downloaded :( from https://bcstats.shinyapps.io/popApp/
+# 
+# Geography: Regional District
+########################################################################################################
+
+
+
+########################################################################################################
+#  B.C.  Labour Market Outlook  PUBLISHED
+# Published By Labour Market Information, Reporting & Evaluation Office
+# Description
+# 
+# Each year a report forecasting BC's labour market needs over the coming decade is produced by the BC government. The report looks at employment supply and demand by occupation and industry for each of the province's regions.
+# 
+# When utilizing this data, please cite as follows: Labour Market Outlook, Labour Market Information Office, Ministry of Post-Secondary Education and Future Skills, Government of British Columbia.
+# https://catalogue.data.gov.bc.ca/dataset/labour-market-outlook
+########################################################################################################
+
+
+bcdc_search("Labour Market Outlook", n = 5)
+bcdc_get_record("f9566991-eb97-49a9-a587-5f0725024985")
+
+lmo_emp_ind_occ_raw <- bcdc_get_data(record = 'f9566991-eb97-49a9-a587-5f0725024985',
+                         resource = 'aa195dc1-f3e8-413a-b38c-24af95a3276e'
+                         )
+
+# geograph area: 
+
+
+########################################################################################################
+
+# BC Employment and Unemployment by CMA ----BC Employment and Unemployment by economic region and CMA ----
+
+########################################################################################################
+
+# bcdc_search("census", res_format = "geojson")
+
+
+### Economic Region ----
+## Employment, Unemployment Rate
+## 3 month moving average, unadjusted
+er_data_monthly <- get_cansim("14-10-0387") %>%  clean_names()
+er_data_annual <- get_cansim("14-10-0393") %>% clean_names()
+
+### Census Metropolitan Area ----
+## Employment, Unemployment Rate
+## 3 month moving average, unadjusted
+cma_data_monthly <- get_cansim("14-10-0378") %>% clean_names()
+cma_data_annual <- get_cansim("14-10-0385") %>% clean_names()
+
+### BC Employment and Unemployment by Region ----
+
+region_m <- er_data_monthly %>%
+  filter(str_detect(geo, "British Columbia")) %>%
+  filter(labour_force_characteristics %in% c("Employment", "Unemployment rate")) %>%
+  filter(statistics == "Estimate") %>%
+  mutate(table = "region",
+         data_type = "Unadjusted",
+         geo = str_remove_all(geo, ", British Columbia"),
+         geo_abb = "BC",
+         age_group = "15 years and over",
+         sex = "Both sexes",
+         north_american_industry_classification_system_naics = NA,
+         national_occupational_classification_noc = NA,
+         class_of_worker = NA) %>%
+  select(vector, table, labour_force_characteristics, data_type, geo_abb, geo, age_group, sex, 
+         north_american_industry_classification_system_naics,
+         national_occupational_classification_noc,
+         class_of_worker) %>% 
+  unique()  
+
+
+region_a <- er_data_annual %>% 
+  filter(str_detect(geo, "British Columbia")) %>%
+  filter(labour_force_characteristics %in% c("Employment", "Unemployment rate")) %>%
+  mutate(table = "region",
+         data_type = "Annual",
+         geo = str_remove_all(geo, ", British Columbia"),
+         geo_abb = "BC",
+         age_group = "15 years and over",
+         sex = "Both sexes",
+         north_american_industry_classification_system_naics = NA,
+         national_occupational_classification_noc = NA,
+         class_of_worker = NA) %>%
+  select(vector, table, labour_force_characteristics, data_type, geo_abb, geo, age_group, sex, 
+         north_american_industry_classification_system_naics,
+         national_occupational_classification_noc,
+         class_of_worker) %>% 
+  unique() 
+
+### BC Employment and Unemployment by CMA ----
+
+cma_m <- cma_data_monthly %>%
+  filter(str_detect(geo, "British Columbia")) %>%
+  filter(labour_force_characteristics %in% c("Employment", "Unemployment rate")) %>%
+  filter(sex == "Both sexes") %>%
+  filter(age_group == "15 years and over") %>%
+  mutate(table = "cma",
+         data_type = "Unadjusted",
+         geo = str_remove_all(geo, ", British Columbia"),
+         geo_abb = "BC",
+         north_american_industry_classification_system_naics = NA,
+         national_occupational_classification_noc = NA,
+         class_of_worker = NA) %>%
+  select(vector, table, labour_force_characteristics, data_type, geo_abb, geo, age_group, sex, 
+         north_american_industry_classification_system_naics,
+         national_occupational_classification_noc,
+         class_of_worker) %>% 
+  unique()  
+
+cma_a <- cma_data_annual %>% 
+  filter(str_detect(geo, "British Columbia")) %>%
+  filter(labour_force_characteristics %in% c("Employment", "Unemployment rate")) %>%
+  filter(sex == "Both sexes") %>%
+  filter(age_group == "15 years and over") %>%
+  mutate(table = "cma",
+         data_type =  "Annual",
+         geo = str_remove_all(geo, ", British Columbia"),
+         geo_abb = "BC",
+         north_american_industry_classification_system_naics = NA,
+         national_occupational_classification_noc = NA,
+         class_of_worker = NA) %>%
+  select(vector, table, labour_force_characteristics, data_type, geo_abb, geo, age_group, sex, 
+         north_american_industry_classification_system_naics,
+         national_occupational_classification_noc,
+         class_of_worker) %>% 
+  unique() 
+
+
+########################################################################################################
+
+# Source: Statistics Canada. Table 14-10-0011-01 Employment insurance beneficiaries (regular benefits) by province and territory, monthly, seasonally adjusted
+# Statistics Canada. Table 34-10-0158-01 Canada Mortgage and Housing Corporation, housing starts, all areas, Canada and provinces, seasonally ajusted at annual rates, monthly (x 1,000)
+# only BC level
+########################################################################################################
+# 
+# ei_df = cansim::get_cansim("14-10-0011-01") %>%
+#   janitor::clean_names() 
+
+
+
+
+
+
+
+########################################################################################################
+
+# a simple features dataframe for BCs economic regions (for mapping)
+########################################################################################################
+
+bc_reg_sf <-   bcmaps::census_economic() %>%
+    sf::st_transform("+proj=longlat +datum=WGS84") %>%
+    janitor::clean_names() %>%
+    select(region=economic_region_name, geometry) %>%
+    mutate(
+      region = stringr::word(region, 1, sep = "/"),
+      region = janitor::make_clean_names(region),
+      region = case_when(
+        region == "nechako" ~ "north_coast_&_nechako",
+        region == "north_coast" ~ "north_coast_&_nechako",
+        TRUE ~ region),
+      region = stringr::str_replace_all(region, "vancouver_island_and_coast", "vancouver_island_coast"),
+      region = stringr::str_replace_all(region, "lower_mainland_southwest", "mainland_south_west"),
+      region = stringr::str_replace_all(region, "northeast", "north_east")
+    )
+
+########################################################################################################
+
+# BC maps for BCs economic regions (for mapping)
+########################################################################################################
+
+library(tidyverse)
+library(bcdata)
+library(sf)
+library(bcmaps)
+library(rmapshaper)
+library(janitor)
+#library(viridis)
+
+#economic regions spatial data from the B.C. Data Catalogue using the bcdata package
+# https://catalogue.data.gov.bc.ca/dataset/1aebc451-a41c-496f-8b18-6f414cde93b7
+economic_regions <-
+  bcdc_get_data("1aebc451-a41c-496f-8b18-6f414cde93b7") %>%
+  clean_names() %>%
+  mutate(geo = case_when(economic_region_id == 5910 ~ "Vancouver Island and Coast",
+                         economic_region_id == 5920 ~ "Lower Mainland-Southwest",
+                         economic_region_id == 5930 ~ "Thompson-Okanagan",
+                         economic_region_id == 5940 ~ "Kootenay",
+                         economic_region_id == 5950 ~ "Cariboo",
+                         economic_region_id == 5960 ~ "North Coast and Nechako",
+                         economic_region_id == 5970 ~ "North Coast and Nechako",
+                         economic_region_id == 5980 ~ "Northeast")) %>%
+  group_by(geo) %>%
+  summarise() %>%
+  rmapshaper::ms_clip(bcmaps::bc_bound(class = "sf")) %>%
+  ms_simplify(keep = 0.075, sys = TRUE)
+
+## cmas 
+# census metropolitan areas spatial data from the B.C. Data Catalogue using the bcdata package 
+# https://catalogue.data.gov.bc.ca/dataset/a6fb34b7-0937-4718-8f1f-43dba2c0f407
+cmas <- 
+  bcdc_get_data("a6fb34b7-0937-4718-8f1f-43dba2c0f407") %>%
+  clean_names() %>%
+  filter(census_metro_area_name %in% c("Kelowna", "Abbotsford - Mission", "Vancouver", "Victoria")) %>%
+  mutate(geo = str_remove_all(census_metro_area_name, " ")) 
+
+bc <- bc_bound() %>%
+  select(-island) %>%
+  mutate(id = row_number()) %>%
+  ms_simplify(keep = 0.25, sys = TRUE)
+
+qs::qsave(economic_regions, here::here("app", "economic_regions.qs"))
+qs::qsave(cmas, here::here("app", "cmas.qs"))
+qs::qsave(bc, here::here("app", "bc.qs"))
+
+## health authorities
+# https://catalogue.data.gov.bc.ca/dataset/7bc6018f-bb4f-4e5d-845e-c529e3d1ac3b
+has <-
+  bcdc_get_data('7bc6018f-bb4f-4e5d-845e-c529e3d1ac3b', resource = 'dfd14c9b-45f8-4a7e-ad42-9a881778e417') %>%
+  clean_names() 
