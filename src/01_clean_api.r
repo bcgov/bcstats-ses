@@ -441,9 +441,26 @@ for (i in id_resources){
   )
 }
 
+
+########################################################################################################
+#  # what is SGC.Code
+# Purpose: The SGC is Statistics Canada’s official classification for geographic areas, enabling the production of integrated statistics by geographic area12.
+# Structure: It consists of a four-level hierarchy of geographic units identified by a seven-digit numerical coding system3.
+# Components: The classification includes geographical regions, provinces and territories, census divisions, and census subdivisions4.
+# Updates: The SGC is updated every five years, with the 2021 version being the eleventh edition, incorporating changes from the 2016 version.
+# https://www.statcan.gc.ca/en/subjects/standard/sgc/2021/index
+########################################################################################################
+
+SGC_structure_file = "https://www.statcan.gc.ca/en/statistical-programs/document/sgc-cgt-2021-structure-eng.csv"
+SGC_structure = readr::read_csv(SGC_structure_file)
+
+SGC_element_file = "https://www.statcan.gc.ca/en/statistical-programs/document/sgc-cgt-2021-structure-eng.csv"
+SGC_element = readr::read_csv(SGC_structure_file)
+
+
 ########################################################################################################
 #  BC building permit
-# what is SGC.Code
+# 
 ########################################################################################################
 
 bc_building_permit_file = "https://www2.gov.bc.ca/assets/gov/data/statistics/economy/building-permits/building_permits_monthly_from_2003.xlsx"
