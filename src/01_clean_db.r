@@ -212,3 +212,15 @@ CHARACTERISTIC_ID_NAME_SES = CHARACTERISTIC_ID_NAME %>%
 CHARACTERISTIC_ID_NAME_SES = CHARACTERISTIC_ID_NAME_SES %>% 
   mutate(CHARACTERISTIC_ID_CHAR = str_pad( CHARACTERISTIC_ID, 4, side = 'left', pad = "0" )) %>% 
   arrange(CHARACTERISTIC_ID_CHAR)
+
+
+house cma add_rownames(
+  
+
+  )
+
+
+
+household income postal code region. average. CSV. 
+
+
