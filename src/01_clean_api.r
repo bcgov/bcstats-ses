@@ -1,14 +1,103 @@
-pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,cansim)
+# library("remotes")
+# install_github("bcgov/safepaths")
+pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow, duckdb)
+
+######################################################################################
+# 
+# Translation Master File: a table with different levels of geography to link the data
+# 
+######################################################################################
+
+TMF_file = use_network_path("data/GCS_202406.csv")
+
+TMF = read_csv(TMF_file)
+
+TMF %>% glimpse()
+# TMF is a dataframe in a postal code level. 
+# ACTIVE field shows which postal code region is still available.
+
+# what we want is a DA level dataframe, but DA is not aligned with other regional variable very well, we may need to break the DA into two parts and join to regions. We could use population or postal code as weights. 
+# The da 2021 is in short form: for example, 0225 as string
+# DA id  in long form
+# 59 09 0103
+# PR-CD-DA code
+# Province 59: British Columbia
+# CD 09: Fraser Valley
+# DA 0103
+
+TMF = TMF %>% 
+  mutate(DA_NUM = as.numeric(str_c("59", CD_2021, DA_2021, sep = "")))
+
+TMF_names = TMF %>% names() %>% paste(collapse = ",")
+  count()
+  
+TMF_DA_list = TMF %>% 
+  filter(ACTIVE == "Y") %>% 
+  distinct(DA_NUM)
+# 6957
+
+TMF %>% 
+  filter(ACTIVE == "Y") %>% 
+  count(CMACA_2021)
+# 29 cma
+
+# Question: how to create a dataframe with DA_2021 as a unique id. 
+# group by DA_2021, 
+
+
+
+TMF %>% 
+  filter(ACTIVE == "Y") %>% 
+  count(DA_NUM)
+# 6957
+
+
+
+TMF %>% 
+  filter(ACTIVE == "Y") %>% 
+  count(MUN_NAME_2021)
+# 407
+
+TMF %>% 
+  filter(ACTIVE == "Y") %>% 
+  count(CMACA_2021)
+# 29
+
+TMF %>% 
+  count(ACTIVE)
+
+TMF_DA_LEVEL = TMF %>% 
+  filter(ACTIVE == "Y") %>% 
+  count(DA_NUM, CD_2021, CSD_2021, DA_2021, MUN_NAME_2021)  
+
+
+# 6967
+
+
+
+# It seems not every DA has one to one matching to CHSA regions such as CHSA. So to join to other tables with other regions, we will need TO separate the DA into different regions using population as weights.  
+
+
+
+TMF_DA_CHSA_LEVEL = TMF %>% 
+  filter(ACTIVE == "Y") %>% 
+  count(DA_NUM, CD_2021, CSD_2021, DA_2021, MUN_NAME_2021, CHSA)
+
+
+
 # In order to speed up performance, reduce API quota usage, and reduce unnecessary network calls, please set up a persistent cache directory via `set_cancensus_cache_path('<local cache path>', install = TRUE)`.
 # This will add your cache directory as environment varianble to your .Renviron to be used across sessions and projects.
 
+
+
 # set up CENSUSMAPPER API 
 # set_cancensus_api_key(config::get("CENSUSMAPPER_API_KEY"), install = TRUE)
-# set_cancensus_cache_path(file.path(config::get("lan_path"),'2024 SES Index\\data\\census_cache'), install = TRUE)
+# set_cancensus_cache_path(use_network_path("data/census_cache"), install = TRUE)
 # or
 # options(cancensus.api_key = "your_api_key")
 # options(cancensus.cache_path = "custom cache path")
-
+# options(cancensus.cache_path = use_network_path("data/census_cache"))
+# getOption("cancensus.cache_path")
 # Your cache path has been stored in your .Renviron and can be accessed by Sys.getenv("CM_CACHE_PATH")
 library(sf)
 
@@ -27,9 +116,9 @@ list_census_datasets()
 #                   geo_format = NA, labels = 'short')
 
 
-van_da <- get_census(dataset='CA21', regions=list(CMA="59933"),
-                     vectors=c("median_hh_income"="v_CA21_906"), level='DA', quiet = TRUE, 
-                     geo_format = NA, labels = 'short')
+# van_da <- get_census(dataset='CA21', regions=list(CMA="59933"),
+#                      vectors=c("median_hh_income"="v_CA21_906"), level='DA', quiet = TRUE, 
+#                      geo_format = NA, labels = 'short')
 
 # view all available Census variables for a given dataset.
 # Vector: short variable code
@@ -40,7 +129,7 @@ van_da <- get_census(dataset='CA21', regions=list(CMA="59933"),
 # Aggregation: indicates how the variable should be aggregated with others, whether it is additive or if it is an average of another variable
 # Description: a rough description of a variable based on its hierarchical structure. This is constructed by cancensus by recursively traversing the labels for every variable’s hierarchy, and facilitates searching for specific variables using key terms.
 vector_list_21 = list_census_vectors("CA21")
-
+# A tibble: 7,709 × 7
 # Variable list from census 2021
 # "1", # pop
 # "6", # pop_dens
@@ -401,68 +490,161 @@ bc_da <- get_census(dataset='CA21',
                     quiet = TRUE, 
                      geo_format = NA, labels = 'short')
 
-bc_da %>% readr::write_csv("G:\\Operations\\Data Science and Analytics\\2024 SES Index\\data\\bc_da.csv")
-
+bc_da %>% readr::write_csv(use_network_path("data/bc_da.csv"))
+bc_da <- readr::read_csv(use_network_path("data/bc_da.csv"))
 bc_da %>% glimpse()
+# 3590
+
+# The number of DA in Census2021 (3590) is much smaller than the number of DA in TMF (6967)
+
+# DA id is in long form
+# 59 09 0103
+# PR-CD-DA code
+# Province 59: British Columbia
+# CD 09: Fraser Valley
+# DA 0103
+
+
+# test if there are different DA
+
+bc_da %>% 
+  anti_join(TMF_DA_LEVEL, by = c("GeoUID" = "DA_NUM"))
+# 15 DAs are only available in Census 2021, but not in TMF.
+
+TMF_DA_LEVEL %>% 
+  anti_join(bc_da, by = c( "DA_NUM" = "GeoUID"))
+# 3,392 are only available in Census 2021, but not in TMF.
+# We will check if those 3392 DAs are small DA and have very little population, but we don't have information for those DAs. 
+
+# for example,59010124
+
+bc_da %>% 
+  filter(GeoUID == 59010124)
+
+
+
 ########################################################################################################
 #  Community Well-Being Index
 
 ########################################################################################################
 
-library("rgovcan")
-# start with a package id corresponding to an actual record and retrieve a ckan_package.
-# https://open.canada.ca/data/en/dataset/56578f58-a775-44ea-9cc5-9bf7c78410e6
-id <- "56578f58-a775-44ea-9cc5-9bf7c78410e6" # Package ID
-id_search <- govcan_get_record(record_id = id)
-id_search # outputs a `ckan_package`
+# library("rgovcan")
+# # start with a package id corresponding to an actual record and retrieve a ckan_package.
+# # https://open.canada.ca/data/en/dataset/56578f58-a775-44ea-9cc5-9bf7c78410e6
+# id <- "56578f58-a775-44ea-9cc5-9bf7c78410e6" # Package ID
+# id_search <- govcan_get_record(record_id = id)
+# id_search # outputs a `ckan_package`
+# 
+# # Once the packages have been retrieved from the portal, you can use govcan_get_resources on those results to display the ckan_resources contained in the packages (a “resource” is any dataset attached to a given record). This outputs a ckan_resource_stack when called on a unique package.
+# id_resources <- govcan_get_resources(id_search)
+# id_resources # outputs a `resource_stack`
+# # download the resources with govcan_dl_resources(). These can either be stored to a certain directory or load into session (* this option might fail due to current issues with ckanr::ckan_fetch).
+# 
+# path <- use_network_path("data/CWB") # "G:\\Operations\\Data Science and Analytics\\2024 SES Index\\data\\CWBI"
+# dir.create(path, recursive = TRUE)
+# 
+# govcan_dl_resources(id_resources, path = path, included = c("CSV"))
+# 
+# 
+# # Some files are not available, so use tryCatch to avoid the errors.
+# for (i in id_resources){
+#   print(i)
+#   str(i)
+#   tryCatch(
+#   {govcan_dl_resources(i, path = path, included = c("CSV"))},
+#   
+#   error = function(e){
+#     message("data is not available")
+#   }
+#   
+#   )
+# }
+# 
+# # read those csv files locally.
+# 
+# CWB_CSVs = list.files(path, recursive = T) %>% str_subset(pattern = "_eng.csv|CWB_2021") %>% str_subset(pattern = "_DICT_|Dictionary", negate = T) 
+# # arrow dataset or duckdb read_csv do not work since one file changes column numbers.
+# CWB_names =  c("CSD_Code",
+#                "CSD_Name",
+#                "Population",
+#                "Income",
+#                "Education",
+#                "Housing",
+#                "Labour_Force_Activity",
+#                "CWB",
+#                "Community_Type")
+# 
+# 
+# CWB_2011_names =  c("CSD_Code",
+#                "CSD_Name",
+#                "Population",
+#                "GNR",
+#                "Income",
+#                "Education",
+#                "Housing",
+#                "Labour_Force_Activity",
+#                "CWB",
+#                "Community_Type")
+# 
+# 
+# CWB_df = NULL
+# # csv_file = file.path(path, CWB_CSVs)[1]
+# # from 2011, the data has a new column GNR, 
+# for (csv_file in file.path(path, CWB_CSVs)){
+#   print(csv_file)
+# 
+#   
+#   # Extract the last part (everything after the last '/')
+#   last_part <- str_sub(csv_file, (str_locate_all(csv_file, "/")[[1]] %>% last() )[2] + 1)
+#   csv_year = str_extract(last_part, pattern = "\\d{4}")
+#   
+#   if (csv_year== "2011"){
+#     temp_df = read_csv(csv_file,
+#                        col_names = CWB_2011_names,
+#                        skip = 1)
+#   } else {
+#     temp_df = read_csv(csv_file,
+#                        col_names = CWB_names,
+#                        skip = 1)
+#   }
+#   
+#   CWB_df = bind_rows(CWB_df, temp_df)
+# }
+# 
+# CWB_df %>% glimpse()
 
-# Once the packages have been retrieved from the portal, you can use govcan_get_resources on those results to display the ckan_resources contained in the packages (a “resource” is any dataset attached to a given record). This outputs a ckan_resource_stack when called on a unique package.
-id_resources <- govcan_get_resources(id_search)
-id_resources # outputs a `resource_stack`
-# download the resources with govcan_dl_resources(). These can either be stored to a certain directory or load into session (* this option might fail due to current issues with ckanr::ckan_fetch).
-
-path <- "G:\\Operations\\Data Science and Analytics\\2024 SES Index\\data\\CWBI"
-dir.create(path, recursive = TRUE)
-
-govcan_dl_resources(id_resources, path = path, included = c("CSV"))
-
-
-# Some files are not available, so use tryCatch to avoid the errors.
-for (i in id_resources){
-  print(i)
-  str(i)
-  tryCatch(
-  {govcan_dl_resources(i, path = path, included = c("CSV"))},
-  
-  error = function(e){
-    message("data is not available")
-  }
-  
-  )
-}
 
 
 ########################################################################################################
 #  # what is SGC.Code
-# Purpose: The SGC is Statistics Canada’s official classification for geographic areas, enabling the production of integrated statistics by geographic area12.
+# Purpose: The SGC is Statistics Canada’s official classification for geographic areas, enabling the production of integrated statistics by geographic area.
 # Structure: It consists of a four-level hierarchy of geographic units identified by a seven-digit numerical coding system3.
 # Components: The classification includes geographical regions, provinces and territories, census divisions, and census subdivisions4.
 # Updates: The SGC is updated every five years, with the 2021 version being the eleventh edition, incorporating changes from the 2016 version.
 # https://www.statcan.gc.ca/en/subjects/standard/sgc/2021/index
+# Census subdivision, census division 
 ########################################################################################################
 
 SGC_structure_file = "https://www.statcan.gc.ca/en/statistical-programs/document/sgc-cgt-2021-structure-eng.csv"
 SGC_structure = readr::read_csv(SGC_structure_file)
-
-SGC_element_file = "https://www.statcan.gc.ca/en/statistical-programs/document/sgc-cgt-2021-structure-eng.csv"
+BC_SGC_structure = SGC_structure %>% 
+  filter(str_starts(as.character(Code), "59"))
+# 781 CD and CSD
+SGC_element_file = "https://www.statcan.gc.ca/en/statistical-programs/document/sgc-cgt-2021-element-eng.csv"
 SGC_element = readr::read_csv(SGC_structure_file)
-
+BC_SGC_element = SGC_element %>%
+  filter(str_starts(as.character(Code), "59"))
+# 781
 
 ########################################################################################################
 #  BC building permit
+#  https://www2.gov.bc.ca/gov/content/data/statistics/economy/building-permits-housing-starts-sales
+# for development regions, regional districts, and communities 
 # 
 ########################################################################################################
+# monthly 
 
+# building permit value: money term
 bc_building_permit_file = "https://www2.gov.bc.ca/assets/gov/data/statistics/economy/building-permits/building_permits_monthly_from_2003.xlsx"
 bc_building_permit_total_data <- openxlsx::readWorkbook(
   detectDates = T,
@@ -479,9 +661,74 @@ bc_building_permit_total_data = bc_building_permit_total_data |>
     values_to = "Value"
   ) |> 
   mutate(Month = openxlsx::convertToDate(Month)) |> 
-  rename(CMA = X2)
+  rename(Region_Name = X2)
+
+bc_building_permit_total_data = bc_building_permit_total_data %>% 
+  left_join(BC_SGC_element %>% mutate(SGC.Code = as.character(Code)), by = c("SGC.Code" ))
+# 57311 row number does not change
+
+# This is Regional District/ census subdivision level. 
+
+bc_building_permit_total_data %>% 
+  count(Region_Name)
+# 219# 219 -4  Four rows are comments, 
+bc_building_permit_total_data %>% 
+  count(SGC.Code)
+# 216 -4 vs 781 in SGC base table
+
+# building permit value: money term
+bc_total_building_permit = read_csv("https://www2.gov.bc.ca/assets/gov/data/statistics/economy/building-permits/total.csv", skip = 1)
+
+bc_total_building_permit = bc_total_building_permit %>% 
+  pivot_longer(
+    cols = -c(1,2),
+    names_to = "Month",
+    values_to = "Value"
+  ) |> 
+  rename(Region_Name = `...2`)
+# 57568
+
+
+bc_total_building_permit = bc_total_building_permit %>% 
+  left_join(BC_SGC_element %>% mutate(`SGC Code` = as.character(Code)), by = join_by(`SGC Code`))
+
+bc_residential_building_permit = read_csv("https://www2.gov.bc.ca/assets/gov/data/statistics/economy/building-permits/residential.csv", skip = 1)
+
+bc_residential_building_permit = bc_residential_building_permit %>% 
+  pivot_longer(
+    cols = -c(1,2),
+    names_to = "Month",
+    values_to = "Value"
+  ) |> 
+  rename(Region_Name = `...2`)
+
+
+bc_residential_building_permit = bc_residential_building_permit %>% 
+  left_join(BC_SGC_element %>% mutate(`SGC Code` = as.character(Code)), by = join_by(`SGC Code`))
+
+
+# build unit: actual number of builds
+bc_residential_unit_total = read_csv("https://www2.gov.bc.ca/assets/gov/data/statistics/economy/building-permits/resunitstotal.csv", skip = 1)
+
+bc_residential_unit_total = bc_residential_unit_total %>% 
+  pivot_longer(
+    cols = -c(1,2),
+    names_to = "Month",
+    values_to = "Value"
+  ) |> 
+  rename(Region_Name = `...2`)
+
+bc_residential_unit_total = bc_residential_unit_total %>% 
+  left_join(BC_SGC_element %>% mutate(`SGC Code` = as.character(Code)), by = join_by(`SGC Code`))
+
+
+
+bc_residential_unit_total %>% 
+  count(Region_Name)
+# 219
 
 ########################################################################################################
+
 #  B.C. crime trends and statistics
 # https://www2.gov.bc.ca/gov/content/justice/criminal-justice/policing-in-bc/publications-statistics-legislation/crime-police-resource-statistics
 
@@ -493,55 +740,58 @@ bc_building_permit_total_data = bc_building_permit_total_data |>
 
 # Release date: 2023-07-27
 
+
+
 # Geography: Province or territory, Policing district/zone
 
 # https://www2.gov.bc.ca/assets/gov/law-crime-and-justice/criminal-justice/police/publications/statistics/bc-crime-statistics-2022.xlsx
+
+# Policing district/zone is different from 
+
+# https://catalogue.data.gov.bc.ca/dataset/policing-jurisdictions-and-regions-in-bc
+
+
+# annual and policing district data. Luckily, BC stats team already aggregate the one data variable (total rate excluding traffic) to region level which is close to CD. 
+
 ########################################################################################################
-print("permit file out of date: this could take a while")
-cansim_id <- "35-10-0184-01"
-connection <- cansim::get_cansim_sqlite(cansim_id)
-connection %>% glimpse()
+# print("file out of date: this could take a while")
+# cansim_id <- "35-10-0184-01"
+# options(cansim.cache_path = use_network_path("data/cansim_cache"))
+# # getOption("cansim.cache_path")
+# connection <- cansim::get_cansim_sqlite(cansim_id)
+# 
+# connection %>% glimpse()
+# 
+# 
+# Violations_list = connection %>% 
+#   count(Violations) %>% 
+#   collect()
+# # 314 types of crime
+# crime_GEO_list = connection %>% 
+#   count(GEO ) %>% 
+#   collect()
+# # 237 regions: Policing district/zone. id like 59774
+# 
+# bc_crime_stats <- connection %>%
+#   filter(
+#     # GEO=="British Columbia",
+#     # str_starts( GeoUID, "59"),
+#     Violations ==  "Total, all Criminal Code violations (excluding traffic) [50]",
+#     Statistics  == "Rate per 100,000 population"
+#   ) %>%
+#   # filter(REF_DATE  > lubridate::today() - lubridate::years(11))%>%
+#   cansim::collect_and_normalize() %>%
+#   janitor::clean_names()
 
-bc_crime_rates<- connection %>%
-  filter(GEO=="British Columbia",
-         Statistics    =="Rate per 100,000 population",
-  )%>%
-  # filter(REF_DATE  > lubridate::today() - lubridate::years(11))%>%
-  cansim::collect_and_normalize()%>%
-  janitor::clean_names()%>%
-  mutate(
-    `Period Starting` = lubridate::ym(ref_date),
-    Source = paste("Statistics Canada. Table", cansim_id, "Crime Rate per 100,000 population")
-  ) %>%
-  filter(`Period Starting` > lubridate::today() - lubridate::years(11))# %>%
+# policy zone is like: Colwood, British Columbia, Royal Canadian Mounted Police, municipal [59819]
+
+# bc_crime_stats = bc_crime_stats %>%
+#   mutate(
+#     `Period Starting` = lubridate::ym(ref_date),
+#     Source = paste("Statistics Canada. Table", cansim_id, "Crime Rate per 100,000 population")
+#   ) %>%
+#   filter(`Period Starting` > lubridate::today() - lubridate::years(11))# %>%
   # select(`Period Starting`, Geo, Geouid, Violations, VECTOR, Value,Statistics, Source)
-
-
-
-bc_crime_rate_file = "https://www2.gov.bc.ca/assets/gov/law-crime-and-justice/criminal-justice/police/publications/statistics/bc-regional-district-crime-trends-2013-2022.xlsx"
-bc_crime_rate_data <- openxlsx::readWorkbook(
-  detectDates = T,
-  xlsxFile  = bc_crime_rate_file,
-  sheet = "Crime Rates",
-  startRow = 2
-)
-
-
-bc_crime_rate_data = bc_crime_rate_data |> 
-  pivot_longer(
-    cols = -c(SGC.Code, X2),
-    names_to = "Month",
-    values_to = "Value"
-  ) |> 
-  mutate(Month = openxlsx::convertToDate(Month)) |> 
-  rename(CMA = X2)
-
-
-
-
-
-
-
 
 
 
@@ -557,14 +807,35 @@ bc_crime_rate_data = bc_crime_rate_data |>
 # Geography: Province or territory, Policing district/zone
 
 # policing district. 
+
+# Statistics Canada. 2023. Table 35-10-0026-01 Crime severity index and weighted clearance rates, Canada, provinces, territories and Census Metropolitan Areas.
+
 ########################################################################################################
 
 
-Crime_severity_index = cansim::get_cansim("35-10-0063-01")%>%
-  janitor::clean_names()
+# Crime_severity_cma_index = cansim::get_cansim("35-10-0026-01")%>%
+#   janitor::clean_names()
+# 
+# Crime_severity_cma_index %>% 
+#   filter(str_detect(geo, "59"), !str_detect(geo, "Ontario")) %>% 
+#   count(geo, geo_uid)
+# # 56 regions in canada
+# # 7 cma in BC, id is like 59932 for CMA
 
-
-
+# Crime_severity_index = cansim::get_cansim("35-10-0063-01")%>%
+#   janitor::clean_names()
+# 
+# Crime_severity_index %>% 
+#   filter(str_detect(geo, "59"), !str_detect(geo, "Ontario")) %>% 
+#   count(geo, geo_uid)
+# # 237 regions. id is like 59774 for Policing district
+# 
+# Crime_severity_index %>% 
+#   filter(str_detect(geo_uid, "59")) %>% 
+#   glimpse()
+# 
+# Crime_severity_index %>%
+#   count(geo)
 
 # bcdc_search("crime", n = 5)
 # bcdc_get_record("92863e19-c061-4b0f-8794-f579081e0c3c")
@@ -575,11 +846,80 @@ Crime_severity_index = cansim::get_cansim("35-10-0063-01")%>%
 
 
 
+# BC Stats use a lookup table to aggregate the policy zone data to a regional data which is close to CD level data.The region name is a little bit different from CD name, so we need to clean the region name to match the CD name. 
+# BC regional district crime data. The source is from StatsCan Table 35-10-0184-01 and  Table 35-10-0026-01 
+# Crime Rate is the number of Criminal Code offences (excluding traffic) reported for every 1,000 persons.
+
+bc_crime_rate_file = "https://www2.gov.bc.ca/assets/gov/law-crime-and-justice/criminal-justice/police/publications/statistics/bc-regional-district-crime-trends-2013-2022.xlsx"
+
+
+police_jurisdiction_region_lookup =  openxlsx::readWorkbook(
+  detectDates = T,
+  xlsxFile  = bc_crime_rate_file,
+  sheet = "Regional Districts",
+  startRow = 2
+)
+
+bc_crime_rate_data <- openxlsx::readWorkbook(
+  detectDates = T,
+  xlsxFile  = bc_crime_rate_file,
+  sheet = "Crime Rates",
+  startRow = 2
+)
+
+
+bc_crime_rate_data = bc_crime_rate_data |> 
+  mutate(
+    across(
+      .cols = -c(REGION),
+      .fns = as.numeric
+    )
+  ) %>% 
+  pivot_longer(
+    cols = -c(REGION),
+    names_to = "Year",
+    values_to = "Value"
+  ) %>% 
+  drop_na(Value)
+  # mutate(Month = openxlsx::convertToDate(Month)) |> 
+  # rename(Region_Name = X2)
+
+REGION_LIST = bc_crime_rate_data %>% 
+  count(REGION)
+# 29-1 REGION, which is similar to CD_2-21
+
+# join back to the TMF
+# TMF 
+
+GCS_lookup = use_network_path("data/GCS_Lookup_Table.xlsx")
+
+CD_2021_lookup = openxlsx::readWorkbook(
+  detectDates = T,
+  xlsxFile  = GCS_lookup,
+  sheet = "CD_2021",
+  startRow = 1
+)
+
+CD_2021 = TMF %>% 
+  filter(ACTIVE == "Y")%>% 
+  count(CD_2021) %>% 
+  left_join(CD_2021_lookup %>% mutate(CD_2021 = as.character(CD_2021)), by = join_by("CD_2021")) %>% 
+  mutate(REGION = str_replace_all(CDNAME, pattern = "-", replacement = " "))
+  
+
+bc_crime_rate_data = bc_crime_rate_data %>% 
+  left_join(CD_2021) 
+
+
+
+
+
+
 
 
 ########################################################################################################
 # Local Business Condition Index
-
+# weekly, only five regions in BC have the data
 ########################################################################################################
 
 # download from cansim and a bit of processing------------
@@ -608,10 +948,11 @@ RTLBCI <-get_cansim_unfiltered(
   date_parse = lubridate::ymd
 ) %>%
   janitor::clean_names() %>%
-  filter(geo %in% c(
-    "Vancouver, British Columbia (0973)",
-    "Victoria, British Columbia (0984)"
-  )) %>%
+  # filter(geo %in% c(
+  #   "Vancouver, British Columbia (0973)",
+  #   "Victoria, British Columbia (0984)"
+  # )) %>%
+  filter(str_detect(geo, "British Columbia")) %>% 
   mutate(ref_date = lubridate::ymd(ref_date)) %>%
   select(
     `Period Starting` = ref_date,
@@ -620,6 +961,9 @@ RTLBCI <-get_cansim_unfiltered(
     Source = source
   )
 
+RTLBCI %>% 
+  count(Series)
+# 5 regions
 ########################################################################################################
 #  B.C. the most recent measure of population for BCs economic geographic_areas
 # 
@@ -630,23 +974,23 @@ RTLBCI <-get_cansim_unfiltered(
 
 
 
-
-bc_pop=cansim::get_cansim("17-10-0137-01")%>%
-  janitor::clean_names()%>%
-  filter(grepl('British Columbia', geo),
-         ref_date==max(ref_date),
-         sex=="Both sexes",
-         age_group=="All ages")%>%
-  select(geographic_area=geo, value)%>%
-  mutate(geographic_area=word(geographic_area, 1, sep = ","),
-         geographic_area = janitor::make_clean_names(geographic_area),
-         geographic_area = case_when(
-           geographic_area == "nechako" ~ "north_coast_&_nechako",
-           geographic_area == "north_coast" ~ "north_coast_&_nechako",
-           TRUE ~ geographic_area),
-         geographic_area = str_replace_all(geographic_area, "vancouver_island_and_coast", "vancouver_island_coast"),
-         geographic_area = str_replace_all(geographic_area, "lower_mainland_southwest", "mainland_south_west"),
-         geographic_area = str_replace_all(geographic_area, "northeast", "north_east"))
+# 
+# bc_pop=cansim::get_cansim("17-10-0137-01")%>%
+#   janitor::clean_names()%>%
+#   filter(grepl('British Columbia', geo),
+#          ref_date==max(ref_date),
+#          sex=="Both sexes",
+#          age_group=="All ages")%>%
+#   select(geographic_area=geo, value)%>%
+#   mutate(geographic_area=word(geographic_area, 1, sep = ","),
+#          geographic_area = janitor::make_clean_names(geographic_area),
+#          geographic_area = case_when(
+#            geographic_area == "nechako" ~ "north_coast_&_nechako",
+#            geographic_area == "north_coast" ~ "north_coast_&_nechako",
+#            TRUE ~ geographic_area),
+#          geographic_area = str_replace_all(geographic_area, "vancouver_island_and_coast", "vancouver_island_coast"),
+#          geographic_area = str_replace_all(geographic_area, "lower_mainland_southwest", "mainland_south_west"),
+#          geographic_area = str_replace_all(geographic_area, "northeast", "north_east"))
 
 
 bc_pop_region = cansim::get_cansim("17-10-0137-01")%>%
@@ -702,7 +1046,13 @@ bc_pop <- cansim::get_cansim("17-10-0005-01") %>%
 # Geography: Regional District
 ########################################################################################################
 
+bc_pop_estimate_region_file = use_network_path("data/BCStats/Population_Projections.csv")
 
+bc_pop_estimate_region_df = read_csv(bc_pop_estimate_region_file, skip = 6)
+
+bc_pop_estimate_region_df %>% 
+  count( Region, `Regional District`)
+# 29 regions
 
 ########################################################################################################
 #  B.C.  Labour Market Outlook  PUBLISHED
@@ -713,6 +1063,8 @@ bc_pop <- cansim::get_cansim("17-10-0005-01") %>%
 # 
 # When utilizing this data, please cite as follows: Labour Market Outlook, Labour Market Information Office, Ministry of Post-Secondary Education and Future Skills, Government of British Columbia.
 # https://catalogue.data.gov.bc.ca/dataset/labour-market-outlook
+
+
 ########################################################################################################
 
 
@@ -723,7 +1075,10 @@ lmo_emp_ind_occ_raw <- bcdc_get_data(record = 'f9566991-eb97-49a9-a587-5f0725024
                          resource = 'aa195dc1-f3e8-413a-b38c-24af95a3276e'
                          )
 
-# geograph area: 
+# 5 geograph area: Economic regions
+
+lmo_emp_ind_occ_raw %>% 
+  count(`Geographic Area`)
 
 
 ########################################################################################################
