@@ -24,47 +24,14 @@ TMF %>% glimpse()
 # Province 59: British Columbia
 # CD 09: Fraser Valley
 # DA 0103
+# ACTIVE == "Y" is critical, otherwise, DA will not match to its CSD since the DA is in short form. 
 
 TMF = TMF %>% 
   mutate(DA_NUM = as.numeric(str_c("59", CD_2021, DA_2021, sep = "")))
 
-TMF_names = TMF %>% names() %>% paste(collapse = ",")
-  count()
+# TMF_names = TMF %>% names() %>% paste(collapse = ",")
   
-TMF_DA_list = TMF %>% 
-  filter(ACTIVE == "Y") %>% 
-  distinct(DA_NUM)
-# 6957
 
-TMF %>% 
-  filter(ACTIVE == "Y") %>% 
-  count(CMACA_2021)
-# 29 cma
-
-# Question: how to create a dataframe with DA_2021 as a unique id. 
-# group by DA_2021, 
-
-
-
-TMF %>% 
-  filter(ACTIVE == "Y") %>% 
-  count(DA_NUM)
-# 6957
-
-
-
-TMF %>% 
-  filter(ACTIVE == "Y") %>% 
-  count(MUN_NAME_2021)
-# 407
-
-TMF %>% 
-  filter(ACTIVE == "Y") %>% 
-  count(CMACA_2021)
-# 29
-
-TMF %>% 
-  count(ACTIVE)
 
 TMF_DA_LEVEL = TMF %>% 
   filter(ACTIVE == "Y") %>% 
@@ -76,28 +43,28 @@ TMF_DA_LEVEL = TMF %>%
 
 
 # It seems not every DA has one to one matching to CHSA regions such as CHSA. So to join to other tables with other regions, we will need TO separate the DA into different regions using population as weights.  
-
+# 
 
 
 TMF_DA_CHSA_LEVEL = TMF %>% 
   filter(ACTIVE == "Y") %>% 
   count(DA_NUM, CD_2021, CSD_2021, DA_2021, MUN_NAME_2021, CHSA)
 
-
+# 7067
 
 # In order to speed up performance, reduce API quota usage, and reduce unnecessary network calls, please set up a persistent cache directory via `set_cancensus_cache_path('<local cache path>', install = TRUE)`.
-# This will add your cache directory as environment varianble to your .Renviron to be used across sessions and projects.
+# This will add your cache directory as environment variable to your .Renviron to be used across sessions and projects.
 
 
 
 # set up CENSUSMAPPER API 
 # set_cancensus_api_key(config::get("CENSUSMAPPER_API_KEY"), install = TRUE)
-# set_cancensus_cache_path(use_network_path("data/census_cache"), install = TRUE)
+set_cancensus_cache_path(use_network_path("data/census_cache"), install = TRUE)
 # or
 # options(cancensus.api_key = "your_api_key")
 # options(cancensus.cache_path = "custom cache path")
 # options(cancensus.cache_path = use_network_path("data/census_cache"))
-# getOption("cancensus.cache_path")
+getOption("cancensus.cache_path")
 # Your cache path has been stored in your .Renviron and can be accessed by Sys.getenv("CM_CACHE_PATH")
 library(sf)
 
@@ -488,14 +455,23 @@ bc_da <- get_census(dataset='CA21',
                      vectors=CA21_VECTORS, 
                     level='DA', 
                     quiet = TRUE, 
-                     geo_format = NA, labels = 'short')
+                     geo_format = NA,
+                    labels = 'short')
 
-bc_da %>% readr::write_csv(use_network_path("data/bc_da.csv"))
-bc_da <- readr::read_csv(use_network_path("data/bc_da.csv"))
+bc_da %>% readr::write_csv(use_network_path("data/bc_da_21.csv"))
+bc_da <- readr::read_csv(use_network_path("data/bc_da_21.csv"))
 bc_da %>% glimpse()
-# 3590
+# 7848
 
-# The number of DA in Census2021 (3590) is much smaller than the number of DA in TMF (6967)
+# bc_da %>% 
+#   count(GeoUID)
+# 7848, so no duplicated GeoUID
+
+# bc_da %>%
+#   count(CSD_UID)
+# 751 CSD
+
+# The number of DA in Census2021 (7848) is larger than the number of DA in TMF (6967)
 
 # DA id is in long form
 # 59 09 0103
@@ -504,23 +480,42 @@ bc_da %>% glimpse()
 # CD 09: Fraser Valley
 # DA 0103
 
-
+# `Region Name` actually is the DA number 59150004
+# which does not include CSD information, CSD looks like 5915055, 5915 is the CD, so DA and CSD should be using together. 
 # test if there are different DA
 
 bc_da %>% 
-  anti_join(TMF_DA_LEVEL, by = c("GeoUID" = "DA_NUM"))
-# 15 DAs are only available in Census 2021, but not in TMF.
+  anti_join(TMF_DA_LEVEL %>% mutate(GeoUID = as.character(DA_NUM)), by = c("GeoUID" ))
+# 881 DAs are only available in Census 2021, but not in TMF.
 
-TMF_DA_LEVEL %>% 
-  anti_join(bc_da, by = c( "DA_NUM" = "GeoUID"))
-# 3,392 are only available in Census 2021, but not in TMF.
-# We will check if those 3392 DAs are small DA and have very little population, but we don't have information for those DAs. 
+TMF_DA_LEVEL %>% mutate(GeoUID = as.character(DA_NUM)) %>% 
+  anti_join(bc_da, by = c(  "GeoUID"))
+
+# 6967 TMF DAs are all available in Census 2021, 
 
 # for example,59010124
 
-bc_da %>% 
-  filter(GeoUID == 59010124)
+# bc_da %>%
+#   filter(GeoUID == "59010124")
+# 
+# TMF_DA_LEVEL %>% mutate(GeoUID = as.character(DA_NUM)) %>% 
+#   filter(GeoUID == "59010124")
 
+TMF_DA_LEVEL %>% 
+  count(CD_2021)
+# 29 cd
+
+TMF_DA_LEVEL %>% 
+  count(CD_2021,CSD_2021)
+# 420 csd in TMF are active.
+
+TMF %>% 
+  count(CD_2021,CSD_2021)
+# 421 csd in TMF
+
+bc_da %>% 
+  count(CSD_UID)
+# 751 csd in census
 
 
 ########################################################################################################
@@ -629,12 +624,23 @@ SGC_structure_file = "https://www.statcan.gc.ca/en/statistical-programs/document
 SGC_structure = readr::read_csv(SGC_structure_file)
 BC_SGC_structure = SGC_structure %>% 
   filter(str_starts(as.character(Code), "59"))
-# 781 CD and CSD
+
+BC_SGC_structure %>% 
+  count(`Hierarchical structure`)
+# 29 CD and 751 CSDs in BC
+
+SGC_structure %>% 
+  count()
+
+
 SGC_element_file = "https://www.statcan.gc.ca/en/statistical-programs/document/sgc-cgt-2021-element-eng.csv"
 SGC_element = readr::read_csv(SGC_structure_file)
 BC_SGC_element = SGC_element %>%
   filter(str_starts(as.character(Code), "59"))
-# 781
+
+BC_SGC_element %>% 
+  count(`Hierarchical structure`)
+# 29 CD and 751 CSDs in BC. the same as census
 
 ########################################################################################################
 #  BC building permit
@@ -653,6 +659,13 @@ bc_building_permit_total_data <- openxlsx::readWorkbook(
   startRow = 2
 )
 
+bc_building_permit_total_data_comments = bc_building_permit_total_data |> 
+  filter(!str_starts(SGC.Code, "5|Development Region")) %>% 
+  select(SGC.Code) %>% 
+  distinct()
+
+SGC.Code.List = bc_building_permit_total_data %>% 
+  count(SGC.Code)
 
 bc_building_permit_total_data = bc_building_permit_total_data |> 
   pivot_longer(
@@ -661,25 +674,44 @@ bc_building_permit_total_data = bc_building_permit_total_data |>
     values_to = "Value"
   ) |> 
   mutate(Month = openxlsx::convertToDate(Month)) |> 
-  rename(Region_Name = X2)
+  rename(Region_Name = X2) %>% 
+  mutate(SGC.Code = str_remove_all(SGC.Code, "\\*"))
 
-bc_building_permit_total_data = bc_building_permit_total_data %>% 
+bc_dr_building_permit_total_data = bc_building_permit_total_data %>% 
+  filter(str_starts(SGC.Code, "Development Region"))
+
+
+
+bc_building_permit_total_data_sgc_code_name = bc_building_permit_total_data %>% 
+  filter(str_starts(SGC.Code, "5")) %>% 
   left_join(BC_SGC_element %>% mutate(SGC.Code = as.character(Code)), by = c("SGC.Code" ))
 # 57311 row number does not change
 
 # This is Regional District/ census subdivision level. 
 
-bc_building_permit_total_data %>% 
+bc_building_permit_total_data_sgc_code_name %>% 
   count(Region_Name)
-# 219# 219 -4  Four rows are comments, 
-bc_building_permit_total_data %>% 
+# 210, 
+bc_building_permit_total_data_sgc_code_name %>% 
   count(SGC.Code)
-# 216 -4 vs 781 in SGC base table
+# 210 vs 781 in SGC base table or census
 
 # building permit value: money term
 bc_total_building_permit = read_csv("https://www2.gov.bc.ca/assets/gov/data/statistics/economy/building-permits/total.csv", skip = 1)
 
+bc_total_building_permit_comments = bc_total_building_permit |> 
+  filter(!str_starts(`SGC Code` , "5|Development Region")) %>% 
+  select(`SGC Code` ) %>% 
+  distinct()
+
+SGC.Code.List = bc_total_building_permit %>% 
+  count(`SGC Code` )
+
+
+
+
 bc_total_building_permit = bc_total_building_permit %>% 
+  filter(str_starts(`SGC Code` , "5|Development Region")) %>% 
   pivot_longer(
     cols = -c(1,2),
     names_to = "Month",
@@ -688,13 +720,34 @@ bc_total_building_permit = bc_total_building_permit %>%
   rename(Region_Name = `...2`)
 # 57568
 
+bc_dr_total_building_permit = bc_total_building_permit %>% 
+  filter(str_starts(`SGC Code`, "Development Region"))
 
-bc_total_building_permit = bc_total_building_permit %>% 
+
+bc_total_building_permit_sgc_code_name = bc_total_building_permit %>% 
+  filter(str_starts(`SGC Code` , "5")) %>% 
   left_join(BC_SGC_element %>% mutate(`SGC Code` = as.character(Code)), by = join_by(`SGC Code`))
+
+
 
 bc_residential_building_permit = read_csv("https://www2.gov.bc.ca/assets/gov/data/statistics/economy/building-permits/residential.csv", skip = 1)
 
+
+bc_residential_building_permit_comments = bc_residential_building_permit |> 
+  filter(!str_starts(`SGC Code` , "5|Development Region")) %>% 
+  select(`SGC Code` ) %>% 
+  distinct()
+
+SGC.Code.List = bc_residential_building_permit %>% 
+  count(`SGC Code` )
+# 217
+
+bc_dr_residential_building_permit = bc_residential_building_permit %>% 
+filter(str_starts(`SGC Code` , "Development Region")) 
+  
 bc_residential_building_permit = bc_residential_building_permit %>% 
+
+  filter(str_starts(`SGC Code` , "5")) %>% 
   pivot_longer(
     cols = -c(1,2),
     names_to = "Month",
@@ -710,7 +763,14 @@ bc_residential_building_permit = bc_residential_building_permit %>%
 # build unit: actual number of builds
 bc_residential_unit_total = read_csv("https://www2.gov.bc.ca/assets/gov/data/statistics/economy/building-permits/resunitstotal.csv", skip = 1)
 
+
+bc_residential_unit_total_comments = bc_residential_unit_total |> 
+  filter(!str_starts(`SGC Code` , "5|Development Region")) %>% 
+  select(`SGC Code` ) %>% 
+  distinct()
+
 bc_residential_unit_total = bc_residential_unit_total %>% 
+  filter(str_starts(`SGC Code` , "5|Development Region")) %>% 
   pivot_longer(
     cols = -c(1,2),
     names_to = "Month",
@@ -718,7 +778,11 @@ bc_residential_unit_total = bc_residential_unit_total %>%
   ) |> 
   rename(Region_Name = `...2`)
 
+bc_dr_residential_unit_total = bc_residential_unit_total %>% 
+  filter(str_starts(`SGC Code` , "Development Region"))
+
 bc_residential_unit_total = bc_residential_unit_total %>% 
+  filter(str_starts(`SGC Code` , "5")) %>% 
   left_join(BC_SGC_element %>% mutate(`SGC Code` = as.character(Code)), by = join_by(`SGC Code`))
 
 
@@ -886,10 +950,12 @@ bc_crime_rate_data = bc_crime_rate_data |>
 
 REGION_LIST = bc_crime_rate_data %>% 
   count(REGION)
-# 29-1 REGION, which is similar to CD_2-21
+# 29-1 REGION, which is similar to CD_2021
 
 # join back to the TMF
 # TMF 
+# 
+
 
 GCS_lookup = use_network_path("data/GCS_Lookup_Table.xlsx")
 
@@ -903,66 +969,68 @@ CD_2021_lookup = openxlsx::readWorkbook(
 CD_2021 = TMF %>% 
   filter(ACTIVE == "Y")%>% 
   count(CD_2021) %>% 
-  left_join(CD_2021_lookup %>% mutate(CD_2021 = as.character(CD_2021)), by = join_by("CD_2021")) %>% 
+  left_join(CD_2021_lookup %>% mutate(CD_2021 = str_pad(CD_2021,width = 2,side = "left",pad = "0")), by = join_by("CD_2021")) %>%
   mutate(REGION = str_replace_all(CDNAME, pattern = "-", replacement = " "))
   
+
 
 bc_crime_rate_data = bc_crime_rate_data %>% 
   left_join(CD_2021) 
 
 
+# ???? "North Coast" and "qathet" are missing in TMF
 
-
-
-
+  
+CD_2021_lookup %>%
+    filter(str_detect(CDNAME, "North Coast|qathet"))
 
 
 ########################################################################################################
 # Local Business Condition Index
-# weekly, only five regions in BC have the data
+# weekly, only five regions in BC have the data, not good for our project
 ########################################################################################################
 
 # download from cansim and a bit of processing------------
-get_cansim_unfiltered <- function(cansim_id, add_label, multiply_value_by = 1, source_text, date_parse = lubridate::ym) {
-  temp <- cansim::get_cansim(cansim_id, factors = FALSE) %>% # change back if breaks
-    janitor::clean_names()
-  #  browser()
-  temp <- temp %>%
-    mutate(
-      geo = str_trim(geo),
-      Series = add_label,
-      `Period Starting` = date_parse(ref_date),
-      Value = value * multiply_value_by,
-      Source = paste("Statistics Canada. Table", cansim_id, source_text, sep = " ")
-    ) %>%
-    filter(`Period Starting` > today() - years(11))
-}
-
-
-# `B.C. Weekly Local Business Condition Index (Aug 2020=100)`
-
-RTLBCI <-get_cansim_unfiltered(
-  "33-10-0398-01",
-  add_label = "",
-  source_text = "Real-time Local Business Condition Index (RTLBCI)",
-  date_parse = lubridate::ymd
-) %>%
-  janitor::clean_names() %>%
-  # filter(geo %in% c(
-  #   "Vancouver, British Columbia (0973)",
-  #   "Victoria, British Columbia (0984)"
-  # )) %>%
-  filter(str_detect(geo, "British Columbia")) %>% 
-  mutate(ref_date = lubridate::ymd(ref_date)) %>%
-  select(
-    `Period Starting` = ref_date,
-    Series = geo,
-    Value = value,
-    Source = source
-  )
-
-RTLBCI %>% 
-  count(Series)
+# get_cansim_unfiltered <- function(cansim_id, add_label, multiply_value_by = 1, source_text, date_parse = lubridate::ym) {
+#   temp <- cansim::get_cansim(cansim_id, factors = FALSE) %>% # change back if breaks
+#     janitor::clean_names()
+#   #  browser()
+#   temp <- temp %>%
+#     mutate(
+#       geo = str_trim(geo),
+#       Series = add_label,
+#       `Period Starting` = date_parse(ref_date),
+#       Value = value * multiply_value_by,
+#       Source = paste("Statistics Canada. Table", cansim_id, source_text, sep = " ")
+#     ) %>%
+#     filter(`Period Starting` > today() - years(11))
+# }
+# 
+# 
+# # `B.C. Weekly Local Business Condition Index (Aug 2020=100)`
+# 
+# RTLBCI <-get_cansim_unfiltered(
+#   "33-10-0398-01",
+#   add_label = "",
+#   source_text = "Real-time Local Business Condition Index (RTLBCI)",
+#   date_parse = lubridate::ymd
+# ) %>%
+#   janitor::clean_names() %>%
+#   # filter(geo %in% c(
+#   #   "Vancouver, British Columbia (0973)",
+#   #   "Victoria, British Columbia (0984)"
+#   # )) %>%
+#   filter(str_detect(geo, "British Columbia")) %>% 
+#   mutate(ref_date = lubridate::ymd(ref_date)) %>%
+#   select(
+#     `Period Starting` = ref_date,
+#     Series = geo,
+#     Value = value,
+#     Source = source
+#   )
+# 
+# RTLBCI %>% 
+#   count(Series)
 # 5 regions
 ########################################################################################################
 #  B.C. the most recent measure of population for BCs economic geographic_areas
@@ -970,6 +1038,7 @@ RTLBCI %>%
 # Table: 17-10-0137-01 
 # Release date: 2023-07-27
 # Geography: 
+# only for five regions, so not usefule
 ########################################################################################################
 
 
@@ -993,25 +1062,25 @@ RTLBCI %>%
 #          geographic_area = str_replace_all(geographic_area, "northeast", "north_east"))
 
 
-bc_pop_region = cansim::get_cansim("17-10-0137-01")%>%
-  janitor::clean_names()%>%
-  filter(grepl('British Columbia', geo),
-         ref_date==max(ref_date),
-         sex=="Both sexes",
-         age_group=="All ages")%>%
-  select(geographic_area=geo, value)%>%
-  mutate(geographic_area=word(geographic_area, 1, sep = ","),
-         geographic_area = janitor::make_clean_names(geographic_area),
-         geographic_area = case_when(
-           geographic_area == "nechako" ~ "north_coast_&_nechako",
-           geographic_area == "north_coast" ~ "north_coast_&_nechako",
-           TRUE ~ geographic_area),
-         geographic_area = str_replace_all(geographic_area, "vancouver_island_and_coast", "vancouver_island_coast"),
-         geographic_area = str_replace_all(geographic_area, "lower_mainland_southwest", "mainland_south_west"),
-         geographic_area = str_replace_all(geographic_area, "northeast", "north_east"))%>%
-  group_by(geographic_area)%>%
-  summarize(value=sum(value))%>%
-  mutate(name="population")
+# bc_pop_region = cansim::get_cansim("17-10-0137-01")%>%
+#   janitor::clean_names()%>%
+#   filter(grepl('British Columbia', geo),
+#          ref_date==max(ref_date),
+#          sex=="Both sexes",
+#          age_group=="All ages")%>%
+#   select(geographic_area=geo, value)%>%
+#   mutate(geographic_area=word(geographic_area, 1, sep = ","),
+#          geographic_area = janitor::make_clean_names(geographic_area),
+#          geographic_area = case_when(
+#            geographic_area == "nechako" ~ "north_coast_&_nechako",
+#            geographic_area == "north_coast" ~ "north_coast_&_nechako",
+#            TRUE ~ geographic_area),
+#          geographic_area = str_replace_all(geographic_area, "vancouver_island_and_coast", "vancouver_island_coast"),
+#          geographic_area = str_replace_all(geographic_area, "lower_mainland_southwest", "mainland_south_west"),
+#          geographic_area = str_replace_all(geographic_area, "northeast", "north_east"))%>%
+#   group_by(geographic_area)%>%
+#   summarize(value=sum(value))%>%
+#   mutate(name="population")
 
 
 
@@ -1020,24 +1089,24 @@ bc_pop_region = cansim::get_cansim("17-10-0137-01")%>%
 # 
 # Table: 17-10-0005-01 
 # Release date: 2023-07-27
-# Geography: 
+# Geography: only for BC total, useful for age group for example how many people are 50 years old
 ########################################################################################################
 
-bc_pop <- cansim::get_cansim("17-10-0005-01") %>%
-  janitor::clean_names() %>%
-  filter(
-    geo == "British Columbia",
-    !str_detect(age_group, "to"),
-    !str_detect(age_group, "and over"),
-    !str_detect(age_group, "Median"),
-    !str_detect(age_group, "Average"),
-    !str_detect(age_group, "All"),
-    # gender != "Both sexes"
-  ) %>%
-  mutate(
-    age_group = as.numeric(gsub(".*?([0-9]+).*", "\\1", age_group)),
-    ref_date = as.numeric(ref_date)
-  ) #%>%
+# bc_pop <- cansim::get_cansim("17-10-0005-01") %>%
+#   janitor::clean_names() %>%
+#   filter(
+#     geo == "British Columbia",
+#     !str_detect(age_group, "to"),
+#     !str_detect(age_group, "and over"),
+#     !str_detect(age_group, "Median"),
+#     !str_detect(age_group, "Average"),
+#     !str_detect(age_group, "All"),
+#     # gender != "Both sexes"
+#   ) %>%
+#   mutate(
+#     age_group = as.numeric(gsub(".*?([0-9]+).*", "\\1", age_group)),
+#     ref_date = as.numeric(ref_date)
+#   ) #%>%
   # select(ref_date, value, age_group, gender)
 
 ########################################################################################################
@@ -1052,7 +1121,20 @@ bc_pop_estimate_region_df = read_csv(bc_pop_estimate_region_file, skip = 6)
 
 bc_pop_estimate_region_df %>% 
   count( Region, `Regional District`)
-# 29 regions
+# 29 regions similar to CD
+
+CD_2021
+
+# why the names do not match CD?
+
+# bc_pop_estimate_region_df = 
+bc_pop_estimate_region_df = bc_pop_estimate_region_df %>% 
+   mutate(REGION = str_replace_all(`Regional District`, "-", " ")) %>% 
+   mutate(REGION = str_replace_all(REGION, "\\(Census Division\\)", "")) %>% 
+   mutate(REGION = str_squish(REGION)) %>% 
+  left_join(CD_2021, by = join_by( "REGION"))
+ 
+#???? "Metro Vancouver" "North Coast" and "qathet" are not in TMF, CD_2021
 
 ########################################################################################################
 #  B.C.  Labour Market Outlook  PUBLISHED
