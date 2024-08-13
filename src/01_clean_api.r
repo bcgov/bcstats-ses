@@ -1299,26 +1299,33 @@ bc_cd_crime_stats_year = bc_cd_crime_stats_year %>%
 # Should be available CSD, instead of CD check out the app
 ########################################################################################################
 
-bc_pop_estimate_region_file = use_network_path("data/BCStats/Population_Projections.csv")
+bc_pop_estimate_muni_file = use_network_path("data/BCStats/Population_Projections.csv")
 
-bc_pop_estimate_region_df = read_csv(bc_pop_estimate_region_file, skip = 6)
+bc_pop_estimate_muni_df = read_csv(bc_pop_estimate_muni_file, skip = 6)
 
-bc_pop_estimate_region_df %>% 
-  count( Region, `Regional District`)
+bc_pop_estimate_muni_df %>% 
+  count( Region, `Municipality`)
 # 29 regions similar to CD
+# 192 Municipality similar to CSDs
 
-CD_2021
+bc_pop_estimate_muni_year_df = TMF %>% 
+  filter(ACTIVE == "Y") %>%
+  count( CD_2021, CSD_2021,  MUN_NAME_2021) %>% 
+  mutate(CSD_char = str_c(CD_2021, CSD_2021)) %>% 
+  left_join(bc_pop_estimate_muni_df %>% 
+              mutate(CSD_char = str_pad(Region, width = 5, side= "left", pad = "0")), 
+            by = join_by("CSD_char")) %>% 
+  pivot_wider(names_from = Gender,
+              values_from = Total)
 
-# why the names do not match CD?
-
-# bc_pop_estimate_region_df = 
-bc_pop_estimate_region_df = bc_pop_estimate_region_df %>% 
-   mutate(REGION = str_replace_all(`Regional District`, "-", " ")) %>% 
-   mutate(REGION = str_replace_all(REGION, "\\(Census Division\\)", "")) %>% 
-   mutate(REGION = str_squish(REGION)) %>% 
-  left_join(CD_2021, by = join_by( "REGION"))
  
-#???? "Metro Vancouver" "North Coast" and "qathet" are not in TMF, CD_2021
+# Central Kootenay a, Cowichan Valley a, Cowichan, Nanaimo a, Alberni-Clayoquot a, Strathcona, Sunshine Coast A   are treated differently in pop estimate. Such as " Unincorporated Areas - Alberni-Clayoquot "
+# should split the value weighted by number of the postal code regions? Those are small CSDs which have less than 100 postal code regions
+bc_pop_estimate_muni_df %>% 
+  filter(str_detect(Municipality, "Sunshine Coast"))
+# should we create a list for those small regions/CSDs??????
+
+  
 
 ########################################################################################################
 #  B.C.  Labour Market Outlook  PUBLISHED
@@ -1334,19 +1341,19 @@ bc_pop_estimate_region_df = bc_pop_estimate_region_df %>%
 ########################################################################################################
 
 
-bcdc_search("Labour Market Outlook", n = 5)
-bcdc_get_record("f9566991-eb97-49a9-a587-5f0725024985")
-
-bcdc_tidy_resources('f9566991-eb97-49a9-a587-5f0725024985')
-
-lmo_emp_ind_occ_raw <- bcdc_get_data(record = 'f9566991-eb97-49a9-a587-5f0725024985',
-                         resource = 'aa195dc1-f3e8-413a-b38c-24af95a3276e'
-                         )
-
-# 7 geograph area: Economic regions
-
-lmo_emp_ind_occ_raw %>% 
-  count(`Geographic Area`)
+# bcdc_search("Labour Market Outlook", n = 5)
+# bcdc_get_record("f9566991-eb97-49a9-a587-5f0725024985")
+# 
+# bcdc_tidy_resources('f9566991-eb97-49a9-a587-5f0725024985')
+# 
+# lmo_emp_ind_occ_raw <- bcdc_get_data(record = 'f9566991-eb97-49a9-a587-5f0725024985',
+#                          resource = 'aa195dc1-f3e8-413a-b38c-24af95a3276e'
+#                          )
+# 
+# # 7 geograph area: Economic regions
+# 
+# lmo_emp_ind_occ_raw %>% 
+#   count(`Geographic Area`)
 
 ########################################################################################################
 #  B.C.  bc-employment-and-assistance-program
@@ -1356,23 +1363,23 @@ lmo_emp_ind_occ_raw %>%
 
 ########################################################################################################
 
-bcdc_search("bc-employment-and-assistance-program", n = 5)
-bcdc_get_record("c17be172-c264-48d8-82f2-0ce68d0901cb")
-bcea_program_resource = bcdc_tidy_resources('c17be172-c264-48d8-82f2-0ce68d0901cb')
-
-bcea_program_resource %>% 
-  pull(id)
-bcea_program <- bcdc_get_data(record = 'c17be172-c264-48d8-82f2-0ce68d0901cb',
-                                                    resource = '6ce86859-3017-49e5-95e9-ffa7455d2e04'
-)
-
-bcdc_search("current-census-economic-regions", n = 5)
-bcdc_get_record("1aebc451-a41c-496f-8b18-6f414cde93b7")
-# 1. WMS getCapabilities request (wms)
-# Access the full 'Resources' data frame using:
-  bcdc_tidy_resources('1aebc451-a41c-496f-8b18-6f414cde93b7')
-# Query and filter this data using:
-  bcdc_query_geodata('1aebc451-a41c-496f-8b18-6f414cde93b7')
+# bcdc_search("bc-employment-and-assistance-program", n = 5)
+# bcdc_get_record("c17be172-c264-48d8-82f2-0ce68d0901cb")
+# bcea_program_resource = bcdc_tidy_resources('c17be172-c264-48d8-82f2-0ce68d0901cb')
+# 
+# bcea_program_resource %>% 
+#   pull(id)
+# bcea_program <- bcdc_get_data(record = 'c17be172-c264-48d8-82f2-0ce68d0901cb',
+#                                                     resource = '6ce86859-3017-49e5-95e9-ffa7455d2e04'
+# )
+# 
+# bcdc_search("current-census-economic-regions", n = 5)
+# bcdc_get_record("1aebc451-a41c-496f-8b18-6f414cde93b7")
+# # 1. WMS getCapabilities request (wms)
+# # Access the full 'Resources' data frame using:
+#   bcdc_tidy_resources('1aebc451-a41c-496f-8b18-6f414cde93b7')
+# # Query and filter this data using:
+#   bcdc_query_geodata('1aebc451-a41c-496f-8b18-6f414cde93b7')
   
   
 
@@ -1427,92 +1434,92 @@ bc_cd_sf %>% plot()
 ### Economic Region ----
 ## Employment, Unemployment Rate
 ## 3 month moving average, unadjusted
-er_data_monthly <- get_cansim("14-10-0387") %>%  clean_names()
-er_data_annual <- get_cansim("14-10-0393") %>% clean_names()
-
-### Census Metropolitan Area ----
-## Employment, Unemployment Rate
-## 3 month moving average, unadjusted
-cma_data_monthly <- get_cansim("14-10-0378") %>% clean_names()
-cma_data_annual <- get_cansim("14-10-0385") %>% clean_names()
-
-### BC Employment and Unemployment by Region ----
-
-region_m <- er_data_monthly %>%
-  filter(str_detect(geo, "British Columbia")) %>%
-  filter(labour_force_characteristics %in% c("Employment", "Unemployment rate")) %>%
-  filter(statistics == "Estimate") %>%
-  mutate(table = "region",
-         data_type = "Unadjusted",
-         geo = str_remove_all(geo, ", British Columbia"),
-         geo_abb = "BC",
-         age_group = "15 years and over",
-         sex = "Both sexes",
-         north_american_industry_classification_system_naics = NA,
-         national_occupational_classification_noc = NA,
-         class_of_worker = NA) %>%
-  select(vector, table, labour_force_characteristics, data_type, geo_abb, geo, age_group, sex, 
-         north_american_industry_classification_system_naics,
-         national_occupational_classification_noc,
-         class_of_worker) %>% 
-  unique()  
-
-
-region_a <- er_data_annual %>% 
-  filter(str_detect(geo, "British Columbia")) %>%
-  filter(labour_force_characteristics %in% c("Employment", "Unemployment rate")) %>%
-  mutate(table = "region",
-         data_type = "Annual",
-         geo = str_remove_all(geo, ", British Columbia"),
-         geo_abb = "BC",
-         age_group = "15 years and over",
-         sex = "Both sexes",
-         north_american_industry_classification_system_naics = NA,
-         national_occupational_classification_noc = NA,
-         class_of_worker = NA) %>%
-  select(vector, table, labour_force_characteristics, data_type, geo_abb, geo, age_group, sex, 
-         north_american_industry_classification_system_naics,
-         national_occupational_classification_noc,
-         class_of_worker) %>% 
-  unique() 
-
-### BC Employment and Unemployment by CMA ----
-
-cma_m <- cma_data_monthly %>%
-  filter(str_detect(geo, "British Columbia")) %>%
-  filter(labour_force_characteristics %in% c("Employment", "Unemployment rate")) %>%
-  filter(sex == "Both sexes") %>%
-  filter(age_group == "15 years and over") %>%
-  mutate(table = "cma",
-         data_type = "Unadjusted",
-         geo = str_remove_all(geo, ", British Columbia"),
-         geo_abb = "BC",
-         north_american_industry_classification_system_naics = NA,
-         national_occupational_classification_noc = NA,
-         class_of_worker = NA) %>%
-  select(vector, table, labour_force_characteristics, data_type, geo_abb, geo, age_group, sex, 
-         north_american_industry_classification_system_naics,
-         national_occupational_classification_noc,
-         class_of_worker) %>% 
-  unique()  
-
-cma_a <- cma_data_annual %>% 
-  filter(str_detect(geo, "British Columbia")) %>%
-  filter(labour_force_characteristics %in% c("Employment", "Unemployment rate")) %>%
-  filter(sex == "Both sexes") %>%
-  filter(age_group == "15 years and over") %>%
-  mutate(table = "cma",
-         data_type =  "Annual",
-         geo = str_remove_all(geo, ", British Columbia"),
-         geo_abb = "BC",
-         north_american_industry_classification_system_naics = NA,
-         national_occupational_classification_noc = NA,
-         class_of_worker = NA) %>%
-  select(vector, table, labour_force_characteristics, data_type, geo_abb, geo, age_group, sex, 
-         north_american_industry_classification_system_naics,
-         national_occupational_classification_noc,
-         class_of_worker) %>% 
-  unique() 
+# er_data_monthly <- get_cansim("14-10-0387") %>%  clean_names()
+# er_data_annual <- get_cansim("14-10-0393") %>% clean_names()
+# 
+# ### Census Metropolitan Area ----
+# ## Employment, Unemployment Rate
+# ## 3 month moving average, unadjusted
+# cma_data_monthly <- get_cansim("14-10-0378") %>% clean_names()
+# cma_data_annual <- get_cansim("14-10-0385") %>% clean_names()
+# 
+# ### BC Employment and Unemployment by Region ----
+# 
+# region_m <- er_data_monthly %>%
+#   filter(str_detect(geo, "British Columbia")) %>%
+#   filter(labour_force_characteristics %in% c("Employment", "Unemployment rate")) %>%
+#   filter(statistics == "Estimate") %>%
+#   mutate(table = "region",
+#          data_type = "Unadjusted",
+#          geo = str_remove_all(geo, ", British Columbia"),
+#          geo_abb = "BC",
+#          age_group = "15 years and over",
+#          sex = "Both sexes",
+#          north_american_industry_classification_system_naics = NA,
+#          national_occupational_classification_noc = NA,
+#          class_of_worker = NA) %>%
+#   select(vector, table, labour_force_characteristics, data_type, geo_abb, geo, age_group, sex, 
+#          north_american_industry_classification_system_naics,
+#          national_occupational_classification_noc,
+#          class_of_worker) %>% 
+#   unique()  
+# 
+# 
+# region_a <- er_data_annual %>% 
+#   filter(str_detect(geo, "British Columbia")) %>%
+#   filter(labour_force_characteristics %in% c("Employment", "Unemployment rate")) %>%
+#   mutate(table = "region",
+#          data_type = "Annual",
+#          geo = str_remove_all(geo, ", British Columbia"),
+#          geo_abb = "BC",
+#          age_group = "15 years and over",
+#          sex = "Both sexes",
+#          north_american_industry_classification_system_naics = NA,
+#          national_occupational_classification_noc = NA,
+#          class_of_worker = NA) %>%
+#   select(vector, table, labour_force_characteristics, data_type, geo_abb, geo, age_group, sex, 
+#          north_american_industry_classification_system_naics,
+#          national_occupational_classification_noc,
+#          class_of_worker) %>% 
+#   unique() 
+# 
+# ### BC Employment and Unemployment by CMA ----
+# 
+# cma_m <- cma_data_monthly %>%
+#   filter(str_detect(geo, "British Columbia")) %>%
+#   filter(labour_force_characteristics %in% c("Employment", "Unemployment rate")) %>%
+#   filter(sex == "Both sexes") %>%
+#   filter(age_group == "15 years and over") %>%
+#   mutate(table = "cma",
+#          data_type = "Unadjusted",
+#          geo = str_remove_all(geo, ", British Columbia"),
+#          geo_abb = "BC",
+#          north_american_industry_classification_system_naics = NA,
+#          national_occupational_classification_noc = NA,
+#          class_of_worker = NA) %>%
+#   select(vector, table, labour_force_characteristics, data_type, geo_abb, geo, age_group, sex, 
+#          north_american_industry_classification_system_naics,
+#          national_occupational_classification_noc,
+#          class_of_worker) %>% 
+#   unique()  
+# 
+# cma_a <- cma_data_annual %>% 
+#   filter(str_detect(geo, "British Columbia")) %>%
+#   filter(labour_force_characteristics %in% c("Employment", "Unemployment rate")) %>%
+#   filter(sex == "Both sexes") %>%
+#   filter(age_group == "15 years and over") %>%
+#   mutate(table = "cma",
+#          data_type =  "Annual",
+#          geo = str_remove_all(geo, ", British Columbia"),
+#          geo_abb = "BC",
+#          north_american_industry_classification_system_naics = NA,
+#          national_occupational_classification_noc = NA,
+#          class_of_worker = NA) %>%
+#   select(vector, table, labour_force_characteristics, data_type, geo_abb, geo, age_group, sex, 
+#          north_american_industry_classification_system_naics,
+#          national_occupational_classification_noc,
+#          class_of_worker) %>% 
+#   unique() 
 
 
 ########################################################################################################
