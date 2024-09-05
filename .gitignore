@@ -58,3 +58,4 @@ renv/
 *.duckdb
 *.parquet
 *.csv
+*.db
