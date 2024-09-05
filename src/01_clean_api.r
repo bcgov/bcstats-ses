@@ -794,6 +794,7 @@ bc_cd_crime_stats_year = bc_cd_crime_stats_year %>%
 # Geography: Regional District
 
 # Should be available CSD, instead of CD check out the app
+# we use data in decimal database, but there are many problems in the data in decimal database
 ########################################################################################################
 
 bc_pop_estimate_muni_file = use_network_path("data/BCStats/Population_Projections.csv")
@@ -815,13 +816,19 @@ bc_pop_estimate_muni_year_df = TMF %>%
   pivot_wider(names_from = Gender,
               values_from = Total)
 
+bc_pop_estimate_muni_year_df %>% 
+  count(CSD_char)
+# 420 csd
+bc_pop_estimate_muni_year_df %>% 
+  filter(CSD_2021 == "017")
+
  
 # Central Kootenay a, Cowichan Valley a, Cowichan, Nanaimo a, Alberni-Clayoquot a, Strathcona, Sunshine Coast A   are treated differently in pop estimate. Such as " Unincorporated Areas - Alberni-Clayoquot "
 # should split the value weighted by number of the postal code regions? Those are small CSDs which have less than 100 postal code regions
 bc_pop_estimate_muni_df %>% 
   filter(str_detect(Municipality, "Sunshine Coast"))
 # should we create a list for those small regions/CSDs??????
-
+# we use data in decimal database
   
 
 ######################################################################  
@@ -944,3 +951,6 @@ qs::qsave(bc, here::here("app", "bc.qs"))
 has <-
   bcdc_get_data('7bc6018f-bb4f-4e5d-845e-c529e3d1ac3b', resource = 'dfd14c9b-45f8-4a7e-ad42-9a881778e417') %>%
   clean_names() 
+
+
+
