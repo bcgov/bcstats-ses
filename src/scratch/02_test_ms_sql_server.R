@@ -155,7 +155,7 @@ tictoc::toc()
 
 
 # Query the table
-result <- dbGetQuery(bcstats_con, "SELECT * FROM my_table")
+result <- dbGetQuery(bcstats_con, "SELECT * FROM BC_Stat_CLR_EXT_20230525")
 print(result)
 
 ## write a table to it
@@ -178,4 +178,10 @@ dbListFields(bcstats_con, "BC_Stat_CLR_EXT_20230525")
 
 dbDisconnect(bcstats_con, shutdown = TRUE)
 
+
+# New code should prefer dbCreateTable() and dbAppendTable().
+
+mtcars
+
+dbWriteTable(con, name = "test_mtcars", value = mtcars )
 
