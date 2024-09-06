@@ -795,6 +795,7 @@ bc_cd_crime_stats_year = bc_cd_crime_stats_year %>%
 
 # Should be available CSD, instead of CD check out the app
 # we use data in decimal database, but there are many problems in the data in decimal database
+# Population estimate is updated very often, so it is better to get it from decimal database, but will need to figure out the key to link it to other data.
 ########################################################################################################
 
 bc_pop_estimate_muni_file = use_network_path("data/BCStats/Population_Projections.csv")
@@ -877,80 +878,81 @@ bc_cd_sf %>% plot()
 
 
 ########################################################################################################
-
+# those data are for creating maps. not for index.
 # a simple features dataframe for BCs economic regions (for mapping)
 ########################################################################################################
 
-bc_reg_sf <-   bcmaps::census_economic() %>%
-    sf::st_transform("+proj=longlat +datum=WGS84") %>%
-    janitor::clean_names() %>%
-    select(region=economic_region_name, geometry) %>%
-    mutate(
-      region = stringr::word(region, 1, sep = "/"),
-      region = janitor::make_clean_names(region),
-      region = case_when(
-        region == "nechako" ~ "north_coast_&_nechako",
-        region == "north_coast" ~ "north_coast_&_nechako",
-        TRUE ~ region),
-      region = stringr::str_replace_all(region, "vancouver_island_and_coast", "vancouver_island_coast"),
-      region = stringr::str_replace_all(region, "lower_mainland_southwest", "mainland_south_west"),
-      region = stringr::str_replace_all(region, "northeast", "north_east")
-    )
+# bc_reg_sf <-   bcmaps::census_economic() %>%
+#     sf::st_transform("+proj=longlat +datum=WGS84") %>%
+#     janitor::clean_names() %>%
+#     select(region=economic_region_name, geometry) %>%
+#     mutate(
+#       region = stringr::word(region, 1, sep = "/"),
+#       region = janitor::make_clean_names(region),
+#       region = case_when(
+#         region == "nechako" ~ "north_coast_&_nechako",
+#         region == "north_coast" ~ "north_coast_&_nechako",
+#         TRUE ~ region),
+#       region = stringr::str_replace_all(region, "vancouver_island_and_coast", "vancouver_island_coast"),
+#       region = stringr::str_replace_all(region, "lower_mainland_southwest", "mainland_south_west"),
+#       region = stringr::str_replace_all(region, "northeast", "north_east")
+#     )
 
 ########################################################################################################
 
 # BC maps for BCs economic regions (for mapping)
+# these data are useful for mappintg the 
 ########################################################################################################
 
-library(tidyverse)
-library(bcdata)
-library(sf)
-library(bcmaps)
-library(rmapshaper)
-library(janitor)
+# library(tidyverse)
+# library(bcdata)
+# library(sf)
+# library(bcmaps)
+# library(rmapshaper)
+# library(janitor)
 #library(viridis)
 
 #economic regions spatial data from the B.C. Data Catalogue using the bcdata package
 # https://catalogue.data.gov.bc.ca/dataset/1aebc451-a41c-496f-8b18-6f414cde93b7
-economic_regions <-
-  bcdc_get_data("1aebc451-a41c-496f-8b18-6f414cde93b7") %>%
-  clean_names() %>%
-  mutate(geo = case_when(economic_region_id == 5910 ~ "Vancouver Island and Coast",
-                         economic_region_id == 5920 ~ "Lower Mainland-Southwest",
-                         economic_region_id == 5930 ~ "Thompson-Okanagan",
-                         economic_region_id == 5940 ~ "Kootenay",
-                         economic_region_id == 5950 ~ "Cariboo",
-                         economic_region_id == 5960 ~ "North Coast and Nechako",
-                         economic_region_id == 5970 ~ "North Coast and Nechako",
-                         economic_region_id == 5980 ~ "Northeast")) %>%
-  group_by(geo) %>%
-  summarise() %>%
-  rmapshaper::ms_clip(bcmaps::bc_bound(class = "sf")) %>%
-  ms_simplify(keep = 0.075, sys = TRUE)
+# economic_regions <-
+#   bcdc_get_data("1aebc451-a41c-496f-8b18-6f414cde93b7") %>%
+#   clean_names() %>%
+#   mutate(geo = case_when(economic_region_id == 5910 ~ "Vancouver Island and Coast",
+#                          economic_region_id == 5920 ~ "Lower Mainland-Southwest",
+#                          economic_region_id == 5930 ~ "Thompson-Okanagan",
+#                          economic_region_id == 5940 ~ "Kootenay",
+#                          economic_region_id == 5950 ~ "Cariboo",
+#                          economic_region_id == 5960 ~ "North Coast and Nechako",
+#                          economic_region_id == 5970 ~ "North Coast and Nechako",
+#                          economic_region_id == 5980 ~ "Northeast")) %>%
+#   group_by(geo) %>%
+#   summarise() %>%
+#   rmapshaper::ms_clip(bcmaps::bc_bound(class = "sf")) %>%
+#   ms_simplify(keep = 0.075, sys = TRUE)
 
 ## cmas 
 # census metropolitan areas spatial data from the B.C. Data Catalogue using the bcdata package 
 # https://catalogue.data.gov.bc.ca/dataset/a6fb34b7-0937-4718-8f1f-43dba2c0f407
-cmas <- 
-  bcdc_get_data("a6fb34b7-0937-4718-8f1f-43dba2c0f407") %>%
-  clean_names() %>%
-  filter(census_metro_area_name %in% c("Kelowna", "Abbotsford - Mission", "Vancouver", "Victoria")) %>%
-  mutate(geo = str_remove_all(census_metro_area_name, " ")) 
-
-bc <- bc_bound() %>%
-  select(-island) %>%
-  mutate(id = row_number()) %>%
-  ms_simplify(keep = 0.25, sys = TRUE)
-
-qs::qsave(economic_regions, here::here("app", "economic_regions.qs"))
-qs::qsave(cmas, here::here("app", "cmas.qs"))
-qs::qsave(bc, here::here("app", "bc.qs"))
+# cmas <- 
+#   bcdc_get_data("a6fb34b7-0937-4718-8f1f-43dba2c0f407") %>%
+#   clean_names() %>%
+#   filter(census_metro_area_name %in% c("Kelowna", "Abbotsford - Mission", "Vancouver", "Victoria")) %>%
+#   mutate(geo = str_remove_all(census_metro_area_name, " ")) 
+# 
+# bc <- bc_bound() %>%
+#   select(-island) %>%
+#   mutate(id = row_number()) %>%
+#   ms_simplify(keep = 0.25, sys = TRUE)
+# 
+# qs::qsave(economic_regions, here::here("app", "economic_regions.qs"))
+# qs::qsave(cmas, here::here("app", "cmas.qs"))
+# qs::qsave(bc, here::here("app", "bc.qs"))
 
 ## health authorities
 # https://catalogue.data.gov.bc.ca/dataset/7bc6018f-bb4f-4e5d-845e-c529e3d1ac3b
-has <-
-  bcdc_get_data('7bc6018f-bb4f-4e5d-845e-c529e3d1ac3b', resource = 'dfd14c9b-45f8-4a7e-ad42-9a881778e417') %>%
-  clean_names() 
+# has <-
+#   bcdc_get_data('7bc6018f-bb4f-4e5d-845e-c529e3d1ac3b', resource = 'dfd14c9b-45f8-4a7e-ad42-9a881778e417') %>%
+#   clean_names() 
 
 
 

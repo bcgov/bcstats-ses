@@ -24,9 +24,11 @@ con <-dbConnect(odbc(),
 #                      schema = schema, 
 #                      skip = 1)
 
-
+# the file location is saved in a config file to avoid leaks.
+# to change the location, we need to do it in that config file.
 test_csv_folder = config::get("test_sql_server_csv")
-list.files(test_csv_folder, pattern = "*.csv", full.names = T)[1]
+list.files(test_csv_folder, pattern = "*.csv", full.names = T)[1] # test the first file
+# ulitize the arrow to load the CSV files and write to a database, which in this case is decimal database.
 data <- read_csv_arrow(file = list.files(test_csv_folder, full.names = T)[1])
 data %>% glimpse()
 
@@ -41,10 +43,28 @@ DBI::dbWriteTableArrow(con,
 tictoc::toc()
 # 590.52 sec elapsed
 
-
-
+# to repeat this process, we can put them in a function. 
 
 dbDisconnect(con)
+
+load_csv_save_db = function(con,file_path, table_name){
+  # ulitize the arrow to load the CSV files and write to a database, which in this case is decimal database.
+  data <- read_csv_arrow(file = file_path)
+  data %>% glimpse()
+  
+  # write to sql server
+  tictoc::tic()
+  DBI::dbWriteTableArrow(con, 
+                         name = table_name, 
+                         nanoarrow::as_nanoarrow_array_stream(data) 
+                         # append = append
+  )
+  
+  tictoc::toc()
+  
+  # dbDisconnect(con)
+}
+
 
 ##################################################################################
 # Test loading a big file to duckdb
@@ -75,6 +95,11 @@ DBI::dbWriteTableArrow(con,
 
 tictoc::toc()
 # 412.19 sec elapsed
+
+# use a function to do it
+
+load_csv_save_db(con,
+                 name )
 
 ##################################################################################
 # Test loading a big file to duckdb
