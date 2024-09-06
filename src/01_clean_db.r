@@ -1,3 +1,6 @@
+# this file is used for read and save data to decimal database
+# since we have data from statscan website using API, this decimal database has not been used for data loading yet.
+
 if(!require(pacman)){
   install.packages("pacman")
 }
