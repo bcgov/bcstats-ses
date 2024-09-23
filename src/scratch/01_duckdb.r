@@ -60,7 +60,7 @@ SELECT * FROM read_csv('./src/scratch/flights.csv',
                       names = ['DateOfFlight', 'CarrierName']);
 ")
 
-# retrieve the items again
+# retrieve the items again  
 res <- dbGetQuery(con, "SELECT * FROM ontime4")
 
 
