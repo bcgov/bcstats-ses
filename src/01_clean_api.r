@@ -1,3 +1,4 @@
+# this file is used for downloading data from StatsCan and other source. 
 # library("remotes")
 # install_github("bcgov/safepaths")
 pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow, duckdb)
@@ -27,69 +28,56 @@ pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,can
 # 
 ######################################################################################
 
-TMF_file = use_network_path("data/GCS_202406.csv")
+TMF_file  <-  use_network_path("data/GCS_202406.csv")
 
-TMF = read_csv(TMF_file)
+TMF <- read_csv(TMF_file)
 
-TMF %>% glimpse()
-# TMF is a dataframe in a postal code level. 
-# ACTIVE field shows which postal code region is still available.
 
-# what we want is a DA level dataframe, but DA is not aligned with other regional variable very well, we may need to break the DA into two parts and join to regions. We could use population or postal code as weights. 
-# The da 2021 is in short form: for example, 0225 as string
-# DA id  in long form
-# 59 09 0103
-# PR-CD-DA code
-# Province 59: British Columbia
-# CD 09: Fraser Valley
-# DA 0103
-# ACTIVE == "Y" is critical, otherwise, DA will not match to its CSD since the DA is in short form. 
 
-TMF = TMF %>% 
+# standardize the DA number, append the prefix BC code 59, so it is easy to join to other tables.
+TMF <- TMF %>% 
   mutate(DA_NUM = as.numeric(str_c("59", CD_2021, DA_2021, sep = "")))
 
 # TMF_names = TMF %>% names() %>% paste(collapse = ",")
   
+# clean the names, one name is not upper-cased. We prefer all uppercase
+TMF <- 
+  TMF %>% 
+  janitor::clean_names(case = "screaming_snake" ) 
+
+######################################################################################
+# Census data
+######################################################################################
 
 
-TMF_DA_LEVEL = TMF %>% 
-  filter(ACTIVE == "Y") %>% 
-  count(DA_NUM, CD_2021, CSD_2021, DA_2021, MUN_NAME_2021)  
-
-
-# 6967
-
-
-
-# It seems not every DA has one to one matching to CHSA regions such as CHSA. So to join to other tables with other regions, we will need TO separate the DA into different regions using population as weights.  
-# 
-
-
-TMF_DA_CHSA_LEVEL = TMF %>% 
-  filter(ACTIVE == "Y") %>% 
-  count(DA_NUM, CD_2021, CSD_2021, DA_2021, MUN_NAME_2021, CHSA)
-
-# 7067
-
-# In order to speed up performance, reduce API quota usage, and reduce unnecessary network calls, please set up a persistent cache directory via `set_cancensus_cache_path('<local cache path>', install = TRUE)`.
-# This will add your cache directory as environment variable to your .Renviron to be used across sessions and projects.
-
+# the location is saved in config.yaml file. 
 
 
 # set up CENSUSMAPPER API 
+
 # set_cancensus_api_key(config::get("CENSUSMAPPER_API_KEY"), install = TRUE)
-set_cancensus_cache_path(use_network_path("data/census_cache"), install = TRUE)
+
+# In order to speed up performance, reduce API quota usage, and reduce unnecessary network calls, please set up a persistent cache directory via `set_cancensus_cache_path('<local cache path>', install = TRUE)`.
+# This will add your cache directory as environment variable to your .Renviron to be used across sessions and projects.
+# set_cancensus_cache_path(use_network_path("data/census_cache"), install = TRUE)
 # or
 # options(cancensus.api_key = "your_api_key")
 # options(cancensus.cache_path = "custom cache path")
+
+# options(cancensus.api_key = config::get("CENSUSMAPPER_API_KEY"))
 # options(cancensus.cache_path = use_network_path("data/census_cache"))
-getOption("cancensus.cache_path")
-# Your cache path has been stored in your .Renviron and can be accessed by Sys.getenv("CM_CACHE_PATH")
+
+# getOption("cancensus.cache_path")
+# Your cache path has been stored in your .Renviron and can be accessed by 
+Sys.getenv("CM_CACHE_PATH")
+
+
 library(sf)
 
 list_census_datasets()
 
 # retrieve sf dataframe
+# This test task has been done, so skip it
 # van <- get_census(dataset='CA21', regions=list(CMA="59933"),
 #                       vectors=c("median_hh_income"="v_CA21_906"), level='CSD', quiet = TRUE, 
 #                       geo_format = 'sf', labels = 'short')
@@ -114,9 +102,11 @@ list_census_datasets()
 # Parent_vector: shows the immediate hierarchical parent category for that variable, where appropriate
 # Aggregation: indicates how the variable should be aggregated with others, whether it is additive or if it is an average of another variable
 # Description: a rough description of a variable based on its hierarchical structure. This is constructed by cancensus by recursively traversing the labels for every variable’s hierarchy, and facilitates searching for specific variables using key terms.
-vector_list_21 = list_census_vectors("CA21")
+vector_list_21  <-  list_census_vectors("CA21")
 # A tibble: 7,709 × 7
-# Variable list from census 2021
+
+
+# Selected variable list from census 2021
 # "1", # pop
 # "6", # pop_dens
 # '8', #
@@ -169,6 +159,7 @@ vector_list_21 = list_census_vectors("CA21")
 # 
 # income_vector = find_census_vectors('after tax income', dataset = 'CA21', type = 'total', query_type = 'semantic')
 
+# Put all the variable strings together: 
 CA21_VECTORS = c(
   'POP'             = 'v_CA21_1',
   # Population, 2021
@@ -477,67 +468,10 @@ bc_da <- get_census(dataset='CA21',
                      geo_format = NA,
                     labels = 'short')
 
-bc_da %>% readr::write_csv(use_network_path("data/bc_da_21.csv"))
-bc_da <- readr::read_csv(use_network_path("data/bc_da_21.csv"))
-bc_da %>% glimpse()
-# 7848
-
-# bc_da %>% 
-#   count(GeoUID)
-# 7848, so no duplicated GeoUID
-
-# bc_da %>%
-#   count(CSD_UID)
-# 751 CSD
-
-# The number of DA in Census2021 (7848) is larger than the number of DA in TMF (6967)
-
-# DA id is in long form
-# 59 09 0103
-# PR-CD-DA code
-# Province 59: British Columbia
-# CD 09: Fraser Valley
-# DA 0103
-
-# `Region Name` actually is the DA number 59150004
-# which does not include CSD information, CSD looks like 5915055, 5915 is the CD, so DA and CSD should be using together. 
-# test if there are different DA
-
-bc_da %>% 
-  anti_join(TMF_DA_LEVEL %>% mutate(GeoUID = as.character(DA_NUM)), by = c("GeoUID" ))
-# 881 DAs are only available in Census 2021, but not in TMF.
-
-TMF_DA_LEVEL %>% mutate(GeoUID = as.character(DA_NUM)) %>% 
-  anti_join(bc_da, by = c(  "GeoUID"))
-
-# 6967 TMF DAs are all available in Census 2021, 
-
-# for example,59010124
-
-# bc_da %>%
-#   filter(GeoUID == "59010124")
-# 
-# TMF_DA_LEVEL %>% mutate(GeoUID = as.character(DA_NUM)) %>% 
-#   filter(GeoUID == "59010124")
-
-TMF_DA_LEVEL %>% 
-  count(CD_2021)
-# 29 cd
-
-TMF_DA_LEVEL %>% 
-  count(CD_2021,CSD_2021)
-# 420 csd in TMF are active.
-
-TMF %>% 
-  count(CD_2021,CSD_2021)
-# 421 csd in TMF
-
-bc_da %>% 
-  count(CSD_UID)
-# 751 csd in census
 
 
-
+bc_da = bc_da %>% 
+  janitor::clean_names(case = "screaming_snake" ) 
 
 
 ########################################################################################################
@@ -550,27 +484,26 @@ bc_da %>%
 # Census subdivision, census division 
 ########################################################################################################
 
-SGC_structure_file = "https://www.statcan.gc.ca/en/statistical-programs/document/sgc-cgt-2021-structure-eng.csv"
-SGC_structure = readr::read_csv(SGC_structure_file)
-BC_SGC_structure = SGC_structure %>% 
-  filter(str_starts(as.character(Code), "59"))
+SGC_structure_file  <-  "https://www.statcan.gc.ca/en/statistical-programs/document/sgc-cgt-2021-structure-eng.csv"
+SGC_structure  <-  readr::read_csv(SGC_structure_file)
+SGC_structure <- SGC_structure %>% janitor::clean_names(case = "screaming_snake" ) 
 
-BC_SGC_structure %>% 
-  count(`Hierarchical structure`)
-# 29 CD and 751 CSDs in BC
+BC_SGC_structure = SGC_structure %>% 
+  filter(str_starts(as.character(CODE), "59"))
+
 
 SGC_structure %>% 
   count()
 
 
-SGC_element_file = "https://www.statcan.gc.ca/en/statistical-programs/document/sgc-cgt-2021-element-eng.csv"
-SGC_element = readr::read_csv(SGC_structure_file)
-BC_SGC_element = SGC_element %>%
-  filter(str_starts(as.character(Code), "59"))
+SGC_element_file <-  "https://www.statcan.gc.ca/en/statistical-programs/document/sgc-cgt-2021-element-eng.csv"
+SGC_element  <-  readr::read_csv(SGC_structure_file)
+SGC_element  <-  SGC_element %>% 
+  janitor::clean_names(case = "screaming_snake" ) 
 
-BC_SGC_element %>% 
-  count(`Hierarchical structure`)
-# 29 CD and 751 CSDs in BC. the same as census
+BC_SGC_element  <-  SGC_element %>%
+  filter(str_starts(as.character(CODE), "59"))
+
 
 
 ########################################################################################################
@@ -602,11 +535,21 @@ BC_SGC_element %>%
 # https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3510018401
 
 ########################################################################################################
-# print("file out of date: this could take a while")
+print("file out of date: this could take a while")
+
+# Use Case
+# get_cansim_sqlite is particularly beneficial when working with large tables or when you need to perform complex filtering operations before bringing data into memory. For example, table 43-10-0024 is several gigabytes in size, making it impractical to load entirely into memory.
+# However, for smaller tables that can be easily processed in memory, get_cansim may still be a simpler and more straightforward option. The choice between the two functions depends on the specific requirements of your data analysis task and the size of the dataset you're working with.
+# it was supposed to save sqlite to a cache folder but everytime, it downloaded it again. It could be due to the R package changed the behavior every time. 
 cansim_id <- "35-10-0184-01"
-options(cansim.cache_path = use_network_path("data/cansim_cache"))
+# it is too slow to index in sqlite on a network drive, so switch to a local folder, and later copy to LAN. 
+# options(cansim.cache_path = use_network_path("data/cansim_cache"))
+options(cansim.cache_path = "C:\\Users\\JDUAN\\Downloads\\project\\data\\cansim_cache")
 getOption("cansim.cache_path")
-connection <- cansim::get_cansim_sqlite(cansim_id)
+connection <- cansim::get_cansim_sqlite(cansim_id,
+                                        auto_refresh=TRUE
+                                        # refresh=TRUE # only occationally refresh
+                                        )
 # 
 # connection %>% glimpse()
 # 
@@ -616,6 +559,10 @@ Violations_list = connection %>%
   collect()
 # # 314 types of crime
 # we should choose: 1. 
+
+
+
+# The BC stats "Definition and Data Sources, BC Socio-Economic Indices and Profiles" provide a list of potential variables for   
 
 # Total, all Criminal Code violations (excluding traffic) [50]
 # Total violent Criminal Code violations [100]
@@ -633,7 +580,10 @@ bc_crime_stats <- connection %>%
   filter(
     # GEO=="British Columbia",
     # str_starts( GeoUID, "59"),
-    Violations %IN% c("Total, all Criminal Code violations (excluding traffic) [50]", "Total violent Criminal Code violations [100]", "Homicide [110]")  ,
+    REF_DATE >="2000",
+    Violations %IN% c("Total, all Criminal Code violations (excluding traffic) [50]",
+                      "Total violent Criminal Code violations [100]",
+                      "Homicide [110]")  ,
     Statistics  == "Rate per 100,000 population"
   ) %>%
   # filter(REF_DATE  > lubridate::today() - lubridate::years(11))%>%

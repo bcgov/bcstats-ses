@@ -61,16 +61,6 @@ read_sql_query = function(con, tbl_name, table_prefix, query = NULL) {
 
 
 
-# this is the decimal database schema that Brett created. All the existed tables are under this schema.
-table_prefix = config::get("table_prefix")
-# this is the schema that the author is going to use
-table_prefix_new = config::get("table_prefix_new")
-
-
-print("Sepecify the table name")
-tbl_name = "FCT_CENSUS_2021_BC_DA"
-print("Put your query in a string")
-
 
 
 # The commented code is an example for using decimal database
