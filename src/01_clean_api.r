@@ -28,7 +28,7 @@ pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,can
 # 
 ######################################################################################
 
-TMF_file  <-  use_network_path("data/GCS_202406.csv")
+TMF_file  <-  tryCatch(use_network_path("data/GCS_202406.csv"), error=function(e) "data/GCS_202406.csv")
 
 TMF <- read_csv(TMF_file)
 
