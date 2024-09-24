@@ -90,6 +90,7 @@ vector_list_21  <-  list_census_vectors("CA21")
 # A tibble: 7,709 × 7
 
 
+
 # Selected variable list from census 2021
 # "1", # pop
 # "6", # pop_dens
@@ -143,25 +144,25 @@ vector_list_21  <-  list_census_vectors("CA21")
 # 
 # income_vector = find_census_vectors('after tax income', dataset = 'CA21', type = 'total', query_type = 'semantic')
 
+# The better way may be to get the vecor list first, and then retrieve the meta data using cancensus function, at the end, create variable name in a csv file and use that file to create this named vector list. 
+# We want to keep the vector which is the key to link cancensus table. 
+# maybe we only get a long form table, and pivot to a wide table later. 
+
+
 # Put all the variable strings together: 
 CA21_VECTORS = c(
-  'POP'             = 'v_CA21_1',
-  # Population, 2021
+  'POP'             = 'v_CA21_1',  # Population, 2021
   
-  'POP_PCT_CHANGE'  = 'v_CA21_3',
-  # Population percentage change, 2016 to 2021
+  'POP_PCT_CHANGE'  = 'v_CA21_3',  # Population percentage change, 2016 to 2021
   
-  'POP_DENS' = 'v_CA21_6',
-  # POP_DENS
+  'POP_DENS' = 'v_CA21_6',  # Population density
   
   ###########################################################################################################################################
   # Age group
-  'AGE_GRP_TOT'     = 'v_CA21_8',
-  # Total - Age
-  'AGE_GRP_00_04'   = 'v_CA21_14',
-  # 0 - 4 years
-  'AGE_GRP_00_15'   = 'v_CA21_15',
-  # 4 - 15 years
+  'AGE_GRP_TOT'     = 'v_CA21_8',  # Total - Age
+  'AGE_GRP_00_04'   = 'v_CA21_14',  # 0 - 4 years
+  'AGE_GRP_00_14'   = 'v_CA21_11',  # 0 - 14 years
+  'AGE_GRP_65_PLUS'   = 'v_CA21_251',  # 65 years and over
   
   ###########################################################################################################################################
   # Race
@@ -244,10 +245,12 @@ CA21_VECTORS = c(
   # 'SING_PAR2' = 'v_CA21_86',
   # # SING_PAR2
   
+  
   'MARITAL_TOT'     = 'v_CA21_453',  # Marital Status - Total
   'MARITAL_SEP'     = 'v_CA21_483',  # Marital Status - Separated
   'MARITAL_DIV'     = 'v_CA21_486',  # Marital Status - Divorced
   
+  'FAMILIES_TOT' = 'v_CA21_499', # Total number of census families in private households
   'SING_PARENT_TOT' = 'v_CA21_507',  # Lone Parent - Total
   'SING_PARENT_F'   = 'v_CA21_508',  # Lone Parent - Female
   'SING_PARENT_M'   = 'v_CA21_509',  # Lone Parent - Male Done
@@ -265,18 +268,13 @@ CA21_VECTORS = c(
   # Household after-tax income groups in 2020 for private households
   
   
-  'INC_BT_HHS_MED'  = 'v_CA21_906', # Total Household Income Before Tax - Median
-  'INC_AT_HHS_MED'  = 'v_CA21_907', # Total Household Income After Tax - Average
+  'INC_BT_HH_MED'  = 'v_CA21_906', # Median total income of household in 2020 ($)
+  'INC_AT_HH_MED'  = 'v_CA21_907', # Median after-tax income of household in 2020 ($)
   
-  'MED_AT_INC'   = 'v_CA21_115',
-  # MED_AT_INC
-  
-  'LIM_AT' = 'v_CA21_3455',
-  # LIM_AT
-  
+
   'INC_BT_IND_MED'  = 'v_CA21_560', # Total Individual Income Before Tax - Median -  Number of total income recipients aged 15 years and over in private households in 2020 - Median total income in 2020 among recipients ($)
-  'INC_BT_IND_MED_19'  = 'v_CA21_818', # Total Individual Income Before Tax - Median -Number of total income recipients aged 15 years and over in private households in 2020 - Median total income in 2019 among recipients ($)
-  'INC_BT_IND_AVG'  = 'v_CA21_605', # Total Individual Income Before Tax - Average ? Number of total income recipients aged 15 years and over in private households in 2020 Average total income in 2020 among recipients ($) - 35%
+  # 'INC_BT_IND_MED_19'  = 'v_CA21_818', # Total Individual Income Before Tax - Median -Number of total income recipients aged 15 years and over in private households in 2020 - Median total income in 2019 among recipients ($)
+  'INC_BT_IND_AVG'  = 'v_CA21_605', # Average total income in 2020 among recipients ($) - Total Individual Income Before Tax - Average ? Number of total income recipients aged 15 years and over in private households in 2020 Average total income in 2020 among recipients ($) - 35%
   
   
   # 25% Data
@@ -287,9 +285,7 @@ CA21_VECTORS = c(
   # Average after-tax income of economic family in 2020 ($)
   
   'INC_BT_FAM_MED'  = 'v_CA21_965', # Total Family Income Before Tax - Median
-  # 'INC_BT_FAM_AVG'  = 'v_CA21_990', # Total Family Income Before Tax - Average  / / Average after-tax income of economic families in 2020 ($)
   'INC_AT_FAM_MED'  = 'v_CA21_966', # Total Family Income After Tax - Median
-  # 'INC_AT_FAM_AVG'  = 'v_CA21_991', # Total Family Income After Tax - Average   Done
   
   # Inequality measures for the population in private households
   # 'GINI_INDEX_         # Gini index on adjusted household total income
@@ -403,7 +399,6 @@ CA21_VECTORS = c(
   # 'LABOUR_PART_RT'  = 'v_CA21_5612', # Labour Force - Participation Rate  in yes tot/tot
   # 'LABOUR_EMPL_RT'  = 'v_CA21_5615', # Labour Force - Employment Rate  need to calculate emp cnt/in labor
   'LABOUR_EMPL_CNT'  = 'v_CA21_6498',
-  # 'LABOUR_UNEM_RT'  = 'v_CA21_5618', # Labour Force - Unemployment Rate
   'LABOUR_UNEM_CNT'  = 'v_CA21_6501',  # Need to calculate the rate cnt/total Done
   
   ###########################################################################################################################################
@@ -417,7 +412,7 @@ CA21_VECTORS = c(
   'HOME_OWN_TOT'    = 'v_CA21_4237', # Home ownership - Total
   'HOME_OWN_OWN'    = 'v_CA21_4238', # Home ownership - Owner
   'HOME_OWN_RENT'   = 'v_CA21_4239', # Home ownership - Renter
-  'HOME_OWN_BAND'   = 'v_CA21_4240', # Home ownership - Band Housing Done
+  # 'HOME_OWN_BAND'   = 'v_CA21_4240', # Home ownership - Band Housing Done
   
   # 25% Data
   # Housing
@@ -444,6 +439,16 @@ CA21_VECTORS = c(
   
 )
 
+# convert the vector to a dataframe, so we can  join to other table
+CA21_VECTORS_DF <- data.frame(
+  name = names(CA21_VECTORS),
+  vector = as.character(CA21_VECTORS)
+)
+
+CA21_VECTORS_DF_DICT <-  CA21_VECTORS_DF %>% 
+  left_join(vector_list_21, by = join_by(vector))
+  
+  # since we have cache on the LAN, we need vpn2 and connect to LAN 
 bc_da <- get_census(dataset='CA21', 
                     regions=list(PR="59"),
                     vectors=CA21_VECTORS, 
@@ -459,3 +464,32 @@ bc_da = bc_da %>%
 
 # 2. BC Census 2021
 bc_da %>% readr::write_csv(here::here("out", "StatsCAN_Census_21_BC_DA_DIP.csv")   )
+
+CA21_VECTORS_DF_DICT %>% readr::write_csv(here::here("out", "StatsCAN_Census_21_BC_DA_DICT_DIP.csv")   )
+
+# 
+# 
+# library(datadictionary)
+# 
+# str(bc_da)
+# 
+# bc_da = bc_da %>% 
+#   mutate(REGION_NAME = as.character(REGION_NAME) )
+# 
+# # A simple dictionary printed to console
+# create_dictionary(bc_da)
+# 
+# # add label to dictionary, which is similar to decription. 
+# # skimr::skim(bc_da)  # this is for exploring purpose
+# # Create labels as a named vector. 
+# 
+# 
+# 
+# bc_da_dict = create_dictionary(bc_da, 
+#                                id_var = REGION_NAME,
+#                                var_labels = bc_da.labels)
+
+
+
+
+
