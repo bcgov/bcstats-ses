@@ -143,7 +143,8 @@ TMF_dict_detail <- TMF_dict_detail %>%
   mutate(item = sapply(`Field Name`, create_item))
   
 # for the datadictionary created from datadictionary function, we also need to create a shorten item name since some items have year as sufix such as CD_2021. 
-TMF_dict
+TMF_dict <- TMF_dict %>% 
+  mutate(  = str_remove(item, "_\\d{4}"))
 
-str_remove(input_string, "_\\d{4}")
+
 
