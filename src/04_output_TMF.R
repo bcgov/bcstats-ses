@@ -57,7 +57,9 @@ TMF <- TMF %>%
            .fns = as.factor)
   )
 
-
+#################################################################################################
+# Data dictionary
+#################################################################################################
 TMF_dict = create_dictionary(TMF,
                   id_var = "POSTALCODE",
                   # file = "GCS202406_DICT.xlsx",
@@ -74,77 +76,123 @@ TMF_dict = create_dictionary(TMF,
 # it is too hard to do it mannually. Chatgpt did it.
 
 library(readr)
-TMF_dict_detail <- read_csv("G:/Operations/Data Science and Analytics/2024 SES Index/docs/TMF_data_dict.csv")
+TMF_dict_detail <- read_csv( use_network_path("docs/TMF_data_dict.csv"))
 View(TMF_dict_detail)
 
+
+# TMF_dict_detail %>% pull(`Field Name`)
 # 
-
-TMF_dict_detail %>% pull(`Field Name`)
-
-# Your vector of strings
-strings <- TMF_dict_detail %>% pull(`Field Name`)
-
-# Create the mapping
-mapping <- setNames(strings, strings)
-
-# Custom print function
-formatted_output <- paste0('"', names(mapping), '" = "', mapping, '"', collapse = ", ")
-
-# Print the formatted string
-cat(formatted_output)
+# # Your vector of strings
+# strings <- TMF_dict_detail %>% pull(`Field Name`)
+# 
+# # Create the mapping
+# mapping <- setNames(strings, strings)
+# 
+# # Custom print function
+# formatted_output <- paste0('"', names(mapping), '" = "', mapping, '"', collapse = ", ")
+# 
+# # Print the formatted string
+# cat(formatted_output)
 
 # then I can copy the results to our new switch function
 # maybe better just do it in CSV file.
 # or I should use those as labels in create_dictionary function. liek c(POSTAL_CODE = "Postal code")
+# finally use chatgpt to translate the switch function to a case_when
 create_item = function(x) {
-  y = switch(
-    x,
-    "Postal code" = "POSTALCODE",
-    "Birth Date"  = "BIRTH_DATE",
-    "Retired Date" = "RET_DATE",
-    "Latitude" =  "LATITUDE",
-    "Longitude" = "LONGITUDE",
-    "Census Division" = "CD",
-    "Census Subdivision" = "CSD",
-    "Census Subdivision Name" = "MUN_NAME",
-    "Census Metropolitan Area or Census Agglomeration Area" = "CMACA",
-    "Dissemination Area (DA)" = "DA",
-    "Census Tract (CT)" = "CT",
-    "Dissemination Block (DB)" = "DB",
-    "Designated Place Name (DPL)" = "DPL",
-    "Population Centre (POPCTR)" = "POPCTR",
-    "Development Region (DR)" = "DR",
-    "Health Authority (HA)" = "HA",
-    "Health Service Delivery Area (HSDA)" = "HSDA",
-    "Local Health Area (LHA)" = "LHA",
-    "Community Health Service Area (CHSA)" = "CHSA",
-    "Pre-2018 Local Health Area" = "LHA_PRE_2018",
-    "Micro Health Area" = "MHA",
-    "Ministry of Children & Families Region (MCFD)" = "MCFD",
-    "Ministry of Children & Families Service Delivery Area (MCFD_SDA)" = "MCFD_SDA",
-    "Ministry of Children & Families Local Service Area (MCFD_LSA)" = "MCFD_LSA",
-    "College Region" = "CR",
-    "School District (SD)" = "SD",
-    "School District Trustee Electoral Area (TEA)" = "TEA",
-    "Provincial Electoral District (PED)" = "PED",
-    "Federal Electoral District (FED)" = "FED",
-    "Police Services Respondent Area (RESP)" = "RESP",
-    "Tourism Region" = "TOURISM",
-    "Games Zone" = "GZ",
-    "Community Name" = "COMM_NAME",
-    "Modified Census Subdivision Name" = "MUN_NAME",
-    "Modified Full Census Subdivision" = "CDCSD"
-
+  # Using case_when to replace the switch statement
+  y <- case_when(
+    x == "Postal code" ~ "POSTALCODE",
+    x == "Birth Date" ~ "BIRTH_DATE",
+    x == "Retired Date" ~ "RET_DATE",
+    x == "Latitude" ~ "LATITUDE",
+    x == "Longitude" ~ "LONGITUDE",
+    x == "Census Division" ~ "CD",
+    x == "Census Subdivision" ~ "CSD",
+    x == "Census Subdivision Name" ~ "MUN_NAME",
+    x == "Census Metropolitan Area or Census Agglomeration Area" ~ "CMACA",
+    x == "Dissemination Area (DA)" ~ "DA",
+    x == "Census Tract (CT)" ~ "CT",
+    x == "Dissemination Block (DB)" ~ "DB",
+    x == "Designated Place Name (DPL)" ~ "DPL",
+    x == "Population Centre (POPCTR)" ~ "POPCTR",
+    x == "Development Region (DR)" ~ "DR",
+    x == "Health Authority (HA)" ~ "HA",
+    x == "Health Service Delivery Area (HSDA)" ~ "HSDA",
+    x == "Local Health Area (LHA)" ~ "LHA",
+    x == "Community Health Service Area (CHSA)" ~ "CHSA",
+    x == "Pre-2018 Local Health Area" ~ "LHA_PRE_2018",
+    x == "Micro Health Area" ~ "MHA",
+    x == "Ministry of Children & Families Region (MCFD)" ~ "MCFD",
+    x == "Ministry of Children & Families Service Delivery Area (MCFD_SDA)" ~ "MCFD_SDA",
+    x == "Ministry of Children & Families Local Service Area (MCFD_LSA)" ~ "MCFD_LSA",
+    x == "College Region" ~ "CR",
+    x == "School District (SD)" ~ "SD",
+    x == "School District Trustee Electoral Area (TEA)" ~ "TEA",
+    x == "Provincial Electoral District (PED)" ~ "PED",
+    x == "Federal Electoral District (FED)" ~ "FED",
+    x == "Police Services Respondent Area (RESP)" ~ "RESP",
+    x == "Tourism Region" ~ "TOURISM",
+    x == "Games Zone" ~ "GZ",
+    x == "Community Name" ~ "COMM_NAME",
+    x == "Modified Census Subdivision Name" ~ "Modified_MUN_NAME",
+    x == "Modified Full Census Subdivision" ~ "CDCSD",
+    TRUE ~ NA_character_  # Default case if no match
   )
+  
   return(y)
 }
 
 TMF_dict_detail <- TMF_dict_detail %>%
-  mutate(item = sapply(`Field Name`, create_item))
+  mutate(item_short = create_item(`Field Name`))
   
 # for the datadictionary created from datadictionary function, we also need to create a shorten item name since some items have year as sufix such as CD_2021. 
 TMF_dict <- TMF_dict %>% 
-  mutate(  = str_remove(item, "_\\d{4}"))
+  mutate( item_short = str_remove(item, "_\\d{4}")) 
+  
+
+# TMF_dict's summary for numerica number does not mean a lot since it is a fact table, and all dimension tables are in another lookup.xlsx excel file. 
+# so we could simplify the TMF_dict
+# TMF_dict_simple <- TMF_dict %>% 
+#   group_by(item) %>% 
+# slice_head(n = 1)
+# filter(row_number() == 1)
+
+# or it does not matter, we can add value label later using our dimension table
+TMF_dict <- TMF_dict %>% 
+  left_join(TMF_dict_detail, join_by( item_short))
 
 
+TMF_dict %>% readr::write_csv(here::here("out", "Translation_Master_File_Dict_DIP.csv"))
+
+
+#################################################################################################
+# Now we deal with the dimension table aka lookup tables
+#################################################################################################
+
+# Load necessary libraries
+library(readxl)
+
+# Path to the Excel file
+file_path <- use_network_path("data/GCS_Lookup_Table.xlsx")
+
+# Specify the prefix for the CSV files
+prefix <- "Translation_Master_File_Lookup_"
+
+# Get the sheet names
+sheet_names <- excel_sheets(file_path)
+
+# Loop through each sheet and save as CSV with a prefix
+for (sheet in sheet_names) {
+  # Read the sheet
+  data <- read_excel(file_path, sheet = sheet)
+  
+  # Create the CSV file name with the prefix
+  csv_file_name <- here::here("out", paste0(prefix, sheet, ".csv"))
+  
+  # Save the sheet as a CSV file
+  write.csv(data, csv_file_name, row.names = FALSE)
+  
+  # Print message for confirmation
+  message(paste("Saved:", csv_file_name))
+}
 
