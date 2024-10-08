@@ -21,7 +21,7 @@ Data used in this project is stored on the LAN. See `src/README.md` for detail.
 
 The code for cleaning external data to be used in the development of a SES index are including in the `src` folder. More details for running this code can be found in /src/README.md.  
 
-A R env environment is created for this project using [`renv` package](https://rstudio.github.io/renv/articles/renv.html). You can download and install all the packages this project needs by running `renv::restore()`.
+An R env environment is created for this project using [`renv` package](https://rstudio.github.io/renv/articles/renv.html). You can download and install all the packages this project needs by running `renv::restore()`.
 
 
 ### Project Status
