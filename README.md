@@ -13,9 +13,13 @@ BC community socio-economic status (SES) index evaluates individuals or groups' 
 
 The SES index is often used in research, public policy, and social programs to understand disparities in outcomes such as health, education, and employment, and to develop interventions aimed at reducing inequality and promoting social mobility.
 
+This repo is utilized to clean externally available sources of data such that it can be ingested for further use within a secure research environment.
+
 ### Data
 
 Data used in this project is stored on the LAN. See `src/README.md` for detail.
+
+A data documentation is created and saved in the project folder on the LAN.
 
 ### Usage
 
