@@ -9,19 +9,17 @@ Add a project state badge
 BC community Socio-economic status index
 ============================
 
-BC community socio-economic status (SES) index evaluates individuals or groups' relative social and economic standing within a BC.
+Collect data from StatsCan and other statistics agencies and convert to clean CSV files.
 
-The SES index is often used in research, public policy, and social programs to understand disparities in outcomes such as health, education, and employment, and to develop interventions aimed at reducing inequality and promoting social mobility.
 
 ### Data
 
-Data used in this project is stored on the LAN. See `src/README.md` for detail.
-
-### Usage
-
-The code for creating a SES are including in the `src`. 
-
-A R env environment is created for this project using [`renv` package](https://rstudio.github.io/renv/articles/renv.html). You can download and install all the packages this project needs by running `renv::restore()`.
+1. [StatsCan census 2021](https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/index-eng.cfm). It includes income, education, vocation, and family information. 
+2. Translation Master file(TMF). TMF is a table with different levels of geography to link the data.It is a fact table and comes with a set of dimension tables (lookup tables) for the categorical variables.  
+3. [B.C. crime trends and statistics](https://www2.gov.bc.ca/gov/content/justice/criminal-justice/policing-in-bc/publications-statistics-legislation/crime-police-resource-statistics). 
+ * It requires a lookup table to link policing jurisdictions and regions in BC. 
+4. [BC population projection](https://bcstats.shinyapps.io/popApp/)
+5. [BC Wild fire data]()
 
 
 ### Project Status
