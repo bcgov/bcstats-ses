@@ -28,7 +28,7 @@ pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,can
 # 
 ######################################################################################
 
-TMF_file  <-  use_network_path("data/GCS_202406.csv")
+TMF_file  <-  tryCatch(use_network_path("data/GCS_202406.csv"), error=function(e) "data/GCS_202406.csv")
 
 TMF <- read_csv(TMF_file)
 
@@ -106,38 +106,6 @@ vector_list_21  <-  list_census_vectors("CA21")
 # A tibble: 7,709 × 7
 
 
-# Selected variable list from census 2021
-# "1", # pop
-# "6", # pop_dens
-# '8', #
-# '14','15', # age 15 24, 
-# '35','37',  # dep_rat
-# "41",'42', # det_homes
-# "50" , # Total - Private households by household size - 100% data
-# "57", # Average household size
-# "78", "86", #sing_par
-# '115', # med_at_inc
-# "151", # gov_trans
-# 
-# "244", # Median after-tax income of household in 2020 ($)
-# '345', # lim_at
-# 
-# "381", # Gini index on adjusted household after-tax income
-# "382", # P90/P10 ratio on adjusted household after-tax income
-# "1402", "1403", # pc_indig
-# "1414", "1416", # pct_rent
-# 
-# "1470", # Total - Households 'spending 30% or more of income on shelter costs' or 'not suitable' or 'major repairs needed'
-# "1472", # Not suitable only: too crowded
-# "1473", # Major repairs needed only
-# "1476", #  'Not suitable' and 'major repairs needed'
-# "1477", # 'Spending 30% or more of income on shelter costs' and 'not suitable' and 'major repairs needed'
-# "1537", # pct_npr "1"
-# "1683",  "1684", # pct_vismin
-# "1995", "1996",  #pct_nograd
-# "2223", "2224", # labor_part_rate
-# "2226", #labor_unemp_rate "2224"
-# "2246", "2249" #pct_mgmt_occ
 
 # v_CA21_1143
 # Total
