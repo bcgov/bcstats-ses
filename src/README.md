@@ -1,8 +1,6 @@
-<<<<<<< HEAD
-Collect data from StatsCan and other statistical agencies and convert them to clean CSV files.
-=======
+
 Collect data from StatsCan and other statistical agencies and convert to clean CSV files for use in a secure research area. Note that this code **does not** produce the actual SES index, but only produces a subset of the required cleaned datasets.
->>>>>>> 9bc117ff62f1f313d9e0fcad773b4ea3379b731c
+
 
 
 ### Data
