@@ -6,7 +6,7 @@ Collect data from StatsCan and other statistical agencies and convert to clean C
 ### Data
 
 1. [StatsCan census 2021](https://www12.statcan.gc.ca/census-recensement/2021/dp-pd/index-eng.cfm). It includes income, education, vocation, and family information. 
-  * A `background.txt` stores the information of the detail of StatsCan Census data.
+  * A `background.txt` in `census` folder stores the information of the detail of StatsCan Census data.
 2. Translation Master file(TMF). TMF is a table with different levels of geography to link the data.It is a fact table and comes with a set of dimension tables (lookup tables) for the categorical variables.  
 3. [B.C. crime trends and statistics](https://www2.gov.bc.ca/gov/content/justice/criminal-justice/policing-in-bc/publications-statistics-legislation/crime-police-resource-statistics). 
  * It requires a lookup table to link policing jurisdictions and regions in BC. 
