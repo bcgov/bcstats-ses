@@ -1,6 +1,6 @@
 # this file is used for downloading data from StatsCan and other source. 
 # library("remotes")
-# install_github("bcgov/safepaths")
+# if (!require("safepaths")) devtools::install_github("bcgov/safepaths")
 pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow, duckdb)
 
 ######################################################################################
