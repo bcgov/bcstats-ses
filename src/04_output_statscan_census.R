@@ -313,6 +313,8 @@ CA21_VECTORS_DF <- data.frame(
   vector = as.character(CA21_VECTORS)
 )
 
+vector_list_21  <-  list_census_vectors("CA21")
+
 CA21_VECTORS_DF_DICT <-  CA21_VECTORS_DF %>% 
   left_join(vector_list_21, by = join_by(vector))
   
@@ -332,6 +334,7 @@ bc_da = bc_da %>%
   janitor::clean_names(case = "screaming_snake" ) 
 
 # 2. BC Census 2021
+if (!fs::dir_exists("out")) fs::dir_create("out")
 bc_da %>% readr::write_csv(here::here("out", "StatsCAN_Census_21_BC_DA_DIP.csv")   )
 
 CA21_VECTORS_DF_DICT %>% readr::write_csv(here::here("out", "StatsCAN_Census_21_BC_DA_DICT_DIP.csv")   )
