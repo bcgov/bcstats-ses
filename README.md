@@ -9,7 +9,7 @@ Add a project state badge
 BC community Socio-economic status index
 ============================
 
-BC community socio-economic status (SES) index evaluates individuals or groups' relative social and economic standing within a BC.
+The BC community socio-economic status (SES) index evaluates individuals or groups' relative social and economic standing within BC.
 
 The SES index is often used in research, public policy, and social programs to understand disparities in outcomes such as health, education, and employment, and to develop interventions aimed at reducing inequality and promoting social mobility.
 
@@ -23,9 +23,9 @@ A data documentation is created and saved in the project folder on the LAN.
 
 ### Usage
 
-The code for creating a SES are including in the `src`. 
+The code for cleaning external data to be used in the development of a SES index are including in the `src` folder. More details for running this code can be found in /src/README.md.  
 
-A R env environment is created for this project using [`renv` package](https://rstudio.github.io/renv/articles/renv.html). You can download and install all the packages this project needs by running `renv::restore()`.
+An R env environment is created for this project using [`renv` package](https://rstudio.github.io/renv/articles/renv.html). You can download and install all the packages this project needs by running `renv::restore()`.
 
 
 ### Project Status
