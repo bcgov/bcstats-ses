@@ -548,7 +548,7 @@ options(cansim.cache_path = "C:\\Users\\JDUAN\\Downloads\\project\\data\\cansim_
 getOption("cansim.cache_path")
 connection <- cansim::get_cansim_sqlite(cansim_id,
                                         auto_refresh=TRUE
-                                        # refresh=TRUE # only occationally refresh
+                                        # refresh=TRUE # only occasionally refresh
                                         )
 # 
 # connection %>% glimpse()
