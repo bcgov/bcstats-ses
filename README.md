@@ -9,7 +9,7 @@ Add a project state badge
 BC community Socio-economic status index
 ============================
 
-BC community socio-economic status (SES) index evaluates individuals or groups' relative social and economic standing within a BC.
+The BC community socio-economic status (SES) index evaluates individuals or groups' relative social and economic standing within BC.
 
 The SES index is often used in research, public policy, and social programs to understand disparities in outcomes such as health, education, and employment, and to develop interventions aimed at reducing inequality and promoting social mobility.
 
