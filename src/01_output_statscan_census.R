@@ -159,6 +159,12 @@ CA21_VECTORS = c(
   # 'GINI_INDEX_         # Gini index on adjusted household total income
   # 'GINI_INDEX_         # Gini index on adjusted household market income
   'GINI_INDEX_AT_INC' = 'v_CA21_1142',         # Gini index on adjusted household after-tax income
+  
+  # v_CA21_1143
+  # Total
+  # P90/P10 ratio on adjusted household after-tax income
+  # Income; Inequality measures for the population in private households; P90/P10 ratio on adjusted household after-tax income
+  
   'P90P10_RATIO'      = 'v_CA21_1143',         # P90/P10 ratio on adjusted household after-tax income Done
   
   # CA 2021 Census
