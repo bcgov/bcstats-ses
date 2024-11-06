@@ -4,7 +4,7 @@ pacman::p_load(cancensus, geojsonsf, tidyverse, config, bcmaps, bcdata, janitor,
 
 LFS_file = use_network_path("data/StatsCanLFS/1410045701_databaseLoadingData.csv")
 
-LFS = readr::read_csv(TMF_file)
+LFS = readr::read_csv(LFS_file)
 
 # only BC
 LFS = LFS |>
@@ -13,9 +13,15 @@ LFS = LFS |>
 
 # clean the names. We prefer all uppercase
 LFS = LFS |> 
-  janitor::clean_names(case = "screaming_snake" ) 
+  janitor::clean_names(case = "screaming_snake" )
 
-# REF_DATE is monthly data so we can use zoo's yearmon()
+# VALUE has some NAs (corresponding to ".." for STATUS). I'm not sure what to do here -- remove? I'll keep them for now but recode STATUS so that it's "E" for "use with caution" and NA otherwise.
+
+LFS |> filter(is.na(VALUE)) |> select(VALUE, STATUS) |> unique()
+LFS = LFS |> mutate(STATUS = case_when(is.na(VALUE) ~ NA, T ~ STATUS))
+LFS |> select(STATUS) |> unique()
+
+# REF_DATE is monthly so we can use zoo's yearmon()
 LFS = LFS |>
   mutate(REF_DATE = zoo::as.yearmon(LFS$REF_DATE))
 
@@ -32,18 +38,24 @@ LFS = LFS |>
       pull(name)
   )
 
-LFS$GEO |> unique() |> sort()
-
 # the geography type (CA = "census agglomeration", CMA = "census metropolitan area" and SLA = "self-contained labour area") is printed in square brackets at the end of GEO. This is not good. Let's split this type out in a new column called GEO_TYPE and remove it from GEO.
 LFS = LFS |>
   mutate(GEO_TYPE = str_extract(GEO, "\\[(.+)\\]", group=1), .after='GEO') |>
   mutate(GEO = str_remove(GEO, " \\[.+\\]"))
 
-# UOM_ID and DECIMALS are integers, not doubles
-LFS = LFS |> mutate(across(c(UOM_ID, DECIMALS), as.integer))
+# We can see that UOM and UOM_ID are redundant so let's get rid of UOM_ID
+select(LFS, UOM, UOM_ID) |> unique()
+LFS = select(LFS, -UOM_ID)
+
+# DECIMALS is also redundant with UOM so let's drop it
+LFS |> select(UOM, DECIMALS) |> unique()
+LFS = select(LFS, -DECIMALS)
 
 # Convert cols GEO_TYPE, LABOUR_FORCE_CHARACTERISTICS, STATISTICS, UOM and STATUS to factors
 LFS = LFS |> mutate(across(c(GEO_TYPE, LABOUR_FORCE_CHARACTERISTICS, STATISTICS, UOM, STATUS), as.factor))
+
+# lookin' good
+print(LFS)
 
 LFS |> readr::write_csv(here::here("out", "LFS_DIP.csv"))
 
@@ -51,7 +63,50 @@ LFS |> readr::write_csv(here::here("out", "LFS_DIP.csv"))
 #################################################################################################
 # Data dictionary
 #################################################################################################
+
+TMF = read_csv("out/Translation_Master_File_DIP.csv")
+TMF_dict = create_dictionary(TMF,
+  id_var = "POSTALCODE",
+  # file = "GCS202406_DICT.xlsx",
+  var_labels = NULL)
+
 LFS_dict = create_dictionary(LFS)
+
+LFS_dict |> as_tibble()
+
+tribble(~'Field Name', ~Description,
+  "REF_DATE", "The month and year of the observation (in '%b %Y' format)",
+  
+  "GEO", "Geographical Area of BC.\nExcluded from the coverage of the estimates are persons living on reserves and other Indigenous settlements in the provinces, full-time members of the Canadian Armed Forces, the institutionalized population, and households in extremely remote areas with very low population density. These groups together represent an exclusion of approximately 2% of the population aged 15 and older.",
+  
+  "GEO_TYPE", "One of 'CMA', 'CA', or 'SLA'.
+  
+  A census metropolitan area (CMA) is formed by one or more adjacent municipalities centered on a population centre known as the core. A CMA must have a total population of at least 100,000 of which 50,000 or more must live in the core. 
+  
+  A census agglomeration (CA) is formed by one or more adjacent municipalities centered on a population centre known as the core. A CA must have a core population of at least 10,000 based on data from the previous Census of Population Program. 
+  
+  A self-contained labour area (SLA) is a functional area composed of census subdivisions which are not already included in a CMA or CA. All three types of regions are determined using commuting flows derived from census program place of work data.",
+  
+  "LABOUR_FORCE_CHARACTERISTICS", "One of 'Employment', 'Unemployment rate', or 'Employment rate'.
+  
+  The employment rate is the small area estimate of the number of employed persons expressed as a percentage of the population 15 years of age and older. Estimates are percentages, rounded to the nearest tenth.
+  
+  The unemployment rate is the number of unemployed people as a percentage of the labour force (employed and unemployed). The unemployment rate is the number of unemployed persons expressed as a percentage of the labour force. Unemployed persons are those who were without work, had looked for work in the past four weeks, and were available for work. Those persons on layoff or who had a new job to start in four weeks or less are also considered unemployed. The labour force is all civilian, non-institutionalized persons 15 years or age and older who were employed or unemployed. Estimates are percentages, rounded to the nearest tenth.
+  
+  Employment is the small area estimate of the number of persons who worked for pay or profit, or had a job but were not at work due to own illness or disability, personal or family responsibilities, labour dispute, vacation, or other reason. Estimates are rounded to the nearest ten.",
+  
+  "STATISTICS", "One of 'Estimate', 'Standard error', 'Lower bound of the 95% confidence interval', or 'Upper bound of the 95% confidence interval'",
+  
+  "UOM", "Unit of Measurement; One of 'Persons', or 'Percentage'",
+  
+  "VECTOR", "A unique identifier assigned to a specific geographic unit or spatial feature", 
+  
+  "COORDINATE", "The geographical position of the geographical point on the Earth's surface,  expressed in terms of latitude and longitude",
+  
+  "VALUE", "The value of the observation", 
+  
+  "STATUS", "One of 'E' (use with caution) or 'F' (too unreliable to be published)."
+)
 
 View(LFS_dict)
 
@@ -154,33 +209,5 @@ TMF_dict <- TMF_dict %>%
 TMF_dict %>% readr::write_csv(here::here("out", "Translation_Master_File_Dict_DIP.csv"))
 
 
-#################################################################################################
-# Now we deal with the dimension table aka lookup tables
-#################################################################################################
 
-# Load necessary libraries
-library(readxl)
-
-# Path to the Excel file
-file_path <- use_network_path("data/GCS_Lookup_Table.xlsx")
-
-# Specify the prefix for the CSV files
-prefix <- "Translation_Master_File_Lookup_"
-
-# Get the sheet names
-sheet_names <- excel_sheets(file_path)
-
-# Loop through each sheet and save as CSV with a prefix
-for (sheet in sheet_names) {
-  # Read the sheet
-  data <- read_excel(file_path, sheet = sheet)
-  
-  # Create the CSV file name with the prefix
-  csv_file_name <- here::here("out", paste0(prefix, sheet, ".csv"))
-  
-  # Save the sheet as a CSV file
-  write.csv(data, csv_file_name, row.names = FALSE)
-  
-  # Print message for confirmation
-  message(paste("Saved:", csv_file_name))
-}
+x=read_csv("out/StatsCAN_Census_21_BC_DA_DICT_DIP.csv")
