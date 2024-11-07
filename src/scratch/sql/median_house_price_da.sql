@@ -6,18 +6,18 @@ select distinct
 	substring(d.[DB_2021],1,8) as DB_CODE, 
 	PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY CONVEYANCE_PRICE) OVER (PARTITION BY DA_2021,substring(CONVEYANCE_DATE,1,4)) AS MedianPrice
 from 
-	[IDIR\BDWILMER].[FCT_BCA_SALES_2024_06] a 
-	left join [IDIR\BDWILMER].[FCT_bca_folio_descriptions_20240609] b on a.FOLIO_ID=b.FOLIO_ID
+	[FCT_BCA_SALES_2024_06] a 
+	left join .[FCT_bca_folio_descriptions_20240609] b on a.FOLIO_ID=b.FOLIO_ID
 	left join (
 select 
 	*, 
 	case when substring(postal_code,4,1) <> '' then postal_code else concat(substring(postal_code,1,3),
 	substring(postal_code,5,3)) end as PC
 from 
-	[IDIR\BDWILMER].[FCT_bca_folio_addresses_20240609]
+	.[FCT_bca_folio_addresses_20240609]
 ) c on a.FOLIO_ID=c.FOLIO_ID
-	left join [IDIR\BDWILMER].[FCT_TMF_202312] d on c.PC=d.POSTALCODE
-	left join [IDIR\BDWILMER].[DIM_TMF_CD_CMA_2021] on CMACA_2021=CMA
+	left join .[FCT_TMF_202312] d on c.PC=d.POSTALCODE
+	left join .[DIM_TMF_CD_CMA_2021] on CMACA_2021=CMA
 where 
 	a.CONVEYANCE_TYPE_DESCRIPTION = 'Improved Single Property Transaction'
 	and b.ACTUAL_USE_DESCRIPTION in ('Single Family Dwelling','Residential Dwelling with Suite',
