@@ -59,3 +59,4 @@ renv/
 *.parquet
 *.csv
 *.db
+data/
