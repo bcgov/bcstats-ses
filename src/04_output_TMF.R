@@ -27,9 +27,10 @@ pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,can
 # 
 ######################################################################################
 
-# The GCS 202406 csv file is provided by Brett's team and saved in LAN. Need safe network path to get it.
+# The GCS 202406 csv file is provided by Econ team and saved in LAN. Need safe network path to get it.
+stopifnot(Sys.getenv("SAFEPATHS_NETWORK_PATH") != "")
 
-TMF_file  <-  use_network_path("data/GCS_202406.csv")
+TMF_file  <-  use_network_path("data/raw_data/TMF/GCS_202406.csv")
 
 TMF <- read_csv(TMF_file)
 
@@ -48,21 +49,24 @@ TMF <-
 # 1. BC Translation_Master_File
 TMF %>% readr::write_csv(here::here("out", "Translation_Master_File_DIP.csv"))
 
-# 2. Create a dictionary for BC Translation_Master_File
-library(datadictionary)
 
-TMF <- TMF %>% 
-  mutate(
-    across(.cols = c(PROV, SOURCE, ACTIVE),
-           .fns = as.factor)
-  )
 
 #################################################################################################
 # Data dictionary
 #################################################################################################
+# 2. Create a dictionary for BC Translation_Master_File
+library(datadictionary)
+
+TMF <- TMF %>%
+  mutate(across(
+    .cols = c(
+      PROV, SOURCE, ACTIVE # leave other ids as number since there are too many items/elements in those factors.
+    ),
+    .fns = as.factor
+  ))
+
 TMF_dict = create_dictionary(TMF,
                   id_var = "POSTALCODE",
-                  # file = "GCS202406_DICT.xlsx",
                   var_labels = NULL)
 
 
@@ -70,10 +74,7 @@ TMF_dict = create_dictionary(TMF,
 # a better data dictionary in Geocoding Self-Service (GCS) User Guide Prepared by BC Stats March 2020, not online, provided by Brett.
 # f3 <-  use_network_path("docs/GCS_User_Guide.pdf")
 
-# it does not work well using pdf tools in R. so we had to manually make a csv file for it.
-
-# manually create a item field in this detail dataframe to join the TMF_dict dataframe
-# it is too hard to do it mannually. Chatgpt did it.
+# manually create a item field in this detail dataframe to join the TMF_dict dataframe using Chatgpt.
 
 library(readr)
 TMF_dict_detail <- read_csv( use_network_path("docs/TMF_data_dict.csv"))
@@ -98,56 +99,60 @@ View(TMF_dict_detail)
 # maybe better just do it in CSV file.
 # or I should use those as labels in create_dictionary function. liek c(POSTAL_CODE = "Postal code")
 # finally use chatgpt to translate the switch function to a case_when
-create_item = function(x) {
-  # Using case_when to replace the switch statement
-  y <- case_when(
-    x == "Postal code" ~ "POSTALCODE",
-    x == "Birth Date" ~ "BIRTH_DATE",
-    x == "Retired Date" ~ "RET_DATE",
-    x == "Latitude" ~ "LATITUDE",
-    x == "Longitude" ~ "LONGITUDE",
-    x == "Census Division" ~ "CD",
-    x == "Census Subdivision" ~ "CSD",
-    x == "Census Subdivision Name" ~ "MUN_NAME",
-    x == "Census Metropolitan Area or Census Agglomeration Area" ~ "CMACA",
-    x == "Dissemination Area (DA)" ~ "DA",
-    x == "Census Tract (CT)" ~ "CT",
-    x == "Dissemination Block (DB)" ~ "DB",
-    x == "Designated Place Name (DPL)" ~ "DPL",
-    x == "Population Centre (POPCTR)" ~ "POPCTR",
-    x == "Development Region (DR)" ~ "DR",
-    x == "Health Authority (HA)" ~ "HA",
-    x == "Health Service Delivery Area (HSDA)" ~ "HSDA",
-    x == "Local Health Area (LHA)" ~ "LHA",
-    x == "Community Health Service Area (CHSA)" ~ "CHSA",
-    x == "Pre-2018 Local Health Area" ~ "LHA_PRE_2018",
-    x == "Micro Health Area" ~ "MHA",
-    x == "Ministry of Children & Families Region (MCFD)" ~ "MCFD",
-    x == "Ministry of Children & Families Service Delivery Area (MCFD_SDA)" ~ "MCFD_SDA",
-    x == "Ministry of Children & Families Local Service Area (MCFD_LSA)" ~ "MCFD_LSA",
-    x == "College Region" ~ "CR",
-    x == "School District (SD)" ~ "SD",
-    x == "School District Trustee Electoral Area (TEA)" ~ "TEA",
-    x == "Provincial Electoral District (PED)" ~ "PED",
-    x == "Federal Electoral District (FED)" ~ "FED",
-    x == "Police Services Respondent Area (RESP)" ~ "RESP",
-    x == "Tourism Region" ~ "TOURISM",
-    x == "Games Zone" ~ "GZ",
-    x == "Community Name" ~ "COMM_NAME",
-    x == "Modified Census Subdivision Name" ~ "Modified_MUN_NAME",
-    x == "Modified Full Census Subdivision" ~ "CDCSD",
-    TRUE ~ NA_character_  # Default case if no match
+library(dplyr)
+
+create_item <- function(x) {
+  # Use case_match for value mapping
+  case_match(
+    x,
+    "Postal Code" ~ "POSTALCODE",
+    "Birth Date" ~ "BIRTH_DATE",
+    "Retired Date" ~ "RET_DATE",
+    "Latitude" ~ "LATITUDE",
+    "Longitude" ~ "LONGITUDE",
+    "Census Division" ~ "CD",
+    "Census Subdivision" ~ "CSD",
+    "Census Subdivision Name" ~ "MUN_NAME",
+    "Census Metropolitan Area or Census Agglomeration Area" ~ "CMACA",
+    "Dissemination Area (DA)" ~ "DA",
+    "Census Tract (CT)" ~ "CT",
+    "Dissemination Block (DB)" ~ "DB",
+    "Designated Place Name (DPL)" ~ "DPL",
+    "Population Centre (POPCTR)" ~ "POPCTR",
+    "Development Region (DR)" ~ "DR",
+    "Health Authority (HA)" ~ "HA",
+    "Health Service Delivery Area (HSDA)" ~ "HSDA",
+    "Local Health Area (LHA)" ~ "LHA",
+    "Community Health Service Area (CHSA)" ~ "CHSA",
+    "Pre-2018 Local Health Area" ~ "LHA_PRE_2018",
+    "Micro Health Area" ~ "MHA",
+    "Ministry of Children & Families Region (MCFD)" ~ "MCFD",
+    "Ministry of Children & Families Service Delivery Area (MCFD_SDA)" ~ "MCFD_SDA",
+    "Ministry of Children & Families Local Service Area (MCFD_LSA)" ~ "MCFD_LSA",
+    "College Region" ~ "CR",
+    "School District (SD)" ~ "SD",
+    "School District Trustee Electoral Area (TEA)" ~ "TEA",
+    "Provincial Electoral District (PED)" ~ "PED",
+    "Federal Electoral District (FED)" ~ "FED",
+    "Police Services Respondent Area (RESP)" ~ "RESP",
+    "Tourism Region" ~ "TOURISM",
+    "Games Zone" ~ "GZ",
+    "Community Name" ~ "COMM_NAME",
+    "Modified Census Subdivision Name" ~ "Modified_MUN_NAME",
+    "Modified Full Census Subdivision" ~ "CDCSD",
+    .default = NA_character_  # Default case if no match
   )
-  
-  return(y)
 }
+
 
 TMF_dict_detail <- TMF_dict_detail %>%
   mutate(item_short = create_item(`Field Name`))
+
+stopifnot(sum(is.na(TMF_dict_detail$item_short)) == 0)
   
 # for the datadictionary created from datadictionary function, we also need to create a shorten item name since some items have year as sufix such as CD_2021. 
 TMF_dict <- TMF_dict %>% 
-  mutate( item_short = str_remove(item, "_\\d{4}")) 
+  mutate( item_short = str_remove(item, "_\\d{4}$")) 
   
 
 # TMF_dict's summary for numerica number does not mean a lot since it is a fact table, and all dimension tables are in another lookup.xlsx excel file. 
@@ -173,7 +178,7 @@ TMF_dict %>% readr::write_csv(here::here("out", "Translation_Master_File_Dict_DI
 library(readxl)
 
 # Path to the Excel file
-file_path <- use_network_path("data/GCS_Lookup_Table.xlsx")
+file_path <- use_network_path("data/raw_data/TMF/GCS_Lookup_Table.xlsx")
 
 # Specify the prefix for the CSV files
 prefix <- "Translation_Master_File_Lookup_"
