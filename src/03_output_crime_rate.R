@@ -155,8 +155,6 @@ bc_resp_lookup = bc_crime_stats %>%
 
 
 ##########################################################################
-# the number of RESPs is between the number of CDs and the number of CSDs
-# so we can aggregate RESP to CDs, potentially without overlapping the CDs or RESPs. 
 # For CSD or DAs, many CSDs or DAs have to share RESP together, so it is better to calculate the ratios within each RESP and CSDs or DAs could share the ratios. 
 # If one CD or CSD has two or more RESPs, we could average them weighting by the number of the postal code regions within the RESPs. 
 # Econ team provides a lookup table for us to link DA to RESP weighted by postal code or population
@@ -176,7 +174,7 @@ DA_RESP_lookup %>%
 
 
 
-
+# create a 
 DA_RESP_lookup_with_year = bc_crime_stats %>% distinct(ref_date, violations, statistics) %>% cross_join(DA_RESP_lookup)
 
 
