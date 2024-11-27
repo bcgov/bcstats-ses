@@ -1,12 +1,29 @@
+# Copyright 2024 Province of British Columbia
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+# http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and limitations under the License.
+
+
+
 # this file is used for cleaning the crime rate Excel file and exporting to DIP.
 # library("remotes")
 # install_github("bcgov/safepaths")
-pacman::p_load( tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow, duckdb)
+pacman::p_load( tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow, duckdb,datadictionary)
 
 ######################################################################################
 # Crime rate data
 # 
 ######################################################################################
+
+# What’s cool is that Stats Can compiles on this data yearly at the police jurisdiction level (basically municipality level like Saanich): 
+# https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3510018401. 
 
 ########################################################################################################
 
@@ -53,7 +70,7 @@ connection <- cansim::get_cansim_sqlite(cansim_id,
                                         cache_path = getOption("cansim.cache_path")
                                         # refresh=TRUE # only occasionally refresh
 )
-# ignore the warning, the cache does reflect the date right. It is retrieved in July 30th, so it is updated. 
+# ignore the warning, the cache does not have the date right. It is retrieved in July 30th, so it is updated. 
 # 
 connection %>% glimpse()
 # 
@@ -84,9 +101,13 @@ Violations_list = connection %>%
 # http://apps.who.int/classifications/icd10/browse/2010/en 
 # 
 # 10.Juvenile crime rates. See crime rate definitions above. Note that juvenile rates are based on charges as it is only when a charge is laid that the age of the suspect is determined. 
-# 
+# I cannot get the Juenile crime and illicite drug death 
+Violations_selected_list = Violations_list %>% 
+  filter(str_detect(str_to_lower(Violations) , pattern = "all criminal code violations \\(excluding traffic\\)|total violent criminal code violations|homicide|attempted murder|assault|breaking|entering|youth criminal justice act|total drug violation" )) %>% 
+  pull(Violations)
 
 
+# str(Violations_selected_list)
 # Brett's idea
 # Total, all Criminal Code violations (excluding traffic) [50]
 # Total violent Criminal Code violations [100]
@@ -99,16 +120,17 @@ crime_GEO_list = connection %>%
 #  [59774] need to parse out and join to TMF RESP
 
 
+
+
+
 # Only look at data after 2000
 bc_crime_stats <- connection %>%
   filter(
     # GEO=="British Columbia",
     # str_starts( GeoUID, "59"),
-    REF_DATE >="2000",
-    Violations %IN% c("Total, all Criminal Code violations (excluding traffic) [50]",
-                      "Total violent Criminal Code violations [100]",
-                      "Homicide [110]")  ,
-    Statistics  == "Rate per 100,000 population"
+    REF_DATE >="2010", # focus on most recent years
+    Violations %in% Violations_selected_list,  #c("Assault, level 1 [1430]"   ,"Assault, level 2, weapon or bodily harm [1420]"   ) ,  #  ,
+    Statistics  %in% c("Rate per 100,000 population", "Percentage change in rate")
   ) %>%
   # filter(REF_DATE  > lubridate::today() - lubridate::years(11))%>%
   cansim::collect_and_normalize() %>%
@@ -129,137 +151,73 @@ bc_resp_lookup = bc_crime_stats %>%
 # select(`Period Starting`, Geo, Geouid, Violations, VECTOR, Value,Statistics, Source)
 
 # From TMF get the look-up table for RESP
+# in TMF, there are only 193 RESPs, but statscan crime rate data has 237 RESPs. 
 
-
-TMF %>%
-  filter(ACTIVE == "Y") %>%
-  count(RESP)
-# # 193
-TMF %>%
-  filter(ACTIVE == "Y") %>%
-  count(DA_2021)
-# 3,714 DA
-TMF %>%
-  filter(ACTIVE == "Y") %>%
-  count(CD_2021)
-# 29
-
-TMF %>%
-  filter(ACTIVE == "Y") %>%
-  count( CD_2021, CSD_2021,MUN_NAME_2021)
-# 410
-TMF %>%
-  filter(ACTIVE == "Y") %>%
-  count(RESP, CD_2021, CSD_2021,MUN_NAME_2021)
-# 473 CSDs. 
-# some CSDs share the same resp
 
 ##########################################################################
 # the number of RESPs is between the number of CDs and the number of CSDs
 # so we can aggregate RESP to CDs, potentially without overlapping the CDs or RESPs. 
 # For CSD or DAs, many CSDs or DAs have to share RESP together, so it is better to calculate the ratios within each RESP and CSDs or DAs could share the ratios. 
 # If one CD or CSD has two or more RESPs, we could average them weighting by the number of the postal code regions within the RESPs. 
+# Econ team provides a lookup table for us to link DA to RESP weighted by postal code or population
 ###########################################################################
 
-TMF %>%
-  filter(ACTIVE == "Y") %>%
-  count(RESP,DA_2021,  CD_2021, CSD_2021,MUN_NAME_2021) %>% 
-  group_by(CD_2021, CSD_2021,MUN_NAME_2021) %>% 
-  mutate(n_resp = n_distinct(RESP)) %>% 
-  filter(n_resp>1) %>% 
-  arrange(CD_2021, CSD_2021,MUN_NAME_2021)
-# 101 CSDs shared RESP
+
+DA_RESP_lookup = read_excel(path = use_network_path("data/crime_rate/Pop by DA and RESP.xlsx"), 
+                             sheet = "DA RESP")
+
+DA_RESP_lookup %>%
+  count( DA_2021 )
+# 3,712
+# some DAs cover multiple RESP
+DA_RESP_lookup %>%
+  count(RESP,)
+# # 195
 
 
-# TMF %>% 
-#   filter(ACTIVE == "Y") %>% 
-#   count(DA_NUM, CD_2021, CSD_2021, DA_2021, MUN_NAME_2021)
-# 6967
-TMF %>%
-  filter(ACTIVE == "Y") %>%
-  count(RESP,DA_NUM, CD_2021, CSD_2021, DA_2021, MUN_NAME_2021)
-# # 7009, this is the best combination to get the DA information, and later, we can aggregate to CD or CSD level.
-# some DAs share the RESP so 7009> 6997
 
-TMF %>%
-  filter(ACTIVE == "Y") %>%
-  count(RESP,DA_NUM, CD_2021, CSD_2021, DA_2021, MUN_NAME_2021) %>% 
-  group_by(DA_NUM,) %>% 
-  mutate(n_resp = n_distinct(RESP)) %>% 
-  arrange(DA_NUM) %>% 
-  filter(n_resp>1)
-# 84 DAs have more than one RESP
+
+DA_RESP_lookup_with_year = bc_crime_stats %>% distinct(ref_date, violations, statistics) %>% cross_join(DA_RESP_lookup)
 
 
 # one option is to join to da table
-bc_da_crime_stats_year = bc_crime_stats %>% 
-  select(ref_date,geo,uom,scalar_factor,coordinate,value,geo_uid,val_norm,date,classification_code_for_violations,violations,statistics) %>% 
-  mutate(RESP = as.numeric(geo_uid)) %>% 
-  right_join(TMF %>% 
-               filter(ACTIVE == "Y") %>%
-               count(RESP,DA_NUM, CD_2021, CSD_2021, DA_2021, MUN_NAME_2021),
-             by = join_by("RESP" == "RESP"))
-# to eliminate the dupliated RESP rate within DAs, we use n of postal code regions as weights
-
-bc_da_crime_stats_year %>% names %>% paste(collapse = ",")
-bc_da_crime_stats_year = bc_da_crime_stats_year %>% 
-  group_by(DA_NUM,CD_2021,CSD_2021,DA_2021,MUN_NAME_2021,ref_date, classification_code_for_violations,violations,statistics) %>% 
-  summarise(crimte_rate = weighted.mean(value, w = n))
-
-
-# unexpected many-to-many relationship between `x` and `y`.
-# each RESP is corresponding to many DAs. Within RESP, many DAs share the same rates.
-# the left table has many years data and three types of rates. 
-
-bc_crime_stats %>% 
-  names() %>% 
-  paste(collapse = ",") 
-
-# second option is to join to CSD table
-bc_csd_crime_stats_year = bc_crime_stats %>% 
-  select(ref_date,geo,uom,scalar_factor,coordinate,value,geo_uid,val_norm,date,classification_code_for_violations,violations,statistics) %>% 
-  mutate(RESP = as.numeric(geo_uid)) %>% 
-  right_join(TMF %>% 
-               filter(ACTIVE == "Y") %>%
-               count(RESP, CD_2021, CSD_2021,  MUN_NAME_2021),
-             by = join_by("RESP" == "RESP"))
-# Detected an unexpected many-to-many relationship between `x` and `y`.
-# and why there are so many missing values? Many RESPs don't have corresponding CSD?
-# OK, those RESPs with missing values may not be a valid RESP which have a lot of missing values in crime rate as well. or have crime rates zero. 
-# or those RESPs are not available anymore since the TMF only have most updated valid/active csd and RESPs.
-# for example, 59893
+bc_da_crime_stats_year = DA_RESP_lookup_with_year%>% 
+  right_join(bc_crime_stats %>% 
+               select(ref_date,geo_uid, geo, violations, statistics, value) ,
+             by = join_by("ref_date","violations","statistics", "RESP" ==  "geo_uid" ) )
 
 
 
-bc_crime_stats %>% 
-  filter(geo_uid == "59893") %>% 
-  tail
-# the values are not available for last 6 years
+# to eliminate the dupliated RESP rate within DAs, we use number of postal code regions or population as weights
+
+# bc_da_crime_stats_year %>% names %>% paste(collapse = ",")
+
+bc_da_crime_stats_year_weighted_by_pop = bc_da_crime_stats_year %>% 
+  group_by(ref_date,violations,statistics,DA_2021) %>% 
+  summarise(value = weighted.mean(value, w = POP_CNT))
+
+bc_da_crime_stats_year_weighted_by_pop %>% write.csv2( here::here("out/BC_DA_Crime_Rate_DIP.csv"))
+# bc_da_crime_stats_year_weighted_by_pc = bc_da_crime_stats_year %>% 
+#   group_by(ref_date,violations,statistics,DA_2021) %>% 
+#   summarise(value = weighted.mean(value, w = PC_CNT))
+
+# later, we may calculate the moving average of the crime rate instead of using the observed rate. 
 
 
-# to eliminate the dupliated RESP rate within DAs, we use n of postal code regions as weights
 
-bc_csd_crime_stats_year %>% names %>% paste(collapse = ",")
-bc_csd_crime_stats_year = bc_csd_crime_stats_year %>% 
-  group_by(CD_2021,CSD_2021,MUN_NAME_2021,ref_date, classification_code_for_violations,violations,statistics) %>% 
-  summarise(crimte_rate = weighted.mean(value, w = n))
+##############################################################
+# Data Dictionary
+#############################################################
 
-# third option is to join to CD table
-
-
-bc_cd_crime_stats_year = bc_crime_stats %>% 
-  select(ref_date,geo,uom,scalar_factor,coordinate,value,geo_uid,val_norm,date,classification_code_for_violations,violations,statistics) %>% 
-  mutate(RESP = as.numeric(geo_uid)) %>% 
-  right_join(TMF %>% 
-               filter(ACTIVE == "Y") %>%
-               count(RESP, CD_2021),
-             by = join_by("RESP" == "RESP"))
-# Detected an unexpected many-to-many relationship between `x` and `y`.
+crime_rate_dict_labels = c(
+  "ref_date" = "The year of the observation (in '%Y' format)" ,
+  "violations"  = "Violation type and classification, such as ",
+  "statistics" = "The statistic being measured, including Rate per 100,000 population, Percentage change in rate",
+  "DA_2021"   = "Dessemination area id in 2021 Canadian Census" ,
+  "value" = "Value: Rate per 100,000 population or Percentage change in rate"
+)
 
 
-# to eliminate the dupliated RESP rate within DAs, we use n of postal code regions as weights
+crime_rate_dict = create_dictionary(bc_da_crime_stats_year_weighted_by_pop, var_labels = crime_rate_dict_labels)
 
-bc_cd_crime_stats_year %>% names %>% paste(collapse = ",")
-bc_cd_crime_stats_year = bc_cd_crime_stats_year %>% 
-  group_by(CD_2021,ref_date, classification_code_for_violations,violations,statistics) %>% 
-  summarise(crimte_rate = weighted.mean(value, w = n))
+write.csv2(crime_rate_dict, here::here("out/Crime_Rate_Dict_DIP.csv"))
