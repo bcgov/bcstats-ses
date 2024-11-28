@@ -12,6 +12,9 @@
 
 ####################################################################
 # This script reads wild fire geodata and calculate the events in each DB. 
+# if wrong character sdet
+# convert character set
+# iconv -f ISO-8859-1 -t UTF-8 2021_92-151_X.csv > 2021_92-151_X_iconv.csv
 ###################################################################
 
 
@@ -37,7 +40,8 @@ print(st_crs(BC_wildfire_perimeter_historic))
 
 
 ###################################################################
-
+# BC Wildfire Fire Perimeters - Historical
+# https://catalogue.data.gov.bc.ca/dataset/22c7cb44-1463-48f7-8e47-88857f207702
 ###################################################################
 # The best practice is to reproject your data into a projected CRS before applying st_union() to avoid distortions and ensure accurate results. Always ensure geometries are valid and use simplification if necessary for performance reasons.
 
@@ -99,7 +103,11 @@ BC_wildfire_perimeter_historic <- BC_wildfire_perimeter_historic[!BC_wildfire_pe
   )
 
 ###################################################################
-
+# # boundary files
+# https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21
+# 
+# # geographic attribute file
+# https://www12.statcan.gc.ca/census-recensement/2021/geo/aip-pia/attribute-attribs/index-eng.cfm
 ###################################################################
 ## READ DISSEMINATION BLOCKS
 file_path <- use_network_path("data/Wildfires_DB/Input/Blocks_2021/ldb_000b21a_e.shp")
@@ -145,7 +153,8 @@ BC_fire_perimeter <- BC_fire_perimeter %>%
 BC_fire_list <- split(BC_fire_perimeter, BC_fire_perimeter$FIRE_YEAR)
 
 ###################################################################
-
+# BC Wildfire Fire Perimeters - Current
+# https://catalogue.data.gov.bc.ca/dataset/cdfc2d7b-c046-4bf0-90ac-4897232619e1
 ###################################################################
 ## CURRENT WILDFIRES
 file_path <- use_network_path("data/Wildfires_DB/Input/BC Wildfire Fire Perimeters - Current GEOJSON/PROT_CURRENT_FIRE_POLYS_SP.geojson")
@@ -181,10 +190,8 @@ BC_fire_perimeter <- BC_fire_perimeter %>%
          FIRE_PERCENT_FIRE = 100*as.numeric(FIRE_DB_AREA_SQM)/as.numeric(FIRE_AREA_SQM),
          FIRE_PERCENT_FIRE = ifelse(FIRE_PERCENT_FIRE>100, 100, FIRE_PERCENT_FIRE))
 
-
-
 ###################################################################
-
+# 
 ###################################################################
 
 BC_fire_list[['2024']] <- BC_fire_perimeter
