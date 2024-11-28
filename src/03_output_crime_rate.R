@@ -19,51 +19,32 @@ pacman::p_load( tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow
 
 ######################################################################################
 # Crime rate data
-# 
 ######################################################################################
 
-# What’s cool is that Stats Can compiles on this data yearly at the police jurisdiction level (basically municipality level like Saanich): 
-# https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3510018401. 
-
 ########################################################################################################
-
-#  B.C. crime trends and statistics
-# https://www2.gov.bc.ca/gov/content/justice/criminal-justice/policing-in-bc/publications-statistics-legislation/crime-police-resource-statistics
-
-# Incident-based crime statistics, by detailed violations, police services in British Columbia 1, 2, 3, 4, 5
+# B.C. crime trends and STATISTICS
+# https://www2.gov.bc.ca/gov/content/justice/criminal-justice/policing-in-bc/publications-STATISTICS-legislation/crime-police-resource-STATISTICS
+# Incident-based crime STATISTICS, by detailed VIOLATIONS, police services in British Columbia 1, 2, 3, 4, 5
 # Frequency: Annual
-
-# Statistics Canada. Table 35-10-0184-01 Incident-based crime statistics, by detailed violations, police services in British Columbia, annual (number unless otherwise noted)
-
-
+# STATISTICS Canada. Table 35-10-0184-01 Incident-based crime STATISTICS, by detailed VIOLATIONS, police services in British Columbia, annual (number unless otherwise noted)
 # Release date: 2023-07-27
-
-
-
-# Geography: Province or territory, Policing district/zone
-
-# https://www2.gov.bc.ca/assets/gov/law-crime-and-justice/criminal-justice/police/publications/statistics/bc-crime-statistics-2022.xlsx
-
+# GEOgraphy: Province or territory, Policing district/zone
+# https://www2.gov.bc.ca/assets/gov/law-crime-and-justice/criminal-justice/police/publications/STATISTICS/bc-crime-STATISTICS-2022.xlsx
 # Policing district/zone is different from 
-
 # https://catalogue.data.gov.bc.ca/dataset/policing-jurisdictions-and-regions-in-bc
-
-
 # annual and policing district data. Luckily, BC stats team already aggregate the one data variable (total rate excluding traffic) to region level which is close to CD. 
-
 # https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3510018401
-
 ########################################################################################################
-print("file out of date: this could take a while")
-
-# Use Case
 # get_cansim_sqlite is particularly beneficial when working with large tables or when you need to perform complex filtering operations before bringing data into memory. For example, table 35-10-0184-01 is several gigabytes in size, making it impractical to load entirely into memory.
 # However, for smaller tables that can be easily processed in memory, get_cansim may still be a simpler and more straightforward option. The choice between the two functions depends on the specific requirements of your data analysis task and the size of the dataset you're working with.
 # it was supposed to save sqlite to a cache folder. 
 cansim_id <- "35-10-0184-01"
-# it is too slow to index in sqlite on a network drive, so switch to a local folder, and create a copy from LAN use_network_path("data/cansim_cache") to C drive repo_folder/data. 
-options(cansim.cache_path = "./data")
 # options(cansim.cache_path = use_network_path("data/cansim_cache"))
+# it is too slow to index in sqlite on a network drive, so switch to a local folder, and create a copy from LAN use_network_path("data/cansim_cache") to C drive repo_folder/data. 
+# this only needs to run once: 
+# fs::file_copy(use_network_path("data/cansim_cache/35100184-eng.sqlite"), "./data/")
+options(cansim.cache_path = "./data")
+
 getOption("cansim.cache_path")
 connection <- cansim::get_cansim_sqlite(cansim_id,
                                         # auto_refresh=TRUE,
@@ -73,9 +54,8 @@ connection <- cansim::get_cansim_sqlite(cansim_id,
 # ignore the warning, the cache does not have the date right. It is retrieved in July 30th, so it is updated. 
 # 
 connection %>% glimpse()
-# 
-# 
-Violations_list = connection %>%
+
+violations_list = connection %>%
   count(Violations) %>%
   collect()
 # # 314 types of crime
@@ -83,7 +63,6 @@ Violations_list = connection %>%
 
 # BC stats previous SES project: 
 # The BC stats "Definition and Data Sources, BC Socio-Economic Indices and Profiles" provide a list of potential variables for our project.   
-
 
 # 1. The Crime Rate is the number of offences per 1,000 population (per 1,000 population 12-17 for juvenile crime rates). Data are 3-year averages. 
 # 2. Serious violent crime rate is based on reporting within the crime categories of homicide, attempted murder, sexual and non-sexual assault (level 2 and 3: resulting in bodily harm, wounding, disfiguring, maiming or endangering the life of someone) as well as robbery and abduction. Data are 3-year averages. 
@@ -102,15 +81,16 @@ Violations_list = connection %>%
 # 
 # 10.Juvenile crime rates. See crime rate definitions above. Note that juvenile rates are based on charges as it is only when a charge is laid that the age of the suspect is determined. 
 # I cannot get the Juenile crime and illicite drug death 
-Violations_selected_list = Violations_list %>% 
-  filter(str_detect(str_to_lower(Violations) , pattern = "all criminal code violations \\(excluding traffic\\)|total violent criminal code violations|homicide|attempted murder|assault|breaking|entering|youth criminal justice act|total drug violation" )) %>% 
+violations_selected_list = violations_list %>% 
+  filter(str_detect(str_to_lower(Violations) , 
+                    pattern = "all criminal code violations \\(excluding traffic\\)|total violent criminal code violations|homicide|attempted murder|assault|breaking|entering|youth criminal justice act|total drug violation" )) %>% 
   pull(Violations)
 
 
-# str(Violations_selected_list)
+# str(VIOLATIONS_selected_list)
 # Brett's idea
-# Total, all Criminal Code violations (excluding traffic) [50]
-# Total violent Criminal Code violations [100]
+# Total, all Criminal Code VIOLATIONS (excluding traffic) [50]
+# Total violent Criminal Code VIOLATIONS [100]
 # Homicide [110]
 
 crime_GEO_list = connection %>%
@@ -119,102 +99,88 @@ crime_GEO_list = connection %>%
 # # 237 regions: Policing district/zone. id Police Services Respondent Codes: RESP like 59774
 #  [59774] need to parse out and join to TMF RESP
 
-
-
-
-
 # Only look at data after 2000
 bc_crime_stats <- connection %>%
   filter(
     # GEO=="British Columbia",
-    # str_starts( GeoUID, "59"),
-    REF_DATE >="2010", # focus on most recent years
-    Violations %in% Violations_selected_list,  #c("Assault, level 1 [1430]"   ,"Assault, level 2, weapon or bodily harm [1420]"   ) ,  #  ,
+    # str_starts( GEOUID, "59"),
+    REF_DATE  >="2000", # focus on most recent years
+    Violations %in% violations_selected_list,  #c("Assault, level 1 [1430]"   ,"Assault, level 2, weapon or bodily harm [1420]"   ) ,  #  ,
     Statistics  %in% c("Rate per 100,000 population", "Percentage change in rate")
   ) %>%
   # filter(REF_DATE  > lubridate::today() - lubridate::years(11))%>%
-  cansim::collect_and_normalize() %>%
-  janitor::clean_names()
+  cansim::collect_and_normalize() 
+
+bc_crime_stats <-  bc_crime_stats %>%  
+  janitor::clean_names(case = "screaming_snake") # clean the names. We prefer all uppercase
 
 bc_resp_lookup = bc_crime_stats %>% 
-  count(geo, geo_uid)
+  count(GEO, GEO_UID)
 # 237 resps
 
 # policy zone is like: Colwood, British Columbia, Royal Canadian Mounted Police, municipal [59819]
-
-# bc_crime_stats = bc_crime_stats %>%
-#   mutate(
-#     `Period Starting` = lubridate::ym(ref_date),
-#     Source = paste("Statistics Canada. Table", cansim_id, "Crime Rate per 100,000 population")
-#   ) %>%
-#   filter(`Period Starting` > lubridate::today() - lubridate::years(11))# %>%
-# select(`Period Starting`, Geo, Geouid, Violations, VECTOR, Value,Statistics, Source)
-
-# From TMF get the look-up table for RESP
-# in TMF, there are only 193 RESPs, but statscan crime rate data has 237 RESPs. 
 
 
 ##########################################################################
 # For CSD or DAs, many CSDs or DAs have to share RESP together, so it is better to calculate the ratios within each RESP and CSDs or DAs could share the ratios. 
 # If one CD or CSD has two or more RESPs, we could average them weighting by the number of the postal code regions within the RESPs. 
-# Econ team provides a lookup table for us to link DA to RESP weighted by postal code or population
+# Econ team provides a lookup table for us to link DA to RESP, which is from population projection project.
 ###########################################################################
 
 
-DA_RESP_lookup = read_excel(path = use_network_path("data/crime_rate/Pop by DA and RESP.xlsx"), 
+DA_RESP_lookup <- readxl::read_excel(path = use_network_path("data/crime_rate/Pop by DA and RESP.xlsx"), 
                              sheet = "DA RESP")
+
+DA_RESP_lookup <- DA_RESP_lookup %>% 
+  filter(!is.na(RESP)) %>% 
+  janitor::clean_names(case = "screaming_snake") # clean the names. We prefer all uppercase
 
 DA_RESP_lookup %>%
   count( DA_2021 )
 # 3,712
 # some DAs cover multiple RESP
 DA_RESP_lookup %>%
-  count(RESP,)
-# # 195
+  count(RESP)
+# # 195 RESPs in the lookup table which is close to the number of 193 RESPs in Crime rate data table
 
-
-
-# create a 
-DA_RESP_lookup_with_year = bc_crime_stats %>% distinct(ref_date, violations, statistics) %>% cross_join(DA_RESP_lookup)
-
+# create a table with all possible combinations of REF_DATE, VIOLATIONS, STATISTICS for each RESP and DA.
+DA_RESP_lookup_with_year = bc_crime_stats %>% 
+  distinct(REF_DATE, VIOLATIONS, STATISTICS) %>% 
+  cross_join(DA_RESP_lookup)
 
 # one option is to join to da table
 bc_da_crime_stats_year = DA_RESP_lookup_with_year%>% 
-  right_join(bc_crime_stats %>% 
-               select(ref_date,geo_uid, geo, violations, statistics, value) ,
-             by = join_by("ref_date","violations","statistics", "RESP" ==  "geo_uid" ) )
+  left_join(bc_crime_stats %>% 
+               select(REF_DATE,GEO_UID, GEO, VIOLATIONS, STATISTICS, VALUE) ,
+             by = join_by("REF_DATE","VIOLATIONS","STATISTICS", "RESP" ==  "GEO_UID" ) )
 
-
-
-# to eliminate the dupliated RESP rate within DAs, we use number of postal code regions or population as weights
+# to eliminate the duplicated RESP rate within DAs, we use number of postal code regions or population as weights
 
 # bc_da_crime_stats_year %>% names %>% paste(collapse = ",")
 
 bc_da_crime_stats_year_weighted_by_pop = bc_da_crime_stats_year %>% 
-  group_by(ref_date,violations,statistics,DA_2021) %>% 
-  summarise(value = weighted.mean(value, w = POP_CNT))
+  group_by(REF_DATE,VIOLATIONS,STATISTICS,DA_2021) %>% 
+  summarise(VALUE = weighted.mean(VALUE, w = POP_CNT))
 
 bc_da_crime_stats_year_weighted_by_pop %>% write.csv2( here::here("out/BC_DA_Crime_Rate_DIP.csv"))
+
 # bc_da_crime_stats_year_weighted_by_pc = bc_da_crime_stats_year %>% 
-#   group_by(ref_date,violations,statistics,DA_2021) %>% 
-#   summarise(value = weighted.mean(value, w = PC_CNT))
+#   group_by(REF_DATE,VIOLATIONS,STATISTICS,DA_2021) %>% 
+#   summarise(VALUE = weighted.mean(VALUE, w = PC_CNT))
 
 # later, we may calculate the moving average of the crime rate instead of using the observed rate. 
-
-
 
 ##############################################################
 # Data Dictionary
 #############################################################
 
 crime_rate_dict_labels = c(
-  "ref_date" = "The year of the observation (in '%Y' format)" ,
-  "violations"  = "Violation type and classification, such as ",
-  "statistics" = "The statistic being measured, including Rate per 100,000 population, Percentage change in rate",
+  "REF_DATE" = "The year of the observation (in '%Y' format): from 2000 to 2023" ,
+  "VIOLATIONS"  = "Violation type and classification, such as violent criminal code violations|homicide|attempted murder|assault|breaking|entering|",
+  "STATISTICS" = "The statistic being measured, including Rate per 100,000 population, Percentage change in rate",
   "DA_2021"   = "Dessemination area id in 2021 Canadian Census" ,
-  "value" = "Value: Rate per 100,000 population or Percentage change in rate"
+  "VALUE" = "VALUE: Rate per 100,000 population or Percentage change in rate"
 )
-
 
 crime_rate_dict = create_dictionary(bc_da_crime_stats_year_weighted_by_pop, var_labels = crime_rate_dict_labels)
 
