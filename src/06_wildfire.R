@@ -11,18 +11,9 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 ####################################################################
-# This script reads stored interest rates, housing prices and income
-# from the LAN. Process the data, cleaning the data, imputing 
-# missing values for housing prices and using an ARIMA model
-# to predict missing income values in the last years of data.
-# Municipalities with too many missing values are ignored.
-# Then proceeds to estimate the mortage payment as a percentage
-# of income. All of this by municipality and housing type.
+# This script reads wild fire geodata and calculate the events in each DB. 
 ###################################################################
 
-## Source local configurations
-config <- config::get()
-lan_path <- config$lan_path
 
 ## Set library
 pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow, duckdb)
@@ -43,6 +34,11 @@ BC_wildfire_perimeter_historic <- sf::st_read(file_path) %>%
 # Check current CRS
 print(st_crs(BC_wildfire_perimeter_historic))
 
+
+
+###################################################################
+
+###################################################################
 # The best practice is to reproject your data into a projected CRS before applying st_union() to avoid distortions and ensure accurate results. Always ensure geometries are valid and use simplification if necessary for performance reasons.
 
 
@@ -102,6 +98,9 @@ BC_wildfire_perimeter_historic <- BC_wildfire_perimeter_historic[!BC_wildfire_pe
       )
   )
 
+###################################################################
+
+###################################################################
 ## READ DISSEMINATION BLOCKS
 file_path <- use_network_path("data/Wildfires_DB/Input/Blocks_2021/ldb_000b21a_e.shp")
 blocks <- st_read(file_path) %>%
@@ -125,34 +124,51 @@ blocks_projected <- st_make_valid(blocks_projected)
 BC_fire_perimeter_projected <- st_intersection(blocks_projected, BC_wildfire_perimeter_historic_projected) %>%
   select(c(DBUID, FIRE_LABEL, FIRE_NUMBER, FIRE_YEAR, FIRE_CAUSE, FIRE_DATE, FIRE_SIZE_HECTARES,
            FEATURE_AREA_SQM))
-##. Reproject back to original CRS if needed
+##. Reproject back to original CRS 
 BC_fire_perimeter <- st_transform(BC_fire_perimeter_projected, st_crs(BC_wildfire_perimeter_historic))
 
 
-
+# Get back the DB area
 BC_fire_perimeter <- merge(BC_fire_perimeter, DB_filtered)
-BC_fire_perimeter <- dplyr::rename(BC_fire_perimeter, FIRE_AREA_SQM = FEATURE_AREA_SQM) %>%  
+# Calculate the fire area within DB
+BC_fire_perimeter <- BC_fire_perimeter %>% 
+  dplyr::rename( FIRE_AREA_SQM = FEATURE_AREA_SQM) %>%  
   mutate(FIRE_DB_AREA_SQM = st_area(geometry))  
 
+# Get percentage of fire area
 BC_fire_perimeter <- BC_fire_perimeter %>%
   mutate(FIRE_PERCENT_DB = 100*as.numeric(FIRE_DB_AREA_SQM)/as.numeric(DB_AREA),
          FIRE_PERCENT_FIRE = 100*as.numeric(FIRE_DB_AREA_SQM)/as.numeric(FIRE_AREA_SQM),
          FIRE_PERCENT_FIRE = ifelse(FIRE_PERCENT_FIRE>100, 100, FIRE_PERCENT_FIRE))
 
+
 BC_fire_list <- split(BC_fire_perimeter, BC_fire_perimeter$FIRE_YEAR)
 
+###################################################################
+
+###################################################################
 ## CURRENT WILDFIRES
 file_path <- use_network_path("data/Wildfires_DB/Input/BC Wildfire Fire Perimeters - Current GEOJSON/PROT_CURRENT_FIRE_POLYS_SP.geojson")
 BC_wildfire_perimeter_current <- st_read(file_path) %>%
   filter(FIRE_YEAR>=2024) %>%
   mutate(FIRE_LABEL = paste(FIRE_YEAR, FIRE_NUMBER, sep='-'))
 
+print(st_crs(BC_wildfire_perimeter_current))
 
 
+# Reproject datasets to a suitable CRS
+BC_wildfire_perimeter_current_projected <- st_transform(BC_wildfire_perimeter_current, crs = 32633)  # UTM Zone 33N (example)
 
-BC_fire_perimeter <- st_intersection(blocks, BC_wildfire_perimeter_current) %>%
+# Ensure geometries are valid
+BC_wildfire_perimeter_historic_projected <- st_make_valid(BC_wildfire_perimeter_current_projected)
+
+## COMBINE BLOCKS AND FIRES # Perform the intersection
+BC_fire_perimeter_projected <- st_intersection(blocks_projected, BC_wildfire_perimeter_current_projected) %>%
   select(c(DBUID, FIRE_LABEL, FIRE_NUMBER, FIRE_YEAR, FIRE_STATUS, TRACK_DATE, FIRE_SIZE_HECTARES,
            FEATURE_AREA_SQM))
+##. Reproject back to original CRS 
+BC_fire_perimeter <- st_transform(BC_fire_perimeter_projected, st_crs(BC_wildfire_perimeter_current))
+
 
 ## COMBINE CURRENT FIRES AND BLOCKS
 BC_fire_perimeter <- merge(BC_fire_perimeter, DB_filtered)
@@ -165,12 +181,20 @@ BC_fire_perimeter <- BC_fire_perimeter %>%
          FIRE_PERCENT_FIRE = 100*as.numeric(FIRE_DB_AREA_SQM)/as.numeric(FIRE_AREA_SQM),
          FIRE_PERCENT_FIRE = ifelse(FIRE_PERCENT_FIRE>100, 100, FIRE_PERCENT_FIRE))
 
+
+
+###################################################################
+
+###################################################################
+
 BC_fire_list[['2024']] <- BC_fire_perimeter
 
-## COMBINE CURRENT AND HISTORICAL INTO SINGLE DATASET
+## COMBINE CURRENT AND HISTORICAL INTO SINGLE DATASET # different column names: FIRE_CAUSE, FIRE_DATE, vs FIRE_STATUS, TRACK_DATE,
 BC_fire <- bind_rows(BC_fire_list) %>%
   st_as_sf(.) %>%
   st_drop_geometry(.)
+
+
 
 BC_fire <- BC_fire %>%
   mutate(ESTIMATED_AREA = ifelse(FIRE_LABEL %in% dups, 1, 0),
@@ -182,13 +206,20 @@ BC_fire <- BC_fire %>%
            ESTIMATED_AREA))
 
 BC_fire <- BC_fire[order(BC_fire$FIRE_LABEL_DB), ]
-file_path <- paste0(lan_path, 'Output/BC_wildfires_2000_2024.csv')
+file_path <- use_network_path("data/Wildfires_DB/Output/BC_wildfires_2000_2024.csv")
 write.csv(BC_fire, file = file_path)
 
 ## EXTENDED VERSION
 ## ESTIMATE NEIGHBORS FOR EACH BLOCK
-neighbors <- st_touches(blocks)
+
+# Reproject your data into a projected CRS before using st_touches. This ensures that the geometries are treated as planar, and operations like st_touches work accurately.
+
+# Reproject data to a suitable projected CRS (e.g., UTM Zone 33N)
+neighbors <- st_touches(st_transform(blocks, crs = 32633))
+# ST_Touches(A, B) returns true if A and B have at least one point in common, but their interiors do not intersect.
+# ST_Touches tests whether two geometries touch at their boundaries, but do not intersect in their interiors
 fire_neighbors <- tibble()
+# append the neighbours as a column to the BC_fire, so each DB gets many rows based on how many neighbours they have.
 for(x in 1:nrow(BC_fire)){
   DB <- BC_fire$DBUID[x]
   match <- which(blocks$DBUID==DB)
@@ -213,6 +244,8 @@ for(x in 1:nrow(BC_fire)){
 #plot(blocks$geometry[neighbors[[which(blocks$DBUID=='59410459089')]]], col='yellow')
 #plot(blocks$geometry[which(blocks$DBUID=='59410459089')], add=T, col='red')
 
+
+# append rows for those neighours.
 BC_fire <- bind_rows(BC_fire, fire_neighbors) %>%
   mutate(NEIGHBOR = ifelse(is.na(NEIGHBOR), 0, NEIGHBOR),
          FIRE_LABEL_DB = ifelse(is.na(FIRE_LABEL_DB), 
@@ -220,7 +253,7 @@ BC_fire <- bind_rows(BC_fire, fire_neighbors) %>%
                                 FIRE_LABEL_DB)
   )
 BC_fire <- BC_fire[order(BC_fire$FIRE_LABEL_DB), ]
-file_path <- paste0(lan_path, 'Output/BC_wildfires_2000_2024_extended.csv')
+file_path <- use_network_path("data/Wildfires_DB/Output/BC_wildfires_2000_2024_extended.csv")
 write.csv(BC_fire, file = file_path)
 
 
@@ -252,9 +285,19 @@ BC_fire_labels  <- c(
 )
 
 # Print the label vector
-print(label_vector)
+print(BC_fire_labels)
 
+BC_fire <- BC_fire %>% 
+  mutate(
+    across(
+      .cols = c(FIRE_CAUSE,FIRE_STATUS ),
+      .fns = as_factor
+    )
+  )
 
 BC_fire_dict <- create_dictionary(BC_fire,
-                             id_var = "POSTALCODE",
-                             var_labels = wildfire_labels)
+                             id_var = "FIRE_LABEL_DB",
+                             var_labels = BC_fire_labels)
+
+file_path <- use_network_path("data/Wildfires_DB/Output/BC_fire_dict.csv")
+write.csv(BC_fire_dict, file = file_path)
