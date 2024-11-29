@@ -19,7 +19,7 @@
 
 
 ## Set library
-pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow, duckdb)
+pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow, duckdb, cancensus)
 
 library(rgdal)
 library(sf)
@@ -29,21 +29,35 @@ library(lwgeom )
 ## Turn off spherical geometry
 sf::sf_use_s2(FALSE)
 
-## READ HISTORIC WILDFIRES
-file_path <- use_network_path("data/Wildfires_DB/Input/BC Wildfire Fire Perimeters - Historical GEOJSON/PROT_HISTORICAL_FIRE_POLYS_SP.geojson")
-BC_wildfire_perimeter_historic <- sf::st_read(file_path) %>%
-  filter(FIRE_YEAR>=2000)
-
-# Check current CRS
-print(st_crs(BC_wildfire_perimeter_historic))
-
-
-
 ###################################################################
 # BC Wildfire Fire Perimeters - Historical
 # https://catalogue.data.gov.bc.ca/dataset/22c7cb44-1463-48f7-8e47-88857f207702
 ###################################################################
+
+
+## READ HISTORIC WILDFIRES
+# file_path <- use_network_path("data/Wildfires_DB/Input/BC Wildfire Fire Perimeters - Historical GEOJSON/PROT_HISTORICAL_FIRE_POLYS_SP.geojson")
+# BC_wildfire_perimeter_historic <- sf::st_read(file_path) %>%
+#   filter(FIRE_YEAR>=2000)
+
+bcdc_get_record("22c7cb44-1463-48f7-8e47-88857f207702")
+
+# Access the full 'Resources' data frame using:
+bcdc_tidy_resources('22c7cb44-1463-48f7-8e47-88857f207702')
+# Query and filter this data using: 
+BC_wildfire_perimeter_historic_bcdata <- bcdc_query_geodata('22c7cb44-1463-48f7-8e47-88857f207702')
+
+BC_wildfire_perimeter_historic <- BC_wildfire_perimeter_historic_bcdata %>%
+  filter(FIRE_YEAR>=2000) %>% 
+  collect()
+
+BC_wildfire_perimeter_historic %>% glimpse()
+
+# Check current CRS
+print(st_crs(BC_wildfire_perimeter_historic))
+
 # The best practice is to reproject your data into a projected CRS before applying st_union() to avoid distortions and ensure accurate results. Always ensure geometries are valid and use simplification if necessary for performance reasons.
+
 
 
 ## FIX CASES WITH FIRES SPLIT INTO SEVERAL PARTS (DUPLICATED FIRES)
@@ -52,7 +66,7 @@ BC_dups <- BC_wildfire_perimeter_historic[BC_wildfire_perimeter_historic$FIRE_LA
 
 # Before performing st_union(), reproject the data to a suitable projected coordinate system (e.g., UTM or an equal-area projection). This ensures that the union operation is done in a coordinate system that respects spatial distances and areas.
 # Reproject to UTM (adjust to your area)
-projected_BC_dups <- st_transform(BC_dups, crs = 32633)
+projected_BC_dups <- st_transform(BC_dups, crs = 32610)
 
 # Ensure geometries are valid
 valid_projected_BC_dups <- st_make_valid(projected_BC_dups)
@@ -65,7 +79,7 @@ union_valid_projected_BC_dups <- valid_projected_BC_dups %>%
   st_as_sf()
 
 # Reproject back to geographic CRS if needed
-dups_merge <- st_transform(union_valid_projected_BC_dups, crs = st_crs(BC_dups))
+dups_merge <- st_transform(union_valid_projected_BC_dups, crs = st_crs(BC_wildfire_perimeter_historic))
 
 library(units)
 # ensure that both datasets have the same units for the var column. You can use units::set_units() to assign the appropriate units:
@@ -79,7 +93,7 @@ BC_dups <- BC_dups %>%
   # distinct(FIRE_LABEL, .keep_all = TRUE) %>% #keep all variables in .data. If a combination of FIRE_LABEL is not distinct, this keeps the first row of values.
   # arrange(FIRE_LABEL) %>% 
   # remove area variables before we calculate the new area variables using union geometry.
-  merge(., dups_merge) %>%
+  inner_join(., dups_merge, by = join_by(FIRE_LABEL)) %>%
   mutate(
     FEATURE_AREA_SQM = st_area(geometry) ,
     FIRE_SIZE_HECTARES = (FEATURE_AREA_SQM)/10000
@@ -109,20 +123,38 @@ BC_wildfire_perimeter_historic <- BC_wildfire_perimeter_historic[!BC_wildfire_pe
 # # geographic attribute file
 # https://www12.statcan.gc.ca/census-recensement/2021/geo/aip-pia/attribute-attribs/index-eng.cfm
 ###################################################################
+
+# grab the file from "Statistics Canada"
+# download.file("https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/ldb_000a21a_e.zip",
+#               destfile="./input/ldb_000a21a_e.zip")
+# unzip("ldb_000a21a_e.zip")
 ## READ DISSEMINATION BLOCKS
 file_path <- use_network_path("data/Wildfires_DB/Input/Blocks_2021/ldb_000b21a_e.shp")
+
 blocks <- st_read(file_path) %>%
   st_transform(, crs = st_crs(BC_wildfire_perimeter_historic)) %>%
   filter(PRUID == '59') %>%
   mutate(DB_AREA = st_area(.)) 
 
+
+TEST = get_statcan_geographies(
+  2021,
+  level = "DB",
+  type = "digital",
+  cache_path = NULL,
+  timeout = 1000,
+  refresh = FALSE,
+  quiet = FALSE
+)
+
 DB_filtered <- blocks %>%
   select(c(DBUID, DB_AREA)) %>%
   st_drop_geometry()
 
+
 # Reproject datasets to a suitable CRS
-BC_wildfire_perimeter_historic_projected <- st_transform(BC_wildfire_perimeter_historic, crs = 32633)  # UTM Zone 33N (example)
-blocks_projected <- st_transform(blocks, crs = 32633)
+BC_wildfire_perimeter_historic_projected <- st_transform(BC_wildfire_perimeter_historic, crs = 32610)  # UTM Zone 33N (example)
+blocks_projected <- st_transform(blocks, crs = 32610)
 
 # Ensure geometries are valid
 BC_wildfire_perimeter_historic_projected <- st_make_valid(BC_wildfire_perimeter_historic_projected)
@@ -157,16 +189,32 @@ BC_fire_list <- split(BC_fire_perimeter, BC_fire_perimeter$FIRE_YEAR)
 # https://catalogue.data.gov.bc.ca/dataset/cdfc2d7b-c046-4bf0-90ac-4897232619e1
 ###################################################################
 ## CURRENT WILDFIRES
-file_path <- use_network_path("data/Wildfires_DB/Input/BC Wildfire Fire Perimeters - Current GEOJSON/PROT_CURRENT_FIRE_POLYS_SP.geojson")
-BC_wildfire_perimeter_current <- st_read(file_path) %>%
-  filter(FIRE_YEAR>=2024) %>%
-  mutate(FIRE_LABEL = paste(FIRE_YEAR, FIRE_NUMBER, sep='-'))
+
+
+bcdc_get_record("cdfc2d7b-c046-4bf0-90ac-4897232619e1")
+
+# Available Resources (1):
+  # 1. View WMS getCapabilities request details (wms)
+# Access the full 'Resources' data frame using:
+bcdc_tidy_resources('cdfc2d7b-c046-4bf0-90ac-4897232619e1')
+# Query and filter this data using: bcdc_query_geodata('cdfc2d7b-c046-4bf0-90ac-4897232619e1')
+BC_wildfire_perimeter_current_bcdata <- bcdc_query_geodata('cdfc2d7b-c046-4bf0-90ac-4897232619e1')
+
+BC_wildfire_perimeter_current <- BC_wildfire_perimeter_current_bcdata %>%
+  filter(FIRE_YEAR >= 2024) %>%
+  collect() %>%
+  mutate(FIRE_LABEL = paste(FIRE_YEAR, FIRE_NUMBER, sep = '-'))
+# 
+# file_path <- use_network_path("data/Wildfires_DB/Input/BC Wildfire Fire Perimeters - Current GEOJSON/PROT_CURRENT_FIRE_POLYS_SP.geojson")
+# BC_wildfire_perimeter_current <- st_read(file_path) %>%
+#   filter(FIRE_YEAR>=2024) %>%
+#   mutate(FIRE_LABEL = paste(FIRE_YEAR, FIRE_NUMBER, sep='-'))
 
 print(st_crs(BC_wildfire_perimeter_current))
 
 
 # Reproject datasets to a suitable CRS
-BC_wildfire_perimeter_current_projected <- st_transform(BC_wildfire_perimeter_current, crs = 32633)  # UTM Zone 33N (example)
+BC_wildfire_perimeter_current_projected <- st_transform(BC_wildfire_perimeter_current, crs = 32610)  # UTM Zone 33N (example)
 
 # Ensure geometries are valid
 BC_wildfire_perimeter_historic_projected <- st_make_valid(BC_wildfire_perimeter_current_projected)
@@ -222,7 +270,7 @@ write.csv(BC_fire, file = file_path)
 # Reproject your data into a projected CRS before using st_touches. This ensures that the geometries are treated as planar, and operations like st_touches work accurately.
 
 # Reproject data to a suitable projected CRS (e.g., UTM Zone 33N)
-neighbors <- st_touches(st_transform(blocks, crs = 32633))
+neighbors <- st_touches(st_transform(blocks, crs = 32610))
 # ST_Touches(A, B) returns true if A and B have at least one point in common, but their interiors do not intersect.
 # ST_Touches tests whether two geometries touch at their boundaries, but do not intersect in their interiors
 fire_neighbors <- tibble()
