@@ -136,17 +136,6 @@ blocks <- st_read(file_path) %>%
   filter(PRUID == '59') %>%
   mutate(DB_AREA = st_area(.)) 
 
-
-TEST = get_statcan_geographies(
-  2021,
-  level = "DB",
-  type = "digital",
-  cache_path = NULL,
-  timeout = 1000,
-  refresh = FALSE,
-  quiet = FALSE
-)
-
 DB_filtered <- blocks %>%
   select(c(DBUID, DB_AREA)) %>%
   st_drop_geometry()
@@ -169,7 +158,7 @@ BC_fire_perimeter <- st_transform(BC_fire_perimeter_projected, st_crs(BC_wildfir
 
 
 # Get back the DB area
-BC_fire_perimeter <- merge(BC_fire_perimeter, DB_filtered)
+BC_fire_perimeter <- inner_join(BC_fire_perimeter, DB_filtered)
 # Calculate the fire area within DB
 BC_fire_perimeter <- BC_fire_perimeter %>% 
   dplyr::rename( FIRE_AREA_SQM = FEATURE_AREA_SQM) %>%  
@@ -228,7 +217,7 @@ BC_fire_perimeter <- st_transform(BC_fire_perimeter_projected, st_crs(BC_wildfir
 
 
 ## COMBINE CURRENT FIRES AND BLOCKS
-BC_fire_perimeter <- merge(BC_fire_perimeter, DB_filtered)
+BC_fire_perimeter <- inner_join(BC_fire_perimeter, DB_filtered)
 BC_fire_perimeter <- BC_fire_perimeter %>%
   dplyr::rename(FIRE_AREA_SQM = FEATURE_AREA_SQM) %>%
   mutate(FIRE_DB_AREA_SQM = st_area(.))
@@ -260,7 +249,8 @@ BC_fire <- BC_fire %>%
            FIRE_AREA_SQM, DB_AREA, FIRE_DB_AREA_SQM, FIRE_PERCENT_DB, FIRE_PERCENT_FIRE,
            ESTIMATED_AREA))
 
-BC_fire <- BC_fire[order(BC_fire$FIRE_LABEL_DB), ]
+BC_fire <- BC_fire %>% 
+  arrange(FIRE_LABEL_DB)
 file_path <- use_network_path("data/Wildfires_DB/Output/BC_wildfires_2000_2024.csv")
 write.csv(BC_fire, file = file_path)
 
