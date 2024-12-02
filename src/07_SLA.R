@@ -12,42 +12,68 @@
 
 # this file is used for outputting data for importing to DIP
 
-pacman::p_load(cancensus, geojsonsf, tidyverse, config, bcmaps, bcdata, janitor, cansim, safepaths, arrow, duckdb, datadictionary)
+
+
+# Quick comment: Brett is on vacation right now (2024-12-02) and I'm hoping he has some background information on this dataset (for example, what columns do we care about, etc.). I'm forging ahead in the meantime using my intuition.
+
+pacman::p_load(tidyverse, config, bcdata, janitor, safepaths, datadictionary)
 
 SLA_file = use_network_path("data/StatsCanLFS/SLA2016_FinalClassification.xlsx")
 SLA = readxl::read_excel(SLA_file)
 
-# only BC - but note this is weird - since when was BC the 59th province?
+# only BC - this is weird but I think it's correct - since when was BC the 59th province?
 SLA = SLA |>
-  filter(PR == "59")
+  filter(PR == "59") |>
+  select(-PR)
 
-# clean the names. We prefer all uppercase
+# Clean the names as per previous work
 SLA = SLA |> 
   rename(CSDName = CSDname, CSDType = CSDtype) |>
   janitor::clean_names(case = "screaming_snake")
 
-# convert to integer where appropriate
+# The most granular column is CSD. Note that they all begin with '59'.
+SLA |>
+  pull(CSD) |>
+  substr(1,2) |>
+  unique()
+
+# So let's dump that 59 nonsense
+SLA$CSD = substr(SLA$CSD, 3, nchar(SLA$CSD))
+
+# convert everything to characters. This is because it appears that other files, such as the TMF, don't do integers (which would be my preference, for the record).
 SLA = SLA |>
-  mutate(across(c(SLA_CODE, CMACASLA_CODE, PR, CSD, CMA), as.integer))
+ mutate(across(everything(), as.character))
 
 # if the SLA NAME is null the code should be too, no?
 SLA = SLA |>
-  mutate(SLA_CODE = case_when(is.na(SLA_NAME) ~ NA_integer_, T ~ SLA_CODE))
+  mutate(SLA_CODE = case_when(is.na(SLA_NAME) ~ NA_character_, T ~ SLA_CODE))
 
-SLA = SLA |>
-  arrange(SLA_CODE)
+# there is some wackiness involving SLA_CODE and CMACASLA_CODE. For example: there are zero rows here, indicating that these columns are redundant.
+SLA |> na.omit() |> filter(SLA_CODE != CMACASLA_CODE)
+
+# however, this indicates that CMACASLA_CODE is more granular than SLA_CODE. Why?????????????? In any case, we'll just keep all the columns and let the benighted data scientist have to sort this out
+SLA |> filter(is.na(SLA_CODE)) |> select(1:3)
+
+# Another Issue: using SLA makes for a bad join key because there are duplicate rows. For example:
+SLA |> count(SLA_CODE)
+
+# Joining to other tables in this project is not perfectly straightforward. As discussed, you want to join on CSD. Here's an example:
+
+# SLA |> inner_join(TMF, by=join_by(CSD == CDCSD_2021))
+# A tibble: 133,958 × 76
+
 
 # lookin' good
 print(SLA)
 
-readr::write_csv(LFS, here::here("out", "SLA_DIP.csv"))
+readr::write_csv(SLA, here::here("out", "SLA_DIP.csv"))
 
 
 #################################################################################################
 # Data dictionary
 #################################################################################################
 
-# waiting for a dictionary from Brett
+# waiting for a dictionary from Brett - see above
 SLA_dict_labels = c(
   "SLA_NAME" = "Self-contained Labour Areas (SLA). SLA are functional areas composed of Census Subdivisions (CSD) grouped according to commuting patterns (OECD, 2020)."
 )
