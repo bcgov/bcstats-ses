@@ -512,7 +512,7 @@ print("file out of date: this could take a while")
 cansim_id <- "35-10-0184-01"
 # it is too slow to index in sqlite on a network drive, so switch to a local folder, and later copy to LAN. 
 # options(cansim.cache_path = use_network_path("data/cansim_cache"))
-options(cansim.cache_path = "C:\\Users\\JDUAN\\Downloads\\project\\data\\cansim_cache")
+options(cansim.cache_path = use_network_path("data/cansim_cache"))
 getOption("cansim.cache_path")
 connection <- cansim::get_cansim_sqlite(cansim_id,
                                         auto_refresh=TRUE
