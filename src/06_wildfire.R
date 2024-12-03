@@ -273,7 +273,7 @@ overlap_results <- BC_DB_wildfire_perimeter %>%
       function(i) {
         # Work with the current group only
         current_group <-  st_as_sf(cur_data())  # Ensure it's an sf object # Access only rows within the group
-        current_group <- st_transform(current_group, crs = 3005)  # BC Albers projection
+        current_group <- st_transform(current_group, crs =  st_crs(BC_wildfire_perimeter))  # BC Albers projection
         others <- current_group[-i, ]  # Exclude the i-th row within the group
         overlaps <- st_intersects(current_group[i, ], others, sparse = FALSE)
         # Check if overlaps occur with different times, skip time this time. 
@@ -302,38 +302,78 @@ BC_DB_wildfire_perimeter_grouped <- BC_DB_wildfire_perimeter_projected %>%
     geometry = st_union(geometry),  # Union geometries within each group
     .groups = "drop"
   ) %>%
-  mutate(TOTAO_FIRE_AREA = st_area(geometry))  # Calculate the total area
+  mutate(TOTAO_FIRE_AREA = st_area(geometry))  # Calculate the total area %>% 
+  
+BC_DB_wildfire_perimeter_grouped = st_transform(BC_DB_wildfire_perimeter_grouped,  st_crs(BC_wildfire_perimeter))
 
 
 
 BC_DB_wildfire_perimeter_grouped %>% 
   glimpse()
 
-# Calculate the fire area within DB
-BC_fire_perimeter <- BC_fire_perimeter %>% 
-  dplyr::rename( FIRE_AREA_SQM = FEATURE_AREA_SQM) %>%  
-  mutate(FIRE_DB_AREA_SQM = st_area(geometry))  
 
 # Get percentage of fire area
-BC_fire_perimeter <- BC_fire_perimeter %>%
-  mutate(FIRE_PERCENT_DB = 100*as.numeric(FIRE_DB_AREA_SQM)/as.numeric(DB_AREA), # one DB could have three fires in one year, so the percent could small but the total percent could be large.  
-         FIRE_PERCENT_FIRE = 100*as.numeric(FIRE_DB_AREA_SQM)/as.numeric(FIRE_AREA_SQM),
+BC_DB_wildfire_perimeter_grouped <- BC_DB_wildfire_perimeter_grouped %>%
+  mutate(FIRE_PERCENT_DB = 100*as.numeric(TOTAO_FIRE_AREA)/as.numeric(DB_AREA), # one DB could have three fires in one year, so the percent could small but the total percent could be large.  
+         FIRE_PERCENT_FIRE = 100*as.numeric(TOTAO_FIRE_AREA)/as.numeric(SIMPLE_SUM_FEATURE_AREA_SQM   ),
          FIRE_PERCENT_FIRE = ifelse(FIRE_PERCENT_FIRE>100, 100, FIRE_PERCENT_FIRE)) # why it could be larger than 100? due geometry computation?
+
 
 ###################################################################
 # 
 ###################################################################
 
-# BC_fire_list[['2024']] <- BC_fire_perimeter
 
-## COMBINE CURRENT AND HISTORICAL INTO SINGLE DATASET # different column names: FIRE_CAUSE, FIRE_DATE, vs FIRE_STATUS, TRACK_DATE,
-BC_fire <- bind_rows(BC_fire_list) %>%
-  st_as_sf(.) %>%
-  st_drop_geometry(.)
-
+BC_DB_wildfire_perimeter_grouped <- BC_DB_wildfire_perimeter_grouped %>% 
+  arrange(FIRE_YEAR, DBUID, DB_AREA, LANDAREA)
+file_path <- use_network_path("data/Wildfires_DB/Output/BC_DB_grouped_wildfires_2000_2024.csv")
+write.csv(BC_DB_wildfire_perimeter_grouped, file = file_path)
 
 
-BC_fire <- BC_fire %>%
+
+
+
+
+#################################################################################################
+# Data dictionary
+#################################################################################################
+# 2. Create a dictionary 
+library(datadictionary)
+
+
+BC_DB_wildfire_perimeter_grouped_labels  <- c(
+  "FIRE_YEAR" = "Year of the Wildfire",
+  "DBUID" = "Dissemination block unique ID",
+  "DB_AREA" = "Size of the dissemination block in square meters (estimated)",
+  "LAND_AREA" = "Size of the land in dissemination block in hectares (estimated)",
+  "FIRE_NUMBER" = "Wildfire number (some fires in the same area but different years may share the same fire number)",
+  "N_FIRE" = "The total numbers the wildfire",
+  "SIMPLE_SUM_FIRE_SIZE_HECTARES" = "The simple total size of all wildfire in the DB within the year in Hectares (reported)",
+  "SIMPLE_SUM_FEATURE_AREA_SQM" = "The simple total size of all wildfire in the DB within the year in square meters (reported/estimated)",
+  "TOTAO_FIRE_AREA" = "The total size of all wildfire in the DB within the year in square meters (reported/estimated without overlapped areas)", 
+  "FIRE_DB_AREA_SQM" = "Size of the portion of the wildfire that belongs to the dissemination block in square meters (estimated)",
+  "FIRE_PERCENT_DB" = "Size of the fire (portion that match with dissemination block) as a percent of the dissemination block. (Estimated)",
+  "FIRE_PERCENT_FIRE" = "Size of the wildfire portion as a percentage of the total Wildfire (estimated)"
+)
+
+# Print the label vector
+print(BC_DB_wildfire_perimeter_grouped_labels)
+
+
+BC_DB_wildfire_perimeter_grouped_dict <- create_dictionary(BC_DB_wildfire_perimeter_grouped,
+                                  id_var = c("FIRE_YEAR", "DBUID"),
+                                  var_labels = BC_DB_wildfire_perimeter_grouped_labels)
+
+file_path <- use_network_path("data/Wildfires_DB/Output/BC_DB_wildfire_perimeter_grouped_dict.csv")
+write.csv(BC_DB_wildfire_perimeter_grouped_dict, file = file_path)
+
+
+###################################################################
+# 
+###################################################################
+
+
+BC_DB_wildfire_perimeter_grouped <- BC_DB_wildfire_perimeter_grouped %>%
   mutate(ESTIMATED_AREA = ifelse(FIRE_LABEL %in% dups, 1, 0),
          FIRE_LABEL_DB = paste(FIRE_LABEL, DBUID, sep='-')
   ) %>%
@@ -342,13 +382,57 @@ BC_fire <- BC_fire %>%
            FIRE_AREA_SQM, DB_AREA, FIRE_DB_AREA_SQM, FIRE_PERCENT_DB, FIRE_PERCENT_FIRE,
            ESTIMATED_AREA))
 
+#################################################################################################
+# Data dictionary
+#################################################################################################
+# 2. Create a dictionary 
+library(datadictionary)
+
+
+BC_fire_labels  <- c(
+  "FIRE_LABEL_DB" = "Unique ID for each element of the data, combination of FIRE_LABEL and DBUID.",
+  "FIRE_LABEL" = "Wildfire unique ID, combination of FIRE_NUMBER and FIRE_YEAR.",
+  "DBUID" = "Dissemination block unique ID",
+  "FIRE_NUMBER" = "Wildfire number (some fires in the same area but different years may share the same fire number)",
+  "FIRE_YEAR" = "Year of the Wildfire",
+  "FIRE_CAUSE" = "Cause of the wildfire (Missing for current wildfires)",
+  "FIRE_DATE" = "Estimated date of the Wildfire (Missing for current wildfires)",
+  "TRACK_DATE" = "Date when the wildfire was tracked (only for current wildfires)",
+  "FIRE_STATUS" = "Status of the wildfire (Off, under control, etc.) only for current wildfires",
+  "FIRE_SIZE_HECTARES" = "Size of the wildfire in Hectares (reported)",
+  "FIRE_AREA_SQM" = "Size of the wildfire in square meters (reported/estimated)",
+  "DB_AREA" = "Size of the dissemination block in square meters (estimated)",
+  "FIRE_DB_AREA_SQM" = "Size of the portion of the wildfire that belongs to the dissemination block in square meters (estimated)",
+  "FIRE_PERCENT_DB" = "Size of the fire (portion that match with dissemination block) as a percent of the dissemination block. (Estimated)",
+  "FIRE_PERCENT_FIRE" = "Size of the wildfire portion as a percentage of the total Wildfire (estimated)",
+  "ESTIMATED_AREA" = "Dummy variable equal to 1 if the FIRE_AREA_SQM was estimated rather than keep the reported value (only for cases where the FIRE originally was reported in separated parts)",
+  "NEIGHBOR" = "Dummy variable equal to 1 if the observation associated with the fire is a neighbor of the fire happening (is an adjacent dissemination block). For these cases there are no percentages or areas estimated since there is no fire."
+)
+
+# Print the label vector
+print(BC_fire_labels)
+
 BC_fire <- BC_fire %>% 
-  arrange(FIRE_LABEL_DB)
-file_path <- use_network_path("data/Wildfires_DB/Output/BC_wildfires_2000_2024.csv")
-write.csv(BC_fire, file = file_path)
+  mutate(
+    across(
+      .cols = c(FIRE_CAUSE,FIRE_STATUS ),
+      .fns = as_factor
+    )
+  )
+
+BC_fire_dict <- create_dictionary(BC_fire,
+                                  id_var = "FIRE_LABEL_DB",
+                                  var_labels = BC_fire_labels)
+
+file_path <- use_network_path("data/Wildfires_DB/Output/BC_fire_dict.csv")
+write.csv(BC_fire_dict, file = file_path)
+
 
 ## EXTENDED VERSION
 ## ESTIMATE NEIGHBORS FOR EACH BLOCK
+
+
+# in the extended version we include the DB that do not have a fire but are some how in contact with a  DB where there was a fire
 
 # Reproject your data into a projected CRS before using st_touches. This ensures that the geometries are treated as planar, and operations like st_touches work accurately.
 
@@ -394,48 +478,3 @@ BC_fire <- BC_fire[order(BC_fire$FIRE_LABEL_DB), ]
 file_path <- use_network_path("data/Wildfires_DB/Output/BC_wildfires_2000_2024_extended.csv")
 write.csv(BC_fire, file = file_path)
 
-
-#################################################################################################
-# Data dictionary
-#################################################################################################
-# 2. Create a dictionary 
-library(datadictionary)
-
-
-BC_fire_labels  <- c(
-  "FIRE_LABEL_DB" = "Unique ID for each element of the data, combination of FIRE_LABEL and DBUID.",
-  "FIRE_LABEL" = "Wildfire unique ID, combination of FIRE_NUMBER and FIRE_YEAR.",
-  "DBUID" = "Dissemination block unique ID",
-  "FIRE_NUMBER" = "Wildfire number (some fires in the same area but different years may share the same fire number)",
-  "FIRE_YEAR" = "Year of the Wildfire",
-  "FIRE_CAUSE" = "Cause of the wildfire (Missing for current wildfires)",
-  "FIRE_DATE" = "Estimated date of the Wildfire (Missing for current wildfires)",
-  "TRACK_DATE" = "Date when the wildfire was tracked (only for current wildfires)",
-  "FIRE_STATUS" = "Status of the wildfire (Off, under control, etc.) only for current wildfires",
-  "FIRE_SIZE_HECTARES" = "Size of the wildfire in Hectares (reported)",
-  "FIRE_AREA_SQM" = "Size of the wildfire in square meters (reported/estimated)",
-  "DB_AREA" = "Size of the dissemination block in square meters (estimated)",
-  "FIRE_DB_AREA_SQM" = "Size of the portion of the wildfire that belongs to the dissemination block in square meters (estimated)",
-  "FIRE_PERCENT_DB" = "Size of the fire (portion that match with dissemination block) as a percent of the dissemination block. (Estimated)",
-  "FIRE_PERCENT_FIRE" = "Size of the wildfire portion as a percentage of the total Wildfire (estimated)",
-  "ESTIMATED_AREA" = "Dummy variable equal to 1 if the FIRE_AREA_SQM was estimated rather than keep the reported value (only for cases where the FIRE originally was reported in separated parts)",
-  "NEIGHBOR" = "Dummy variable equal to 1 if the observation associated with the fire is a neighbor of the fire happening (is an adjacent dissemination block). For these cases there are no percentages or areas estimated since there is no fire."
-)
-
-# Print the label vector
-print(BC_fire_labels)
-
-BC_fire <- BC_fire %>% 
-  mutate(
-    across(
-      .cols = c(FIRE_CAUSE,FIRE_STATUS ),
-      .fns = as_factor
-    )
-  )
-
-BC_fire_dict <- create_dictionary(BC_fire,
-                             id_var = "FIRE_LABEL_DB",
-                             var_labels = BC_fire_labels)
-
-file_path <- use_network_path("data/Wildfires_DB/Output/BC_fire_dict.csv")
-write.csv(BC_fire_dict, file = file_path)
