@@ -45,19 +45,31 @@ bcdc_get_record("22c7cb44-1463-48f7-8e47-88857f207702")
 # Access the full 'Resources' data frame using:
 bcdc_tidy_resources('22c7cb44-1463-48f7-8e47-88857f207702')
 # Query and filter this data using: 
-BC_wildfire_perimeter_historic_bcdata <- bcdc_query_geodata('22c7cb44-1463-48f7-8e47-88857f207702')
 
-BC_wildfire_perimeter_historic <- BC_wildfire_perimeter_historic_bcdata %>%
+BC_wildfire_perimeter_historic <- bcdc_query_geodata('22c7cb44-1463-48f7-8e47-88857f207702') %>%
   filter(FIRE_YEAR>=2000) %>% 
   collect()
 
+# show all the features
 BC_wildfire_perimeter_historic %>% glimpse()
 
 # Check current CRS
 print(st_crs(BC_wildfire_perimeter_historic))
+# "NAD83 / BC Albers"
+# 
+# **EPSG Code**: `3005` (NAD83 / BC Albers)
+# - **Description**: A custom projection for British Columbia, using an Albers Equal Area Conic projection.
+# **EPSG Code**: `4326` (WGS 84) or `4269` (NAD 83)
+# - **Description**: These are unprojected coordinate systems based on latitude and longitude.
+# **Limitations**: Distances, areas, and intersections will not be accurate due to distortion.
 
 # The best practice is to reproject your data into a projected CRS before applying st_union() to avoid distortions and ensure accurate results. Always ensure geometries are valid and use simplification if necessary for performance reasons.
 
+### Recommendation
+# 
+# - For **local/regional work**: Use the **UTM zone** that corresponds to your area.
+# - For **province-wide work**: Use **NAD83 / BC Albers (EPSG:3005)**.
+# - For **Canada-wide analyses**: Use **Canada Atlas Lambert (EPSG:3347)**.
 
 
 ## FIX CASES WITH FIRES SPLIT INTO SEVERAL PARTS (DUPLICATED FIRES)
@@ -66,6 +78,14 @@ BC_dups <- BC_wildfire_perimeter_historic[BC_wildfire_perimeter_historic$FIRE_LA
 
 # Before performing st_union(), reproject the data to a suitable projected coordinate system (e.g., UTM or an equal-area projection). This ensures that the union operation is done in a coordinate system that respects spatial distances and areas.
 # Reproject to UTM (adjust to your area)
+# BC spans several **UTM (Universal Transverse Mercator)** zones, and UTM is commonly used for regional-scale analyses because it minimizes distortions for smaller areas.
+# 
+# - **UTM Zones in BC**:
+#   
+# - Southern BC: **Zone 10N** (`EPSG:32610`)
+# - Central BC: **Zone 9N** (`EPSG:32609`)
+# - Northern BC: **Zone 8N** (`EPSG:32608`)
+
 projected_BC_dups <- st_transform(BC_dups, crs = 32610)
 
 # Ensure geometries are valid
@@ -86,7 +106,7 @@ library(units)
 # or you can strip the units from the column with the units::drop_units()
 BC_dups <- BC_dups %>%
   st_drop_geometry(.) %>%
-  group_by(FIRE_LABEL) %>% 
+  group_by(FIRE_LABEL) %>% # FIRE_LABEL is combination of fire_number and year, so basically group by year and fire_number
   summarise(across(.cols = everything(),
                    .fns = max)) %>% 
   # FEATURE_LENGTH_M , OBJECTID etc. are different across the same FIRE_LABEL
@@ -101,7 +121,7 @@ BC_dups <- BC_dups %>%
     # FIRE_SIZE_HECTARES = units::drop_units(FEATURE_AREA_SQM)/10000
     
   ) %>%
-  distinct(FIRE_LABEL, .keep_all = TRUE) %>%
+  distinct(FIRE_LABEL, .keep_all = TRUE) %>%  #this will keep the first row within group/distinct value
   st_as_sf(., crs=st_crs(BC_wildfire_perimeter_historic))
 # 70 unique elements are previously duplicated 
 
@@ -116,62 +136,10 @@ BC_wildfire_perimeter_historic <- BC_wildfire_perimeter_historic[!BC_wildfire_pe
       )
   )
 
-###################################################################
-# # boundary files
-# https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21
-# 
-# # geographic attribute file
-# https://www12.statcan.gc.ca/census-recensement/2021/geo/aip-pia/attribute-attribs/index-eng.cfm
-###################################################################
 
-# grab the file from "Statistics Canada"
-# download.file("https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/ldb_000a21a_e.zip",
-#               destfile="./input/ldb_000a21a_e.zip")
-# unzip("ldb_000a21a_e.zip")
-## READ DISSEMINATION BLOCKS
-file_path <- use_network_path("data/Wildfires_DB/Input/Blocks_2021/ldb_000b21a_e.shp")
+BC_wildfire_perimeter_historic %>% 
+  glimpse()
 
-blocks <- st_read(file_path) %>%
-  st_transform(, crs = st_crs(BC_wildfire_perimeter_historic)) %>%
-  filter(PRUID == '59') %>%
-  mutate(DB_AREA = st_area(.)) 
-
-DB_filtered <- blocks %>%
-  select(c(DBUID, DB_AREA)) %>%
-  st_drop_geometry()
-
-
-# Reproject datasets to a suitable CRS
-BC_wildfire_perimeter_historic_projected <- st_transform(BC_wildfire_perimeter_historic, crs = 32610)  # UTM Zone 33N (example)
-blocks_projected <- st_transform(blocks, crs = 32610)
-
-# Ensure geometries are valid
-BC_wildfire_perimeter_historic_projected <- st_make_valid(BC_wildfire_perimeter_historic_projected)
-blocks_projected <- st_make_valid(blocks_projected)
-
-## COMBINE BLOCKS AND FIRES # Perform the intersection
-BC_fire_perimeter_projected <- st_intersection(blocks_projected, BC_wildfire_perimeter_historic_projected) %>%
-  select(c(DBUID, FIRE_LABEL, FIRE_NUMBER, FIRE_YEAR, FIRE_CAUSE, FIRE_DATE, FIRE_SIZE_HECTARES,
-           FEATURE_AREA_SQM))
-##. Reproject back to original CRS 
-BC_fire_perimeter <- st_transform(BC_fire_perimeter_projected, st_crs(BC_wildfire_perimeter_historic))
-
-
-# Get back the DB area
-BC_fire_perimeter <- inner_join(BC_fire_perimeter, DB_filtered)
-# Calculate the fire area within DB
-BC_fire_perimeter <- BC_fire_perimeter %>% 
-  dplyr::rename( FIRE_AREA_SQM = FEATURE_AREA_SQM) %>%  
-  mutate(FIRE_DB_AREA_SQM = st_area(geometry))  
-
-# Get percentage of fire area
-BC_fire_perimeter <- BC_fire_perimeter %>%
-  mutate(FIRE_PERCENT_DB = 100*as.numeric(FIRE_DB_AREA_SQM)/as.numeric(DB_AREA),
-         FIRE_PERCENT_FIRE = 100*as.numeric(FIRE_DB_AREA_SQM)/as.numeric(FIRE_AREA_SQM),
-         FIRE_PERCENT_FIRE = ifelse(FIRE_PERCENT_FIRE>100, 100, FIRE_PERCENT_FIRE))
-
-
-BC_fire_list <- split(BC_fire_perimeter, BC_fire_perimeter$FIRE_YEAR)
 
 ###################################################################
 # BC Wildfire Fire Perimeters - Current
@@ -183,14 +151,13 @@ BC_fire_list <- split(BC_fire_perimeter, BC_fire_perimeter$FIRE_YEAR)
 bcdc_get_record("cdfc2d7b-c046-4bf0-90ac-4897232619e1")
 
 # Available Resources (1):
-  # 1. View WMS getCapabilities request details (wms)
+# 1. View WMS getCapabilities request details (wms)
 # Access the full 'Resources' data frame using:
 bcdc_tidy_resources('cdfc2d7b-c046-4bf0-90ac-4897232619e1')
 # Query and filter this data using: bcdc_query_geodata('cdfc2d7b-c046-4bf0-90ac-4897232619e1')
-BC_wildfire_perimeter_current_bcdata <- bcdc_query_geodata('cdfc2d7b-c046-4bf0-90ac-4897232619e1')
 
-BC_wildfire_perimeter_current <- BC_wildfire_perimeter_current_bcdata %>%
-  filter(FIRE_YEAR >= 2024) %>%
+BC_wildfire_perimeter_current <-  bcdc_query_geodata('cdfc2d7b-c046-4bf0-90ac-4897232619e1') %>%
+  filter(FIRE_YEAR >= 2024) %>% # The data in BC data has one row FIRE_NUMBER == 'G51564' for 2023 which is duplicated since it is in historic dataset.
   collect() %>%
   mutate(FIRE_LABEL = paste(FIRE_YEAR, FIRE_NUMBER, sep = '-'))
 # 
@@ -201,37 +168,163 @@ BC_wildfire_perimeter_current <- BC_wildfire_perimeter_current_bcdata %>%
 
 print(st_crs(BC_wildfire_perimeter_current))
 
+# The same as the historic wild fire data
+
+# BC_wildfire_perimeter_current %>% 
+#   glimpse()
+
+# BC_wildfire_perimeter_current %>% 
+#   group_by(FIRE_LABEL) %>% 
+#   filter(n()>1)
+# no duplicated FIRE_LABEL, no need for dealing with duplication like historic dataset.
+
+# Columns unique to df1
+# unique_to_df1 <- setdiff(colnames(BC_wildfire_perimeter_historic), colnames(BC_wildfire_perimeter_current))
+# 
+# # Columns unique to df2
+# unique_to_df2 <- setdiff(colnames(BC_wildfire_perimeter_current), colnames(BC_wildfire_perimeter_historic))
+# 
+# # Common columns
+# common_columns <- intersect(colnames(BC_wildfire_perimeter_historic), colnames(BC_wildfire_perimeter_current))
+# 
+# # Print differences
+# print(unique_to_df1)  # ["a"]
+# print(unique_to_df2)  # ["c"]
+# print(common_columns) # ["b"]
+
+
+# Bind rows
+BC_wildfire_perimeter = bind_rows(BC_wildfire_perimeter_historic, BC_wildfire_perimeter_current) %>% 
+  arrange(FIRE_LABEL) 
+
+# BC_wildfire_perimeter %>% 
+#   glimpse()
+
+# BC_wildfire_perimeter %>%
+#   group_by(FIRE_LABEL) %>%
+#   filter(n()>1)
+
+###################################################################
+# # boundary files
+# https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21
+# 
+# # geographic attribute file
+# https://www12.statcan.gc.ca/census-recensement/2021/geo/aip-pia/attribute-attribs/index-eng.cfm
+###################################################################
+
+# grab the file from "Statistics Canada", only run once.
+# download.file("https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/ldb_000a21a_e.zip",
+#               destfile=use_network_path("data/Wildfires_DB/Input/Blocks_2021/ldb_000a21a_e.zip"))
+# unzip(use_network_path("data/Wildfires_DB/Input/Blocks_2021/ldb_000a21a_e.zip"))
+## READ DISSEMINATION BLOCKS
+file_path <- use_network_path("data/Wildfires_DB/Input/Blocks_2021/ldb_000b21a_e.shp")
+
+blocks <- st_read(file_path) %>%
+  filter(PRUID == '59') %>%
+  st_transform(, crs = st_crs(BC_wildfire_perimeter_historic)) %>%
+  mutate(DB_AREA = st_area(.)) 
+
+# DB_filtered <- blocks %>%
+#   select(c(DBUID, DB_AREA)) %>%
+#   st_drop_geometry()
+
 
 # Reproject datasets to a suitable CRS
-BC_wildfire_perimeter_current_projected <- st_transform(BC_wildfire_perimeter_current, crs = 32610)  # UTM Zone 33N (example)
+BC_wildfire_perimeter_projected <- st_transform(BC_wildfire_perimeter, crs = 32610)  
+blocks_projected <- st_transform(blocks, crs = 32610)
 
 # Ensure geometries are valid
-BC_wildfire_perimeter_historic_projected <- st_make_valid(BC_wildfire_perimeter_current_projected)
+BC_wildfire_perimeter_projected <- st_make_valid(BC_wildfire_perimeter_projected)
+blocks_projected <- st_make_valid(blocks_projected)
 
 ## COMBINE BLOCKS AND FIRES # Perform the intersection
-BC_fire_perimeter_projected <- st_intersection(blocks_projected, BC_wildfire_perimeter_current_projected) %>%
-  select(c(DBUID, FIRE_LABEL, FIRE_NUMBER, FIRE_YEAR, FIRE_STATUS, TRACK_DATE, FIRE_SIZE_HECTARES,
-           FEATURE_AREA_SQM))
+BC_DB_wildfire_perimeter_projected <- st_intersection(blocks_projected, BC_wildfire_perimeter_projected) %>% 
+  select(DBUID, DB_AREA,
+         FIRE_LABEL, FIRE_NUMBER, FIRE_YEAR,
+         FIRE_CAUSE, FIRE_DATE, FIRE_STATUS, TRACK_DATE, FIRE_SIZE_HECTARES,FEATURE_AREA_SQM,
+         everything()) %>% 
+  arrange(DBUID, FIRE_LABEL)
+  # select(c(DBUID, FIRE_LABEL, FIRE_NUMBER, FIRE_YEAR, FIRE_CAUSE, FIRE_DATE, FIRE_STATUS, TRACK_DATE, FIRE_SIZE_HECTARES,
+  #          FEATURE_AREA_SQM))
+
 ##. Reproject back to original CRS 
-BC_fire_perimeter <- st_transform(BC_fire_perimeter_projected, st_crs(BC_wildfire_perimeter_current))
+BC_DB_wildfire_perimeter <- st_transform(BC_DB_wildfire_perimeter_projected, st_crs(BC_wildfire_perimeter))
 
 
-## COMBINE CURRENT FIRES AND BLOCKS
-BC_fire_perimeter <- inner_join(BC_fire_perimeter, DB_filtered)
+# Get back the DB area, only areas that cover fires, one DB could have three fires in one year
+# BC_fire_perimeter <- DB_filtered %>% inner_join(BC_fire_perimeter, by = join_by(DBUID) )
+
+# ? should we group by DB to get the total percent? or if the fire areas are overlapped, should we st_union them to avoid double counting?
+# BC_fire_list <- split(BC_fire_perimeter, BC_fire_perimeter$FIRE_YEAR)
+
+# Group Data by Year and Region: Use dplyr::group_by() to group the spatial data by the year and region.
+# Identify Overlaps Within Groups:
+#   Use st_intersects() to identify spatial intersections between fire areas.
+# Check if any intersecting geometries have different timestamps within the same group.
+# Summarize Results: For each group, determine if overlaps exist and how many.
+
+
+# Group data by year and region, then identify overlaps
+overlap_results <- BC_DB_wildfire_perimeter %>%
+  group_by(FIRE_YEAR, DBUID) %>%
+  summarise(
+    overlaps = any(sapply(
+      seq_len(n()),
+      function(i) {
+        # Work with the current group only
+        current_group <-  st_as_sf(cur_data())  # Ensure it's an sf object # Access only rows within the group
+        current_group <- st_transform(current_group, crs = 3005)  # BC Albers projection
+        others <- current_group[-i, ]  # Exclude the i-th row within the group
+        overlaps <- st_intersects(current_group[i, ], others, sparse = FALSE)
+        # Check if overlaps occur with different times, skip time this time. 
+        # any(overlaps & current_group$time[-i] != current_group$time[i])
+        any(overlaps)
+      }
+    ))
+  )
+# it seems that some 93 DBs have the overlaps, but not sure if they are significant. 
+overlap_results %>% 
+  filter(overlaps)
+
+# Reproject data to a projected CRS for accurate area calculations
+
+# Group by year and region, then union fire areas
+BC_DB_wildfire_perimeter_grouped <- BC_DB_wildfire_perimeter_projected %>%
+  group_by(FIRE_YEAR, DBUID, DB_AREA, LANDAREA) %>%
+  summarise(
+    N_FIRE = n(),
+    FIRE_NUMBER = str_c(FIRE_NUMBER, collapse = ", ", na.rm = TRUE),
+    across(
+      .cols = c(FIRE_SIZE_HECTARES ,FEATURE_AREA_SQM),
+      .fns = sum,
+      .names = "SIMPLE_SUM_{col}"
+    ),
+    geometry = st_union(geometry),  # Union geometries within each group
+    .groups = "drop"
+  ) %>%
+  mutate(TOTAO_FIRE_AREA = st_area(geometry))  # Calculate the total area
+
+
+
+BC_DB_wildfire_perimeter_grouped %>% 
+  glimpse()
+
+# Calculate the fire area within DB
+BC_fire_perimeter <- BC_fire_perimeter %>% 
+  dplyr::rename( FIRE_AREA_SQM = FEATURE_AREA_SQM) %>%  
+  mutate(FIRE_DB_AREA_SQM = st_area(geometry))  
+
+# Get percentage of fire area
 BC_fire_perimeter <- BC_fire_perimeter %>%
-  dplyr::rename(FIRE_AREA_SQM = FEATURE_AREA_SQM) %>%
-  mutate(FIRE_DB_AREA_SQM = st_area(.))
-
-BC_fire_perimeter <- BC_fire_perimeter %>%
-  mutate(FIRE_PERCENT_DB = 100*as.numeric(FIRE_DB_AREA_SQM)/as.numeric(DB_AREA),
+  mutate(FIRE_PERCENT_DB = 100*as.numeric(FIRE_DB_AREA_SQM)/as.numeric(DB_AREA), # one DB could have three fires in one year, so the percent could small but the total percent could be large.  
          FIRE_PERCENT_FIRE = 100*as.numeric(FIRE_DB_AREA_SQM)/as.numeric(FIRE_AREA_SQM),
-         FIRE_PERCENT_FIRE = ifelse(FIRE_PERCENT_FIRE>100, 100, FIRE_PERCENT_FIRE))
+         FIRE_PERCENT_FIRE = ifelse(FIRE_PERCENT_FIRE>100, 100, FIRE_PERCENT_FIRE)) # why it could be larger than 100? due geometry computation?
 
 ###################################################################
 # 
 ###################################################################
 
-BC_fire_list[['2024']] <- BC_fire_perimeter
+# BC_fire_list[['2024']] <- BC_fire_perimeter
 
 ## COMBINE CURRENT AND HISTORICAL INTO SINGLE DATASET # different column names: FIRE_CAUSE, FIRE_DATE, vs FIRE_STATUS, TRACK_DATE,
 BC_fire <- bind_rows(BC_fire_list) %>%
