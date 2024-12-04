@@ -322,8 +322,7 @@ BC_DB_wildfire_perimeter_grouped <- BC_DB_wildfire_perimeter_grouped %>%
 ###################################################################
 # save grouped dataset
 ###################################################################
-BC_DB_wildfire_perimeter <- BC_DB_wildfire_perimeter %>% 
-  
+
 
 BC_DB_wildfire_perimeter_grouped <- BC_DB_wildfire_perimeter_grouped %>% 
   arrange(FIRE_YEAR, DBUID, DB_AREA, LANDAREA)
