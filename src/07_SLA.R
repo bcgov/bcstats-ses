@@ -73,9 +73,15 @@ readr::write_csv(SLA, here::here("out", "SLA_DIP.csv"))
 # Data dictionary
 #################################################################################################
 
-# waiting for a dictionary from Brett - see above
+# my attempt at a data dictionary. Sources are: G:/Operations/Data%20Science%20and%20Analytics/2024%20SES%20Index/data/StatsCanLFS/dq240917d-eng.pdf and https://www.statcan.gc.ca/en/subjects/standard/sgc/2016/definitions
 SLA_dict_labels = c(
-  "SLA_NAME" = "Self-contained Labour Areas (SLA). SLA are functional areas composed of Census Subdivisions (CSD) grouped according to commuting patterns (OECD, 2020)."
+  "SLA_CODE" = "Code for the SLA",
+  "SLA_NAME" = "Self-contained Labour Areas (SLA). SLA are functional areas composed of Census Subdivisions (CSD) grouped according to commuting patterns (OECD, 2020).",
+  "CMACASLA_CODE" = "Code for CMA, CA, and/or SLA",
+  "CSD" = "Census subdivision (CSD) is the general term for municipalities (as determined by provincial/territorial legislation) or areas treated as municipal equivalents for statistical purposes (e.g., Indian reserves, Indian settlements and unorganized territories).",
+  "CMA" = "A census metropolitan area (CMA) or a census agglomeration (CA) is formed by one or more adjacent municipalities centred on a population centre (known as the core). A CMA must have a total population of at least 100,000 of which 50,000 or more must live in the core, based on adjusted data from the previous census. A CA must have a core population of at least 10,000, also based on data from the previous census. To be included in the CMA or CA, other adjacent municipalities must have a high degree of integration with the core, as measured by commuting flows derived from data on place of work from the previous census.",
+  "CSD_NAME" = "Name of the CSD",
+  "CSD_TYPE" = "Type of CSD"
 )
 
 SLA_dict = create_dictionary(SLA, var_labels = SLA_dict_labels)
