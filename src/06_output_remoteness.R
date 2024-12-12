@@ -115,6 +115,7 @@ st_write(address_with_da, use_network_path("data/raw_data/remoteness/address_wit
 
 address_with_da %>% 
   st_drop_geometry() %>% 
+  inner_join(address_dist_data) %>% 
   write_csv(use_network_path("data/raw_data/remoteness/address_with_dis_area.csv"))
 
 # Validation:
