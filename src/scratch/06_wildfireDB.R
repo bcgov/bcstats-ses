@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 ####################################################################
-# This script reads wild fire geodata and calculate the events in each DA. 
+# This script reads wild fire geodata and calculate the events in each DB. 
 # if wrong character sdet
 # convert character set
 # iconv -f ISO-8859-1 -t UTF-8 2021_92-151_X.csv > 2021_92-151_X_iconv.csv
@@ -192,6 +192,7 @@ BC_wildfire_perimeter = bind_rows(BC_wildfire_perimeter_historic, BC_wildfire_pe
 # download.file("https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/ldb_000a21a_e.zip",
 #               destfile=use_network_path("data/Wildfires_DB/Input/Blocks_2021/ldb_000a21a_e.zip"))
 # unzip(use_network_path("data/Wildfires_DB/Input/Blocks_2021/ldb_000a21a_e.zip"))
+
 ## READ DISSEMINATION BLOCKS
 file_path <- use_network_path("data/raw_data/Wildfire/Wildfires_DB/Input/Blocks_2021/ldb_000b21a_e.shp")
 
