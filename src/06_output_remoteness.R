@@ -65,20 +65,21 @@ da_shapefile <- da_shapefile %>%
   # glimpse()
 
 # Load the address CSV file
-address_dist_data <- read.csv(use_network_path("data/raw_data/remoteness/format_1.csv"))
+# updated the Geocoder address list to allow us to choose between BC Albers or WGS84 (lat/long) for the result file.
+address_dist_servicebc_data <- read.csv(use_network_path("data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_nearest_servicebc_20241212_101844/30_percent_site_Hybrid_geocoder_nearest_servicebc_20241212_101844.csv"))
 
-address_data <- address_dist_data %>% 
-  count(FULL_ADDRESS,	SITE_ALBERS_X,	SITE_ALBERS_Y, coord_x,	coord_y)
+# address_servicebc_data <- address_dist_servicebc_data %>% 
+#   count(FULL_ADDRESS,	SITE_ALBERS_X,	SITE_ALBERS_Y, coord_x,	coord_y)
 
 # Convert to an sf object (BC Albers projection: EPSG 3005)
-address_sf <- st_as_sf(address_data, coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
+address_servicebc_sf <- st_as_sf(address_dist_servicebc_data, coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
 
 
 # da_shapefile <- st_read(use_network_path("data/raw_data/Wildfire/Wildfires_DB/Input/lda_000a21a_e/lda_000b21a_e.shp"))
 
 
 # Check CRS
-st_crs(address_sf)
+st_crs(address_servicebc_sf)
 st_crs(da_shapefile)
 
 # Why Use a Projected CRS?
@@ -94,9 +95,9 @@ st_crs(da_shapefile)
 #   Operations like st_join() rely on spatial relationships (e.g., points inside polygons). Using a projected CRS improves the precision of these calculations.
 
 # Reproject if necessary
-if (st_crs(address_sf) != st_crs(da_shapefile)) {
+if (st_crs(address_servicebc_sf) != st_crs(da_shapefile)) {
   # address_sf <- st_transform(address_sf, st_crs(da_shapefile))
-  da_shapefile <- st_transform(da_shapefile, st_crs(address_sf))
+  da_shapefile <- st_transform(da_shapefile, st_crs(address_servicebc_sf))
 }
 
 # Efficiency:
@@ -104,19 +105,19 @@ if (st_crs(address_sf) != st_crs(da_shapefile)) {
 #   For large datasets, consider spatial indexing using st_join(..., largest = TRUE) to speed up operations.
 
 # Spatial join: append dissemination area IDs to address points
-address_with_da <- st_join(address_sf, da_shapefile, left = TRUE)
+address_servicebc_with_da <- st_join(address_servicebc_sf, da_shapefile, left = TRUE)
 
 
 # View the resulting dataset
-print(address_with_da)
+print(address_servicebc_with_da)
 
 # Save to a new file (optional)
-st_write(address_with_da, use_network_path("data/raw_data/remoteness/address_with_dis_area.geojson"))
+st_write(address_servicebc_with_da, use_network_path("data/raw_data/remoteness/address_servicebc_with_da.geojson"))
 
-address_with_da %>% 
+address_servicebc_with_da %>% 
   st_drop_geometry() %>% 
-  inner_join(address_dist_data) %>% 
-  write_csv(use_network_path("data/raw_data/remoteness/address_with_dis_area.csv"))
+  # inner_join(address_dist_data) %>% 
+  write_csv(use_network_path("data/raw_data/remoteness/address_servicebc_with_da.csv"))
 
 # Validation:
 #   
@@ -125,7 +126,7 @@ address_with_da %>%
 library(ggplot2)
 ggplot() +
   geom_sf(data = da_shapefile, fill = "lightblue", color = "gray") +
-  geom_sf(data = address_sf, color = "red", size = 2) +
+  geom_sf(data = address_servicebc_with_da, color = "red", size = 2) +
   theme_minimal()
 
 
