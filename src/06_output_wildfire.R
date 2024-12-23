@@ -19,7 +19,7 @@
 
 
 ## Set library
-pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow, duckdb, cancensus)
+pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow, duckDA, cancensus)
 
 library(rgdal)
 library(sf)
@@ -54,6 +54,8 @@ BC_wildfire_perimeter_historic <- bcdc_query_geodata('22c7cb44-1463-48f7-8e47-88
 
 # show all the features
 BC_wildfire_perimeter_historic %>% glimpse()
+BC_wildfire_perimeter_historic %>% # Save to a new file (optional)
+  st_write( use_network_path("data/raw_data/Wildfire/Wildfires_DB/Input/BC_wildfire_perimeter_historic.geojson"))
 
 # Check current CRS
 print(st_crs(BC_wildfire_perimeter_historic))
@@ -153,6 +155,10 @@ BC_wildfire_perimeter_current <-  bcdc_query_geodata('cdfc2d7b-c046-4bf0-90ac-48
 
 print(st_crs(BC_wildfire_perimeter_current))
 
+BC_wildfire_perimeter_current %>% # Save to a new file (optional)
+  st_write( use_network_path("data/raw_data/Wildfire/Wildfires_DB/Input/BC_wildfire_perimeter_current.geojson"))
+
+
 # The same as the historic wild fire data
 
 # BC_wildfire_perimeter_current %>% 
@@ -180,6 +186,10 @@ BC_wildfire_perimeter = bind_rows(BC_wildfire_perimeter_historic, BC_wildfire_pe
   arrange(FIRE_LABEL) 
 
 
+BC_wildfire_perimeter %>% # Save to a new file (optional)
+  st_write( use_network_path("data/raw_data/Wildfire/Wildfires_DB/Input/BC_wildfire_perimeter.geojson"))
+
+
 ###################################################################
 # # boundary files
 # https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21
@@ -189,48 +199,50 @@ BC_wildfire_perimeter = bind_rows(BC_wildfire_perimeter_historic, BC_wildfire_pe
 ###################################################################
 
 # grab the file from "Statistics Canada", only run once.
-# download.file("https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/ldb_000a21a_e.zip",
-#               destfile=use_network_path("data/Wildfires_DB/Input/Blocks_2021/ldb_000a21a_e.zip"))
-# unzip(use_network_path("data/Wildfires_DB/Input/Blocks_2021/ldb_000a21a_e.zip"))
-## READ DISSEMINATION BLOCKS
-file_path <- use_network_path("data/raw_data/Wildfire/Wildfires_DB/Input/Blocks_2021/ldb_000b21a_e.shp")
+# download.file("https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lda_000b21a_e.zip",
+#               destfile=use_network_path("data/raw_data/remoteness/lda_000a21a_e.zip"))
+# unzip(use_network_path("data/raw_data/remoteness/lda_000a21a_e.zip"),
+#       exdir = use_network_path("data/raw_data/remoteness/lda_000a21a_e"))
+# ## READ DISSEMINATION DAs
+file_path <- use_network_path("data/raw_data/remoteness/lda_000a21a_e/lda_000b21a_e.shp")
+# Load the dissemination area shapefile
 
-blocks <- st_read(file_path) %>%
+DAs <- st_read(file_path) %>%
   filter(PRUID == '59') %>%
   st_transform(, crs = st_crs(BC_wildfire_perimeter_historic)) %>%
-  mutate(DB_AREA = st_area(.)) 
+  mutate(DA_AREA = st_area(.)) 
 
-# DB_filtered <- blocks %>%
-#   select(c(DBUID, DB_AREA)) %>%
+# DA_filtered <- DAs %>%
+#   select(c(DAUID, DA_AREA)) %>%
 #   st_drop_geometry()
 
 
 # Reproject datasets to a suitable CRS
 BC_wildfire_perimeter_projected <- st_transform(BC_wildfire_perimeter, crs = 32610)  
-blocks_projected <- st_transform(blocks, crs = 32610)
+DAs_projected <- st_transform(DAs, crs = 32610)
 
 # Ensure geometries are valid
 BC_wildfire_perimeter_projected <- st_make_valid(BC_wildfire_perimeter_projected)
-blocks_projected <- st_make_valid(blocks_projected)
+DAs_projected <- st_make_valid(DAs_projected)
 
-## COMBINE BLOCKS AND FIRES # Perform the intersection
-BC_DB_wildfire_perimeter_projected <- st_intersection(blocks_projected, BC_wildfire_perimeter_projected) %>% 
-  select(DBUID, DB_AREA,
+## COMBINE DAs AND FIRES # Perform the intersection
+BC_DA_wildfire_perimeter_projected <- st_intersection(DAs_projected, BC_wildfire_perimeter_projected) %>% 
+  select(DAUID, DA_AREA,
          FIRE_LABEL, FIRE_NUMBER, FIRE_YEAR,
          FIRE_CAUSE, FIRE_DATE, FIRE_STATUS, TRACK_DATE, FIRE_SIZE_HECTARES,FEATURE_AREA_SQM,
          everything()) %>% 
-  arrange(DBUID, FIRE_LABEL)
-  # select(c(DBUID, FIRE_LABEL, FIRE_NUMBER, FIRE_YEAR, FIRE_CAUSE, FIRE_DATE, FIRE_STATUS, TRACK_DATE, FIRE_SIZE_HECTARES,
+  arrange(DAUID, FIRE_LABEL)
+  # select(c(DAUID, FIRE_LABEL, FIRE_NUMBER, FIRE_YEAR, FIRE_CAUSE, FIRE_DATE, FIRE_STATUS, TRACK_DATE, FIRE_SIZE_HECTARES,
   #          FEATURE_AREA_SQM))
 
 ##. Reproject back to original CRS 
-BC_DB_wildfire_perimeter <- st_transform(BC_DB_wildfire_perimeter_projected, st_crs(BC_wildfire_perimeter))
+BC_DA_wildfire_perimeter <- st_transform(BC_DA_wildfire_perimeter_projected, st_crs(BC_wildfire_perimeter))
 
 
-# Get back the DB area, only areas that cover fires, one DB could have three fires in one year
-# BC_DB_wildfire_perimeter_perimeter <- DB_filtered %>% inner_join(BC_DB_wildfire_perimeter_perimeter, by = join_by(DBUID) )
+# Get back the DA area, only areas that cover fires, one DA could have three fires in one year
+# BC_DA_wildfire_perimeter_perimeter <- DA_filtered %>% inner_join(BC_DA_wildfire_perimeter_perimeter, by = join_by(DAUID) )
 
-# ? should we group by DB to get the total percent? or if the fire areas are overlapped, should we st_union them to avoid double counting?
+# ? should we group by DA to get the total percent? or if the fire areas are overlapped, should we st_union them to avoid double counting?
 
 # Group Data by Year and Region: Use dplyr::group_by() to group the spatial data by the year and region.
 # Identify Overlaps Within Groups:
@@ -241,8 +253,8 @@ BC_DB_wildfire_perimeter <- st_transform(BC_DB_wildfire_perimeter_projected, st_
 
 # Group data by year and region, then identify overlaps
 
-overlap_results <- BC_DB_wildfire_perimeter %>%
-  group_by(FIRE_YEAR, DBUID) %>%
+overlap_results <- BC_DA_wildfire_perimeter %>%
+  group_by(FIRE_YEAR, DAUID) %>%
   summarise(
     overlaps = any(sapply(
       seq_len(n()),
@@ -260,15 +272,15 @@ overlap_results <- BC_DB_wildfire_perimeter %>%
   )
 
 
-# it seems that some 93 DBs have the overlaps, but not sure if they are significant. 
+# it seems that some 93 DAs have the overlaps, but not sure if they are significant. 
 overlap_results %>% 
   filter(overlaps)
 
 # Reproject data to a projected CRS for accurate area calculations
 
 # Group by year and region, then union fire areas
-BC_DB_wildfire_perimeter_grouped <- BC_DB_wildfire_perimeter_projected %>%
-  group_by(FIRE_YEAR, DBUID, DB_AREA, LANDAREA) %>%
+BC_DA_wildfire_perimeter_grouped <- BC_DA_wildfire_perimeter_projected %>%
+  group_by(FIRE_YEAR, DAUID, DA_AREA, LANDAREA) %>%
   summarise(
     N_FIRE = n(),
     FIRE_NUMBER = str_c(FIRE_NUMBER, collapse = ", ", na.rm = TRUE),
@@ -283,12 +295,12 @@ BC_DB_wildfire_perimeter_grouped <- BC_DB_wildfire_perimeter_projected %>%
   mutate(TOTAO_FIRE_AREA = st_area(geometry))  # Calculate the total area  
  
 
-BC_DB_wildfire_perimeter_grouped = st_transform(BC_DB_wildfire_perimeter_grouped,  st_crs(BC_wildfire_perimeter)) 
+BC_DA_wildfire_perimeter_grouped = st_transform(BC_DA_wildfire_perimeter_grouped,  st_crs(BC_wildfire_perimeter)) 
 # 6736 rows
 
 # Get percentage of fire area
-BC_DB_wildfire_perimeter_grouped <- BC_DB_wildfire_perimeter_grouped %>%
-  mutate(FIRE_PERCENT_DB = 100*as.numeric(TOTAO_FIRE_AREA)/as.numeric(DB_AREA), # one DB could have three fires in one year, so the percent could small but the total percent could be large.  
+BC_DA_wildfire_perimeter_grouped <- BC_DA_wildfire_perimeter_grouped %>%
+  mutate(FIRE_PERCENT_DA = 100*as.numeric(TOTAO_FIRE_AREA)/as.numeric(DA_AREA), # one DA could have three fires in one year, so the percent could small but the total percent could be large.  
          FIRE_PERCENT_FIRE = 100*as.numeric(TOTAO_FIRE_AREA)/as.numeric(SIMPLE_SUM_FEATURE_AREA_SQM   ),
          FIRE_PERCENT_FIRE = ifelse(FIRE_PERCENT_FIRE>100, 100, FIRE_PERCENT_FIRE)) # why it could be larger than 100? due geometry computation?
 
@@ -298,18 +310,18 @@ BC_DB_wildfire_perimeter_grouped <- BC_DB_wildfire_perimeter_grouped %>%
 ###################################################################
 
 
-BC_DB_wildfire_perimeter_grouped <- BC_DB_wildfire_perimeter_grouped %>% 
-  arrange(FIRE_YEAR, DBUID, DB_AREA, LANDAREA)
-# file_path <- use_network_path("data/Output/Wildfires_DB/BC_DB_grouped_wildfires_2000_2024.csv")
-# write.csv(BC_DB_wildfire_perimeter_grouped, file = file_path)
-file_path <- "out/BC_DB_grouped_wildfires_2000_2024.csv"
-write.csv(BC_DB_wildfire_perimeter_grouped, file = file_path)
+BC_DA_wildfire_perimeter_grouped <- BC_DA_wildfire_perimeter_grouped %>% 
+  arrange(FIRE_YEAR, DAUID, DA_AREA, LANDAREA)
+file_path <- use_network_path("data/Output/Wildfires_DB/BC_DA_grouped_wildfires_2000_2024.csv")
+write.csv(BC_DA_wildfire_perimeter_grouped, file = file_path)
+file_path <- "out/BC_DA_grouped_wildfires_2000_2024.csv"
+write.csv(BC_DA_wildfire_perimeter_grouped, file = file_path)
 
 # the geospatial data could be saved ad geojson. 
-file_path <- use_network_path("data/Output/Wildfires_DB/BC_DB_grouped_wildfires_2000_2024.geojson")
-st_write(BC_DB_wildfire_perimeter_grouped, dsn = file_path)
-file_path <- "out/BC_DB_grouped_wildfires_2000_2024.geojson"
-st_write(BC_DB_wildfire_perimeter_grouped, dsn = file_path)
+file_path <- use_network_path("data/Output/Wildfires_DB/BC_DA_grouped_wildfires_2000_2024.geojson")
+st_write(BC_DA_wildfire_perimeter_grouped, dsn = file_path)
+file_path <- "out/BC_DA_grouped_wildfires_2000_2024.geojson"
+st_write(BC_DA_wildfire_perimeter_grouped, dsn = file_path)
 
 #################################################################################################
 # Data dictionary for grouped dataset
@@ -317,88 +329,88 @@ st_write(BC_DB_wildfire_perimeter_grouped, dsn = file_path)
 # 2. Create a dictionary 
 library(datadictionary)
 
-BC_DB_wildfire_perimeter_grouped_labels  <- c(
+BC_DA_wildfire_perimeter_grouped_labels  <- c(
   "FIRE_YEAR" = "Year of the Wildfire",
-  "DBUID" = "Dissemination block unique ID",
-  "DB_AREA" = "Size of the dissemination block in square meters (estimated)",
+  "DAUID" = "Dissemination block unique ID",
+  "DA_AREA" = "Size of the dissemination block in square meters (estimated)",
   "LANDAREA" = "Size of the land in dissemination block in hectares (estimated)",
   "FIRE_NUMBER" = "Wildfire number (some fires in the same area but different years may share the same fire number)",
   "N_FIRE" = "The total numbers the wildfire",
-  "SIMPLE_SUM_FIRE_SIZE_HECTARES" = "The simple total size of all wildfire in the DB within the year in Hectares (reported)",
-  "SIMPLE_SUM_FEATURE_AREA_SQM" = "The simple total size of all wildfire in the DB within the year in square meters (reported/estimated)",
-  "TOTAO_FIRE_AREA" = "The total size of all wildfire in the DB within the year in square meters (reported/estimated without overlapped areas)", 
-  "FIRE_PERCENT_DB" = "Size of the fire (portion that match with dissemination block) as a percent of the dissemination block. (Estimated)",
+  "SIMPLE_SUM_FIRE_SIZE_HECTARES" = "The simple total size of all wildfire in the DA within the year in Hectares (reported)",
+  "SIMPLE_SUM_FEATURE_AREA_SQM" = "The simple total size of all wildfire in the DA within the year in square meters (reported/estimated)",
+  "TOTAO_FIRE_AREA" = "The total size of all wildfire in the DA within the year in square meters (reported/estimated without overlapped areas)", 
+  "FIRE_PERCENT_DA" = "Size of the fire (portion that match with dissemination block) as a percent of the dissemination block. (Estimated)",
   "FIRE_PERCENT_FIRE" = "Size of the wildfire portion as a percentage of the total Wildfire (estimated)"
 )
 
 # Print the label vector
-print(BC_DB_wildfire_perimeter_grouped_labels)
-names(BC_DB_wildfire_perimeter_grouped_labels)
-names(BC_DB_wildfire_perimeter_grouped)
-setdiff(names(BC_DB_wildfire_perimeter_grouped_labels), names(BC_DB_wildfire_perimeter_grouped))
+print(BC_DA_wildfire_perimeter_grouped_labels)
+names(BC_DA_wildfire_perimeter_grouped_labels)
+names(BC_DA_wildfire_perimeter_grouped)
+setdiff(names(BC_DA_wildfire_perimeter_grouped_labels), names(BC_DA_wildfire_perimeter_grouped))
 # only difference is the geometry
 # test_that("calculates correctly", {
-#   expect_equal(names(BC_DB_wildfire_perimeter_grouped), names(BC_DB_wildfire_perimeter_grouped_labels))          # Basic case
+#   expect_equal(names(BC_DA_wildfire_perimeter_grouped), names(BC_DA_wildfire_perimeter_grouped_labels))          # Basic case
 # })
 
 
 
-BC_DB_wildfire_perimeter_grouped_dict <- create_dictionary(BC_DB_wildfire_perimeter_grouped %>% 
+BC_DA_wildfire_perimeter_grouped_dict <- create_dictionary(BC_DA_wildfire_perimeter_grouped %>% 
                                                              st_drop_geometry() %>% 
-                                                             select(names(BC_DB_wildfire_perimeter_grouped_labels)),
-                                  id_var = c("FIRE_YEAR", "DBUID"),
-                                  var_labels = BC_DB_wildfire_perimeter_grouped_labels)
+                                                             select(names(BC_DA_wildfire_perimeter_grouped_labels)),
+                                  id_var = c("FIRE_YEAR", "DAUID"),
+                                  var_labels = BC_DA_wildfire_perimeter_grouped_labels)
 
 
-# file_path <- use_network_path("data/Output/Wildfires_DB/BC_DB_wildfire_perimeter_grouped_dict.csv")
-# write.csv(BC_DB_wildfire_perimeter_grouped_dict, file = file_path)
-file_path <- "out/BC_DB_wildfire_perimeter_grouped_dict.csv"
-write.csv(BC_DB_wildfire_perimeter_grouped_dict, file = file_path)
+file_path <- use_network_path("data/Output/Wildfires_DB/BC_DA_wildfire_perimeter_grouped_dict.csv")
+write.csv(BC_DA_wildfire_perimeter_grouped_dict, file = file_path)
+file_path <- "out/BC_DA_wildfire_perimeter_grouped_dict.csv"
+write.csv(BC_DA_wildfire_perimeter_grouped_dict, file = file_path)
 
 
 ###################################################################
 # The full wild fire table with details of each wild fire.
 ###################################################################
 
-BC_DB_wildfire_perimeter <- BC_DB_wildfire_perimeter %>%
-  mutate(FIRE_DB_AREA_SQM = st_area(geometry)) %>%
+BC_DA_wildfire_perimeter <- BC_DA_wildfire_perimeter %>%
+  mutate(FIRE_DA_AREA_SQM = st_area(geometry)) %>%
   rename(FIRE_AREA_SQM = FEATURE_AREA_SQM) %>% 
   mutate(ESTIMATED_AREA = ifelse(FIRE_LABEL %in% dups, 1, 0),
-         FIRE_LABEL_DB = paste(FIRE_LABEL, DBUID, sep='-')
+         FIRE_LABEL_DA = paste(FIRE_LABEL, DAUID, sep='-')
   ) 
 
 # Get percentage of fire area
-BC_DB_wildfire_perimeter<- BC_DB_wildfire_perimeter %>%
-  mutate(FIRE_PERCENT_DB = 100*as.numeric(FIRE_DB_AREA_SQM)/as.numeric(DB_AREA), # one DB could have three fires in one year, so the percent could small but the total percent could be large.  
-         FIRE_PERCENT_DB = ifelse(FIRE_PERCENT_DB>100, 100, FIRE_PERCENT_DB) , # should be capped by 100% 
-         FIRE_PERCENT_FIRE = 100*as.numeric(FIRE_DB_AREA_SQM)/as.numeric(FIRE_DB_AREA_SQM   ),
+BC_DA_wildfire_perimeter<- BC_DA_wildfire_perimeter %>%
+  mutate(FIRE_PERCENT_DA = 100*as.numeric(FIRE_DA_AREA_SQM)/as.numeric(DA_AREA), # one DA could have three fires in one year, so the percent could small but the total percent could be large.  
+         FIRE_PERCENT_DA = ifelse(FIRE_PERCENT_DA>100, 100, FIRE_PERCENT_DA) , # should be capped by 100% 
+         FIRE_PERCENT_FIRE = 100*as.numeric(FIRE_DA_AREA_SQM)/as.numeric(FIRE_DA_AREA_SQM   ),
          FIRE_PERCENT_FIRE = ifelse(FIRE_PERCENT_FIRE>100, 100, FIRE_PERCENT_FIRE)) %>% # why it could be larger than 100? due geometry computation?
-  select(c(FIRE_LABEL_DB, FIRE_LABEL, DBUID, FIRE_NUMBER, FIRE_YEAR, 
+  select(c(FIRE_LABEL_DA, FIRE_LABEL, DAUID, FIRE_NUMBER, FIRE_YEAR, 
            FIRE_CAUSE, FIRE_DATE, TRACK_DATE, FIRE_STATUS, FIRE_SIZE_HECTARES, 
-           FIRE_AREA_SQM, DB_AREA, FIRE_DB_AREA_SQM, FIRE_PERCENT_DB, FIRE_PERCENT_FIRE,
+           FIRE_AREA_SQM, DA_AREA, FIRE_DA_AREA_SQM, FIRE_PERCENT_DA, FIRE_PERCENT_FIRE,
            ESTIMATED_AREA))
 
-file_path <- use_network_path("data/Output/Wildfires_DB/BC_DB_wildfire_perimeter_2000_2004.csv")
-write.csv(BC_DB_wildfire_perimeter, file = file_path)
-file_path <- "out/BC_DB_wildfire_perimeter_2000_2004.csv"
-write.csv(BC_DB_wildfire_perimeter, file = file_path)
+file_path <- use_network_path("data/Output/Wildfires_DB/BC_DA_wildfire_perimeter_2000_2004.csv")
+write.csv(BC_DA_wildfire_perimeter, file = file_path)
+file_path <- "out/BC_DA_wildfire_perimeter_2000_2004.csv"
+write.csv(BC_DA_wildfire_perimeter, file = file_path)
 
 # the geospatial data could be saved ad geojson. 
-file_path <- use_network_path("data/Output/Wildfires_DB/BC_DB_wildfires_2000_2024.geojson")
-st_write(BC_DB_wildfire_perimeter, dsn = file_path)
-file_path <- "out/BC_DB_wildfires_2000_2024.geojson"
-st_write(BC_DB_wildfire_perimeter, dsn = file_path)
+file_path <- use_network_path("data/Output/Wildfires_DB/BC_DA_wildfires_2000_2024.geojson")
+st_write(BC_DA_wildfire_perimeter, dsn = file_path)
+file_path <- "out/BC_DA_wildfires_2000_2024.geojson"
+st_write(BC_DA_wildfire_perimeter, dsn = file_path)
 #################################################################################################
 # Data dictionary for full dataset
 #################################################################################################
 # 2. Create a dictionary 
 library(datadictionary)
 
-names(BC_DB_wildfire_perimeter)
-BC_DB_wildfire_perimeter_labels  <- c(
-  "FIRE_LABEL_DB" = "Unique ID for each element of the data, combination of FIRE_LABEL and DBUID.",
+names(BC_DA_wildfire_perimeter)
+BC_DA_wildfire_perimeter_labels  <- c(
+  "FIRE_LABEL_DA" = "Unique ID for each element of the data, combination of FIRE_LABEL and DAUID.",
   "FIRE_LABEL" = "Wildfire unique ID, combination of FIRE_NUMBER and FIRE_YEAR.",
-  "DBUID" = "Dissemination block unique ID",
+  "DAUID" = "Dissemination block unique ID",
   "FIRE_NUMBER" = "Wildfire number (some fires in the same area but different years may share the same fire number)",
   "FIRE_YEAR" = "Year of the Wildfire",
   "FIRE_CAUSE" = "Cause of the wildfire (Missing for current wildfires)",
@@ -407,26 +419,26 @@ BC_DB_wildfire_perimeter_labels  <- c(
   "FIRE_STATUS" = "Status of the wildfire (Off, under control, etc.) only for current wildfires",
   "FIRE_SIZE_HECTARES" = "Size of the wildfire in Hectares (reported)",
   "FIRE_AREA_SQM" = "Size of the wildfire in square meters (reported/estimated)",
-  "DB_AREA" = "Size of the dissemination block in square meters (estimated)",
-  "FIRE_DB_AREA_SQM" = "Size of the portion of the wildfire that belongs to the dissemination block in square meters (estimated)",
-  "FIRE_PERCENT_DB" = "Size of the fire (portion that match with dissemination block) as a percent of the dissemination block. (Estimated)",
+  "DA_AREA" = "Size of the dissemination block in square meters (estimated)",
+  "FIRE_DA_AREA_SQM" = "Size of the portion of the wildfire that belongs to the dissemination block in square meters (estimated)",
+  "FIRE_PERCENT_DA" = "Size of the fire (portion that match with dissemination block) as a percent of the dissemination block. (Estimated)",
   "FIRE_PERCENT_FIRE" = "Size of the wildfire portion as a percentage of the total Wildfire (estimated)",
   "ESTIMATED_AREA" = "Dummy variable equal to 1 if the FIRE_AREA_SQM was estimated rather than keep the reported value (only for cases where the FIRE originally was reported in separated parts)"
 )
 
 # Print the label vector
-print(BC_DB_wildfire_perimeter_labels)
-names(BC_DB_wildfire_perimeter_labels)
-names(BC_DB_wildfire_perimeter)
-setdiff(names(BC_DB_wildfire_perimeter_labels), names(BC_DB_wildfire_perimeter))
-setdiff( names(BC_DB_wildfire_perimeter), names(BC_DB_wildfire_perimeter_labels))
+print(BC_DA_wildfire_perimeter_labels)
+names(BC_DA_wildfire_perimeter_labels)
+names(BC_DA_wildfire_perimeter)
+setdiff(names(BC_DA_wildfire_perimeter_labels), names(BC_DA_wildfire_perimeter))
+setdiff( names(BC_DA_wildfire_perimeter), names(BC_DA_wildfire_perimeter_labels))
 # only difference is the geometry
 # test_that("calculates correctly", {
-#   expect_equal(names(BC_DB_wildfire_perimeter), names(BC_DB_wildfire_perimeter_labels))          # Basic case
+#   expect_equal(names(BC_DA_wildfire_perimeter), names(BC_DA_wildfire_perimeter_labels))          # Basic case
 # })
 
 
-BC_DB_wildfire_perimeter <- BC_DB_wildfire_perimeter %>% 
+BC_DA_wildfire_perimeter <- BC_DA_wildfire_perimeter %>% 
   mutate(
     across(
       .cols = c(FIRE_CAUSE,FIRE_STATUS ),
@@ -434,15 +446,15 @@ BC_DB_wildfire_perimeter <- BC_DB_wildfire_perimeter %>%
     )
   )
 
-BC_DB_wildfire_perimeter_dict <- create_dictionary(BC_DB_wildfire_perimeter %>% 
+BC_DA_wildfire_perimeter_dict <- create_dictionary(BC_DA_wildfire_perimeter %>% 
                                                      st_drop_geometry(),
-                                  id_var = "FIRE_LABEL_DB",
-                                  var_labels = BC_DB_wildfire_perimeter_labels)
+                                  id_var = "FIRE_LABEL_DA",
+                                  var_labels = BC_DA_wildfire_perimeter_labels)
 
-# file_path <- use_network_path("data/Output/Wildfires_DB/BC_DB_wildfire_perimeter_dict.csv")
-# write.csv(BC_DB_wildfire_perimeter_dict, file = file_path)
-file_path <- "out/BC_DB_wildfire_perimeter_dict.csv"
-write.csv(BC_DB_wildfire_perimeter_dict, file = file_path)
+file_path <- use_network_path("data/Output/Wildfires_DB/BC_DA_wildfire_perimeter_dict.csv")
+write.csv(BC_DA_wildfire_perimeter_dict, file = file_path)
+file_path <- "out/BC_DA_wildfire_perimeter_dict.csv"
+write.csv(BC_DA_wildfire_perimeter_dict, file = file_path)
 
 
 #################################################################################################
@@ -450,13 +462,13 @@ write.csv(BC_DB_wildfire_perimeter_dict, file = file_path)
 ## ESTIMATE NEIGHBORS FOR EACH BLOCK
 #################################################################################################
 
-# in the extended version we include the DB that do not have a fire but are some how in contact with a  DB where there was a fire
+# in the extended version we include the DA that do not have a fire but are some how in contact with a  DA where there was a fire
 
 # Reproject your data into a projected CRS before using st_touches. This ensures that the geometries are treated as planar, and operations like st_touches work accurately.
 
 # Reproject data to a suitable projected CRS (e.g., UTM Zone 33N)
-neighbors <- st_touches(st_transform(blocks, crs = 32610))
-# blocks %>% glimpse()
+neighbors <- st_touches(st_transform(DAs, crs = 32610))
+# DAs %>% glimpse()
 # Rows: 52,387
 # ST_Touches(A, B) returns true if A and B have at least one point in common, but their interiors do not intersect.
 # ST_Touches tests whether two geometries touch at their boundaries, but do not intersect in their interiors
@@ -468,25 +480,25 @@ neighbors <- st_touches(st_transform(blocks, crs = 32610))
 # It like row 1: touch 2, 3, 10, 14, 18, 19, 20 rows
 
 fire_neighbors <- tibble()
-# append the neighbours as a column to the BC_DB_wildfire_perimeter, so each DB gets many rows based on how many neighbours they have.
-# In BC_DB_wildfire_perimeter, some DBs have multiple rows within one year due to multiple wild fires within one year. 
-# BC_DB_wildfire_perimeter is the inner join of wildfire area and DB area so it does not have all DBs in BC.
-# the key in this BC_DB_wildfire_perimeter is FIRE_LABEL_DB, year + fire number + db id.
-for(x in 1:nrow(BC_DB_wildfire_perimeter)){
-  DB <- BC_DB_wildfire_perimeter$DBUID[x]
-  match <- which(blocks$DBUID==DB)
-  DB_neighbors <- neighbors[[match]] # get all the row number of rows' that st touch the row x. It like row 1: touch 2, 3, 10, 14, 18, 19, 20
+# append the neighbours as a column to the BC_DA_wildfire_perimeter, so each DA gets many rows based on how many neighbours they have.
+# In BC_DA_wildfire_perimeter, some DAs have multiple rows within one year due to multiple wild fires within one year. 
+# BC_DA_wildfire_perimeter is the inner join of wildfire area and DA area so it does not have all DAs in BC.
+# the key in this BC_DA_wildfire_perimeter is FIRE_LABEL_DA, year + fire number + DA id.
+for(x in 1:nrow(BC_DA_wildfire_perimeter)){
+  DA <- BC_DA_wildfire_perimeter$DAUID[x]
+  match <- which(DAs$DAUID==DA)
+  DA_neighbors <- neighbors[[match]] # get all the row number of rows' that st touch the row x. It like row 1: touch 2, 3, 10, 14, 18, 19, 20
   aux <- tibble(
-    DBUID = blocks$DBUID[DB_neighbors],
-    FIRE_LABEL = BC_DB_wildfire_perimeter$FIRE_LABEL[x],
-    FIRE_NUMBER = BC_DB_wildfire_perimeter$FIRE_NUMBER[x],
-    FIRE_YEAR = BC_DB_wildfire_perimeter$FIRE_YEAR[x],
-    FIRE_CAUSE = BC_DB_wildfire_perimeter$FIRE_CAUSE[x],
-    FIRE_DATE = BC_DB_wildfire_perimeter$FIRE_DATE[x],
-    TRACK_DATE = BC_DB_wildfire_perimeter$TRACK_DATE[x],
-    FIRE_STATUS = BC_DB_wildfire_perimeter$FIRE_STATUS[x],
-    FIRE_SIZE_HECTARES = BC_DB_wildfire_perimeter$FIRE_SIZE_HECTARES[x],
-    FIRE_AREA_SQM = BC_DB_wildfire_perimeter$FIRE_AREA_SQM[x],
+    DAUID = DAs$DAUID[DA_neighbors],
+    FIRE_LABEL = BC_DA_wildfire_perimeter$FIRE_LABEL[x],
+    FIRE_NUMBER = BC_DA_wildfire_perimeter$FIRE_NUMBER[x],
+    FIRE_YEAR = BC_DA_wildfire_perimeter$FIRE_YEAR[x],
+    FIRE_CAUSE = BC_DA_wildfire_perimeter$FIRE_CAUSE[x],
+    FIRE_DATE = BC_DA_wildfire_perimeter$FIRE_DATE[x],
+    TRACK_DATE = BC_DA_wildfire_perimeter$TRACK_DATE[x],
+    FIRE_STATUS = BC_DA_wildfire_perimeter$FIRE_STATUS[x],
+    FIRE_SIZE_HECTARES = BC_DA_wildfire_perimeter$FIRE_SIZE_HECTARES[x],
+    FIRE_AREA_SQM = BC_DA_wildfire_perimeter$FIRE_AREA_SQM[x],
     NEIGHBOR = 1
   )
   fire_neighbors <- rbind(fire_neighbors, aux)
@@ -494,30 +506,30 @@ for(x in 1:nrow(BC_DB_wildfire_perimeter)){
 }
 
 
-#plot(blocks$geometry[neighbors[[which(blocks$DBUID=='59410459089')]]], col='yellow')
-#plot(blocks$geometry[which(blocks$DBUID=='59410459089')], add=T, col='red')
+#plot(DAs$geometry[neighbors[[which(DAs$DAUID=='59410459089')]]], col='yellow')
+#plot(DAs$geometry[which(DAs$DAUID=='59410459089')], add=T, col='red')
 
 
 # append rows for those neighours.
-BC_DB_wildfire_perimeter_extended <- bind_rows(BC_DB_wildfire_perimeter, fire_neighbors) %>%
+BC_DA_wildfire_perimeter_extended <- bind_rows(BC_DA_wildfire_perimeter, fire_neighbors) %>%
   mutate(NEIGHBOR = ifelse(is.na(NEIGHBOR), 0, NEIGHBOR),
-         FIRE_LABEL_DB = ifelse(is.na(FIRE_LABEL_DB), 
-                                paste(FIRE_LABEL, DBUID, sep='-'),
-                                FIRE_LABEL_DB)
+         FIRE_LABEL_DA = ifelse(is.na(FIRE_LABEL_DA), 
+                                paste(FIRE_LABEL, DAUID, sep='-'),
+                                FIRE_LABEL_DA)
   )
-BC_DB_wildfire_perimeter_extended <- BC_DB_wildfire_perimeter_extended %>% 
-  arrange(FIRE_LABEL_DB)
+BC_DA_wildfire_perimeter_extended <- BC_DA_wildfire_perimeter_extended %>% 
+  arrange(FIRE_LABEL_DA)
 
-# file_path <- use_network_path("data/Output/Wildfires_DB/BC_wildfires_2000_2024_extended.csv")
-# write.csv(BC_DB_wildfire_perimeter_extended, file = file_path)
+file_path <- use_network_path("data/Output/Wildfires_DB/BC_wildfires_2000_2024_extended.csv")
+write.csv(BC_DA_wildfire_perimeter_extended, file = file_path)
 file_path <- "out/BC_wildfires_2000_2024_extended.csv"
-write.csv(BC_DB_wildfire_perimeter_extended, file = file_path)
+write.csv(BC_DA_wildfire_perimeter_extended, file = file_path)
 
 # the geospatial data could be saved ad geojson. 
-file_path <- use_network_path("data/Output/Wildfires_DB/BC_DB_wildfire_perimeter_extended.geojson")
-st_write(BC_DB_wildfire_perimeter_extended, dsn = file_path)
-file_path <- "out/BC_DB_wildfire_perimeter_extended.geojson"
-st_write(BC_DB_wildfire_perimeter_extended, dsn = file_path)
+file_path <- use_network_path("data/Output/Wildfires_DB/BC_DA_wildfire_perimeter_extended.geojson")
+st_write(BC_DA_wildfire_perimeter_extended, dsn = file_path)
+file_path <- "out/BC_DA_wildfire_perimeter_extended.geojson"
+st_write(BC_DA_wildfire_perimeter_extended, dsn = file_path)
 
 #################################################################################################
 # Data dictionary for full enxtened dataset
@@ -525,11 +537,11 @@ st_write(BC_DB_wildfire_perimeter_extended, dsn = file_path)
 # 2. Create a dictionary 
 library(datadictionary)
 
-names(BC_DB_wildfire_perimeter_extended)
-BC_DB_wildfire_perimeter_extended_labels  <- c(
-  "FIRE_LABEL_DB" = "Unique ID for each element of the data, combination of FIRE_LABEL and DBUID.",
+names(BC_DA_wildfire_perimeter_extended)
+BC_DA_wildfire_perimeter_extended_labels  <- c(
+  "FIRE_LABEL_DA" = "Unique ID for each element of the data, combination of FIRE_LABEL and DAUID.",
   "FIRE_LABEL" = "Wildfire unique ID, combination of FIRE_NUMBER and FIRE_YEAR.",
-  "DBUID" = "Dissemination block unique ID",
+  "DAUID" = "Dissemination block unique ID",
   "FIRE_NUMBER" = "Wildfire number (some fires in the same area but different years may share the same fire number)",
   "FIRE_YEAR" = "Year of the Wildfire",
   "FIRE_CAUSE" = "Cause of the wildfire (Missing for current wildfires)",
@@ -538,9 +550,9 @@ BC_DB_wildfire_perimeter_extended_labels  <- c(
   "FIRE_STATUS" = "Status of the wildfire (Off, under control, etc.) only for current wildfires",
   "FIRE_SIZE_HECTARES" = "Size of the wildfire in Hectares (reported)",
   "FIRE_AREA_SQM" = "Size of the wildfire in square meters (reported/estimated)",
-  "DB_AREA" = "Size of the dissemination block in square meters (estimated)",
-  "FIRE_DB_AREA_SQM" = "Size of the portion of the wildfire that belongs to the dissemination block in square meters (estimated)",
-  "FIRE_PERCENT_DB" = "Size of the fire (portion that match with dissemination block) as a percent of the dissemination block. (Estimated)",
+  "DA_AREA" = "Size of the dissemination block in square meters (estimated)",
+  "FIRE_DA_AREA_SQM" = "Size of the portion of the wildfire that belongs to the dissemination block in square meters (estimated)",
+  "FIRE_PERCENT_DA" = "Size of the fire (portion that match with dissemination block) as a percent of the dissemination block. (Estimated)",
   "FIRE_PERCENT_FIRE" = "Size of the wildfire portion as a percentage of the total Wildfire (estimated)",
   "ESTIMATED_AREA" = "Dummy variable equal to 1 if the FIRE_AREA_SQM was estimated rather than keep the reported value (only for cases where the FIRE originally was reported in separated parts)",
   "NEIGHBOR" = "Dummy variable equal to 1 if the observation associated with the fire is a neighbor of the fire happening (is an adjacent dissemination block). For these cases there are no percentages or areas estimated since there is no fire."
@@ -548,17 +560,17 @@ BC_DB_wildfire_perimeter_extended_labels  <- c(
 
 
 # Print the label vector
-print(BC_DB_wildfire_perimeter_extended_labels)
-names(BC_DB_wildfire_perimeter_extended_labels)
-names(BC_DB_wildfire_perimeter_extended)
-setdiff(names(BC_DB_wildfire_perimeter_extended_labels), names(BC_DB_wildfire_perimeter_extended))
-setdiff( names(BC_DB_wildfire_perimeter_extended), names(BC_DB_wildfire_perimeter_extended_labels))
+print(BC_DA_wildfire_perimeter_extended_labels)
+names(BC_DA_wildfire_perimeter_extended_labels)
+names(BC_DA_wildfire_perimeter_extended)
+setdiff(names(BC_DA_wildfire_perimeter_extended_labels), names(BC_DA_wildfire_perimeter_extended))
+setdiff( names(BC_DA_wildfire_perimeter_extended), names(BC_DA_wildfire_perimeter_extended_labels))
 
 test_that("calculates correctly", {
-  expect_equal(names(BC_DB_wildfire_perimeter_extended), names(BC_DB_wildfire_perimeter_extended_labels))          # Basic case
+  expect_equal(names(BC_DA_wildfire_perimeter_extended), names(BC_DA_wildfire_perimeter_extended_labels))          # Basic case
 })
 
-BC_DB_wildfire_perimeter_extended <- BC_DB_wildfire_perimeter_extended %>% 
+BC_DA_wildfire_perimeter_extended <- BC_DA_wildfire_perimeter_extended %>% 
   mutate(
     across(
       .cols = c(FIRE_CAUSE,FIRE_STATUS ),
@@ -566,12 +578,12 @@ BC_DB_wildfire_perimeter_extended <- BC_DB_wildfire_perimeter_extended %>%
     )
   )
 
-BC_DB_wildfire_perimeter_extended_dict <- create_dictionary(BC_DB_wildfire_perimeter_extended %>% 
+BC_DA_wildfire_perimeter_extended_dict <- create_dictionary(BC_DA_wildfire_perimeter_extended %>% 
                                                      st_drop_geometry(),
-                                                   id_var = "FIRE_LABEL_DB",
-                                                   var_labels = BC_DB_wildfire_perimeter_extended_labels)
+                                                   id_var = "FIRE_LABEL_DA",
+                                                   var_labels = BC_DA_wildfire_perimeter_extended_labels)
 # 
-# file_path <- use_network_path("data/Output/Wildfires_DB/BC_DB_wildfire_perimeter_extended_dict.csv")
-# write.csv(BC_DB_wildfire_perimeter_extended_dict, file = file_path)
-file_path <- "out/BC_DB_wildfire_perimeter_extended_dict.csv"
-write.csv(BC_DB_wildfire_perimeter_extended_dict, file = file_path)
+file_path <- use_network_path("data/Output/Wildfires_DB/BC_DA_wildfire_perimeter_extended_dict.csv")
+write.csv(BC_DA_wildfire_perimeter_extended_dict, file = file_path)
+file_path <- "out/BC_DA_wildfire_perimeter_extended_dict.csv"
+write.csv(BC_DA_wildfire_perimeter_extended_dict, file = file_path)
