@@ -1,13 +1,26 @@
+# Copyright 2024 Province of British Columbia
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+# http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and limitations under the License.
+
 # this file is used for outputting data for importing to DIP
 
 pacman::p_load(cancensus, geojsonsf, tidyverse, config, bcmaps, bcdata, janitor, cansim, safepaths, arrow, duckdb, datadictionary)
 
-LFS_file = use_network_path("data/StatsCanLFS/1410045701_databaseLoadingData.csv")
-
-LFS = readr::read_csv(LFS_file)
+# load LFS data from StatsCan. It's a small file so this doesn't take very long
+cansim_id = "14-10-0457-01"
+LFS_raw = cansim::get_cansim_sqlite(cansim_id) |>
+  collect()  
 
 # only BC
-LFS = LFS |>
+LFS = LFS_raw |>
   filter(str_detect(GEO, "British Columbia")) |>
   mutate(GEO = str_replace(GEO, ", British Columbia", ""))
 
@@ -38,24 +51,122 @@ LFS = LFS |>
       pull(name)
   )
 
+# I assume we only want the estimates (and not confidence interval boundaries, etc.).
+LFS = LFS |>
+  filter(STATISTICS == "Estimate") |>
+  select(-STATISTICS)
+
+# Do we want to pivot on LABOUR_FORCE_CHARACTERISTIC? I guess we can always do that later.
+
 # the geography type (CA = "census agglomeration", CMA = "census metropolitan area" and SLA = "self-contained labour area") is printed in square brackets at the end of GEO. This is not good. Let's split this type out in a new column called GEO_TYPE and remove it from GEO.
 LFS = LFS |>
   mutate(GEO_TYPE = str_extract(GEO, "\\[(.+)\\]", group=1), .after='GEO') |>
-  mutate(GEO = str_remove(GEO, " \\[.+\\]"))
+  mutate(REGION = str_remove(GEO, " \\[.+\\]")) |>
+  select(-GEO)
 
-# We can see that UOM and UOM_ID are redundant so let's get rid of UOM_ID
-select(LFS, UOM, UOM_ID) |> unique()
-LFS = select(LFS, -UOM_ID)
+# verify it looks nice
+LFS$GEO_TYPE |> unique()
+LFS$REGION |> unique()
 
-# DECIMALS is also redundant with UOM so let's drop it
-LFS |> select(UOM, DECIMALS) |> unique()
-LFS = select(LFS, -DECIMALS)
+# We can see that UOM, UOM_ID and DECIMALS are redundant
+select(LFS, LABOUR_FORCE_CHARACTERISTICS, UOM, UOM_ID, DECIMALS) |> unique()
+LFS = select(LFS, -UOM, -UOM_ID, -DECIMALS)
 
-# Convert cols GEO_TYPE, LABOUR_FORCE_CHARACTERISTICS, STATISTICS, UOM and STATUS to factors
-LFS = LFS |> mutate(across(c(GEO_TYPE, LABOUR_FORCE_CHARACTERISTICS, STATISTICS, UOM, STATUS), as.factor))
+# We also don't need VECTOR and COORDINATE so let's select the columns we want
+LFS = select(LFS, REF_DATE, GEO_TYPE, REGION, LABOUR_FORCE_CHARACTERISTICS, VALUE, STATUS)
+
+# Convert cols GEO_TYPE, LABOUR_FORCE_CHARACTERISTICS, STATISTICS, UOM to factors
+LFS = LFS |> mutate(across(c(GEO_TYPE, LABOUR_FORCE_CHARACTERISTICS, STATUS), as.factor))
 
 # lookin' good
 print(LFS)
+
+
+
+
+
+# load SLA geography linkage file
+SLA_file = use_network_path("data/StatsCanLFS/SLA2016_FinalClassification.xlsx")
+SLA_raw = readxl::read_excel(SLA_file)
+
+# only BC - this is weird but I think it's correct - since when was BC the 59th province?
+SLA = SLA_raw |>
+  filter(PR == "59") |>
+  select(-PR)
+
+# Clean the names as per previous work
+SLA = SLA |> 
+  rename(CSDName = CSDname, CSDType = CSDtype) |>
+  janitor::clean_names(case = "screaming_snake")
+
+# The most granular column is CSD. Note that they all begin with '59'.
+SLA |>
+  pull(CSD) |>
+  substr(1,2) |>
+  unique()
+
+# So let's dump that 59 nonsense
+SLA$CSD = substr(SLA$CSD, 3, nchar(SLA$CSD))
+
+
+# this tibble will be used to fill in blanks in the SLA. It has been verified by Brett.
+SLA_lookup = tribble(~CMA, ~SLA_NAME,
+  905, "Cranbrook",
+  907, "Nelson",
+  910, "Trail",
+  913, "Penticton",
+  915, "Kelowna",
+  918, "Vernon",
+  920, "Salmon Arm",
+  925, "Kamloops",
+  930, "Chilliwack",
+  932, "Abbotsford - Mission",
+  933, "Vancouver",
+  934, "Squamish",
+  935, "Victoria",
+  936, "Ladysmith",
+  937, "Duncan",
+  938, "Nanaimo",
+  939, "Parksville",
+  940, "Port Alberni",
+  943, "Courtenay",
+  944, "Campbell River",
+  945, "Powell River",
+  950, "Williams Lake",
+  952, "Quesnel",
+  955, "Prince Rupert",
+  965, "Terrace",
+  970, "Prince George",
+  975, "Dawson Creek",
+  977, "Fort St. John"
+)
+
+# fill in the blanks with SLA_lookup. I feel like there's a better way to do this but whatever
+SLA = SLA |>
+  left_join(SLA_lookup, by="CMA") |>
+  mutate(SLA_NAME = case_match(SLA_NAME.x, NA ~ SLA_NAME.y, .default = SLA_NAME.x)) |>
+  select(-SLA_NAME.x, -SLA_NAME.y)
+
+# verify there are no NAs anymore
+stopifnot(SLA |> is.na() |> sum() == 0)
+
+# convert everything to characters. This is because it appears that other files, such as the TMF, don't do integers (which would be my preference, for the record).
+SLA = SLA |>
+  mutate(across(everything(), as.character))
+
+# if the SLA NAME is null the code should be too, no?
+SLA = SLA |>
+  mutate(SLA_CODE = case_when(is.na(SLA_NAME) ~ NA_character_, T ~ SLA_CODE))
+
+# all we need are SLA_NAME, CSD, CSD_NAME, CMA
+SLA = SLA |> 
+  select(SLA_NAME, CSD, CSD_NAME, CMA)
+
+
+# This is how to join these tables. Note the many-to-many relationship!!!
+LFS = LFS |>
+  inner_join(SLA, by=join_by("REGION" == "SLA_NAME"), relationship = 'many-to-many')
+
 
 readr::write_csv(LFS, here::here("out", "Labour_Fource_Survey_DIP.csv"))
 
@@ -81,13 +192,13 @@ LFS_dict_labels = c(
   
   Employment is the small area estimate of the number of persons who worked for pay or profit, or had a job but were not at work due to own illness or disability, personal or family responsibilities, labour dispute, vacation, or other reason. Estimates are rounded to the nearest ten.",
   
-  "STATISTICS" = "The statistic being measured",
+  # "STATISTICS" = "The statistic being measured",
   
   "UOM" = "Count of people or percentage",
   
-  "VECTOR" = "A unique identifier assigned to a specific geographic unit or spatial feature", 
+  # "VECTOR" = "A unique identifier assigned to a specific geographic unit or spatial feature", 
   
-  "COORDINATE" = "The geographical position of the geographical point on the Earth's surface,  expressed in terms of latitude and longitude",
+  # "COORDINATE" = "The geographical position of the geographical point on the Earth's surface,  expressed in terms of latitude and longitude",
   
   "VALUE" = "The value of the observation", 
   
