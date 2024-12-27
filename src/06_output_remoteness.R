@@ -138,142 +138,32 @@ address_dist_data <- address_data_path_list %>%
 address_dist_sf <- st_as_sf(address_dist_data, coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
 
 
-###########################################################################################
-# Service BC
-###########################################################################################
-# Load the address CSV file
-# updated the Geocoder address list to allow us to choose between BC Albers or WGS84 (lat/long) for the result file.
-address_dist_servicebc_data <- read_csv(use_network_path("data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_nearest_servicebc_20241212_101844/30_percent_site_Hybrid_geocoder_nearest_servicebc_20241212_101844.csv"))
 
-# address_servicebc_data <- address_dist_servicebc_data %>% 
-#   count(FULL_ADDRESS,	SITE_ALBERS_X,	SITE_ALBERS_Y, coord_x,	coord_y)
-
-# Convert to an sf object (BC Albers projection: EPSG 3005)
-address_servicebc_sf <- st_as_sf(address_dist_servicebc_data, coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
-
-
-# da_shapefile <- st_read(use_network_path("data/raw_data/Wildfire/Wildfires_DB/Input/lda_000a21a_e/lda_000b21a_e.shp"))
-
-
-# Check CRS
-st_crs(address_servicebc_sf)
-st_crs(da_shapefile)
-
-# Why Use a Projected CRS?
-#   Accuracy:
-#   
-#   In geographic CRS (e.g., EPSG:4326), distances and areas are distorted because they are based on spherical coordinates (degrees).
-# Projected CRSs, like BC Albers (EPSG:3005), preserve distance and area measurements accurately for specific regions.
-# Alignment with Dissemination Areas:
-#   
-#   Dissemination area shapefiles from Statistics Canada are typically in NAD83 / Statistics Canada Lambert (EPSG:3347). Reprojecting both datasets to a local projected CRS (e.g., BC Albers) ensures better alignment and reduces potential mismatches at boundaries.
-# Spatial Join Precision:
-#   
-#   Operations like st_join() rely on spatial relationships (e.g., points inside polygons). Using a projected CRS improves the precision of these calculations.
-
-# Reproject if necessary
-if (st_crs(address_servicebc_sf) != st_crs(da_shapefile)) {
-  # address_sf <- st_transform(address_sf, st_crs(da_shapefile))
-  da_shapefile <- st_transform(da_shapefile, st_crs(address_servicebc_sf))
-}
 
 # Efficiency:
 #   
 #   For large datasets, consider spatial indexing using st_join(..., largest = TRUE) to speed up operations.
 
 # Spatial join: append dissemination area IDs to address points
-address_servicebc_with_da <- st_join(address_servicebc_sf, da_shapefile, left = TRUE)
+address_sf_with_da <- st_join(address_dist_sf, da_shapefile, left = TRUE)
 
 
 # View the resulting dataset
-print(address_servicebc_with_da)
+print(address_sf_with_da)
 
 # Save to a new file (optional)
-st_write(address_servicebc_with_da, 
-         "./out/address_servicebc_with_da.geojson"
+st_write(address_sf_with_da, 
+         "./out/address_sf_with_da.geojson"
          # use_network_path("data/raw_data/remoteness/address_servicebc_with_da.geojson")
          )
 
-address_servicebc_with_da %>% 
+address_sf_with_da %>% 
   st_drop_geometry() %>% 
   # inner_join(address_dist_data) %>% 
-  write_csv(use_network_path("data/raw_data/remoteness/address_servicebc_with_da.csv"))
+  write_csv(use_network_path("data/raw_data/remoteness/address_sf_with_da.csv"))
 
 
 
-
-
-# Create a DA level summary table: average drive time and distance, and number of address. 
-avg_dis_time_servicebc_by_da <- address_servicebc_with_da %>% 
-  st_drop_geometry() %>% 
-  group_by(DAUID) %>% 
-  summarise(
-    AVG_DRV_TIME_SEC = mean(drv_time_sec),
-    AVG_DRV_DIST = mean(drv_dist),
-    N_ADDRESS = n()
-  )
-
-
-###########################################################################################
-# Hospital
-###########################################################################################
-# Load the address CSV file
-# updated the Geocoder address list to allow us to choose between BC Albers or WGS84 (lat/long) for the result file.
-address_dist_hospital_data <- read_csv(use_network_path("data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_nearest_hospitals_20241218_081633/30_percent_site_Hybrid_geocoder_nearest_hospitals_20241218_081633.csv"))
-
-# address_hospital_data <- address_dist_hospital_data %>% 
-#   count(FULL_ADDRESS,	SITE_ALBERS_X,	SITE_ALBERS_Y, coord_x,	coord_y)
-
-# Convert to an sf object (BC Albers projection: EPSG 3005)
-address_hospital_sf <- st_as_sf(address_dist_hospital_data, coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
-
-
-# da_shapefile <- st_read(use_network_path("data/raw_data/Wildfire/Wildfires_DB/Input/lda_000a21a_e/lda_000b21a_e.shp"))
-
-
-# Check CRS
-st_crs(address_hospital_sf)
-st_crs(da_shapefile)
-
-# Why Use a Projected CRS?
-#   Accuracy:
-#   
-#   In geographic CRS (e.g., EPSG:4326), distances and areas are distorted because they are based on spherical coordinates (degrees).
-# Projected CRSs, like BC Albers (EPSG:3005), preserve distance and area measurements accurately for specific regions.
-# Alignment with Dissemination Areas:
-#   
-#   Dissemination area shapefiles from Statistics Canada are typically in NAD83 / Statistics Canada Lambert (EPSG:3347). Reprojecting both datasets to a local projected CRS (e.g., BC Albers) ensures better alignment and reduces potential mismatches at boundaries.
-# Spatial Join Precision:
-#   
-#   Operations like st_join() rely on spatial relationships (e.g., points inside polygons). Using a projected CRS improves the precision of these calculations.
-
-# Reproject if necessary
-if (st_crs(address_hospital_sf) != st_crs(da_shapefile)) {
-  # address_sf <- st_transform(address_sf, st_crs(da_shapefile))
-  da_shapefile <- st_transform(da_shapefile, st_crs(address_hospital_sf))
-}
-
-# Efficiency:
-#   
-#   For large datasets, consider spatial indexing using st_join(..., largest = TRUE) to speed up operations.
-
-# Spatial join: append dissemination area IDs to address points
-address_hospital_with_da <- st_join(address_hospital_sf, da_shapefile, left = TRUE)
-
-
-# View the resulting dataset
-print(address_hospital_with_da)
-
-# Save to a new file (optional)
-st_write(address_hospital_with_da, 
-         "./out/address_hospital_with_da.geojson"
-         # use_network_path("data/raw_data/remoteness/address_hospital_with_da.geojson")
-         )
-
-address_hospital_with_da %>% 
-  st_drop_geometry() %>% 
-  # inner_join(address_dist_data) %>% 
-  write_csv(use_network_path("data/raw_data/remoteness/address_hospital_with_da.csv"))
 
 
 
@@ -283,14 +173,9 @@ address_hospital_with_da %>%
 
 # Create a DA level summary table: average drive time and distance, and number of address. 
 
-address_hospital_servicebc_with_da <- address_servicebc_with_da %>% 
-  mutate(across(
-    .cols = c(PRUID, DAUID, DGUID),
-    .fns = as.character
-  )) %>% 
-  bind_rows(address_hospital_with_da )
 
-avg_dis_time_hospital_servicebc_by_da <- address_hospital_servicebc_with_da %>% 
+
+avg_dist_drvtime_by_da_service <- address_sf_with_da %>% 
   st_drop_geometry() %>% 
   group_by(DAUID, tag) %>% 
   summarise(
@@ -299,8 +184,21 @@ avg_dis_time_hospital_servicebc_by_da <- address_hospital_servicebc_with_da %>%
     N_ADDRESS = n()
   )
 
-avg_dis_time_hospital_servicebc_by_da %>% 
-  write_csv(use_network_path("data/raw_data/remoteness/avg_dis_time_hospital_servicebc_by_da.csv"))
+avg_dist_drvtime_by_da_service %>% 
+  write_csv(use_network_path("data/raw_data/remoteness/avg_dist_drvtime_by_da_service.csv"))
+
+
+avg_dist_drvtime_by_da<- address_sf_with_da %>% 
+  st_drop_geometry() %>% 
+  group_by(DAUID) %>% 
+  summarise(
+    AVG_DRV_TIME_SEC = mean(drv_time_sec),
+    AVG_DRV_DIST = mean(drv_dist),
+    N_ADDRESS = n()
+  )
+
+avg_dist_drvtime_by_da %>% 
+  write_csv(use_network_path("data/raw_data/remoteness/avg_dist_drvtime_by_da.csv"))
 
 
 ###########################################################################################
@@ -332,6 +230,19 @@ CSD_DA_list <-  TMF %>%
   ) %>% 
   ungroup()
 
+
+# Save to a new file (optional)
+CSD_DA_address_dist_drvtime <- CSD_DA_list %>% mutate(DAUID = as.character(DA_NUM)) %>% 
+  right_join(address_sf_with_da, by = join_by(DAUID) )
+
+CSD_DA_address_dist_drvtime <- CSD_DA_address_dist_drvtime %>% 
+  st_as_sf()
+  
+st_write(CSD_DA_address_dist_drvtime, 
+         "./out/CSD_DA_address_dist_drvtime.geojson"
+         # use_network_path("data/raw_data/remoteness/address_servicebc_with_da.geojson")
+)
+
 # check if there is duplication
 # CSD_DA_list %>% 
 #   count(DA_NUM) %>% 
@@ -344,7 +255,7 @@ CSD_DA_list <-  TMF %>%
 
 CSD_DA_REMOTENESS = CSD_DA_list %>% 
   mutate(DAUID = as.character(DA_NUM)) %>% 
-  left_join(avg_dis_time_hospital_servicebc_by_da, by = c( "DAUID")) %>% 
+  left_join(avg_dist_drvtime_by_da_service, by = c( "DAUID")) %>% 
   mutate(DIST_IS_NA = if_else(is.na(AVG_DRV_DIST), 'Distance data is na',"Distance data is available"),
          ADDRESS_IS_NA = if_else(is.na(N_ADDRESS), 'Address data is na',"Address data is available")
   )
@@ -469,6 +380,13 @@ ggsave("./out/address_hospital_with_da.png", width = 10, height = 8, dpi = 300)
 library(sf)
 library(ggplot2)
 library(dplyr)
+my_map_theme <- theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
 
 ################################################################
 # Create a color map plot using ggplot2
@@ -481,20 +399,15 @@ csd_avg_address_dist_sf = csd_shapefile %>%
 ggplot(data = csd_avg_address_dist_sf
        ) +
   geom_sf(aes(fill = AVG_DRV_DIST), color = "white") +
-  scale_fill_viridis_c(option = "viridis", name = "Avg. Distance to the Facilities") +
+  scale_fill_viridis_c(option = "viridis" ) +
   labs(
     title = "Avg. Distance to the Facility by Region",
     subtitle = "Remoteness measurement in BC",
     x = "Longitude",
     y = "Latitude"
   ) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-    plot.subtitle = element_text(hjust = 0.5, size = 12),
-    legend.title = element_text(size = 12),
-    legend.text = element_text(size = 10)
-  )
+  my_map_theme+
+  guides(fill=guide_legend(title="Avg. Distance to the Facilities"))
 
 
 # Save the plot
@@ -518,18 +431,115 @@ ggplot(data = csd_avg_address_dist_servicebc_sf
     x = "Longitude",
     y = "Latitude"
   ) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-    plot.subtitle = element_text(hjust = 0.5, size = 12),
-    legend.title = element_text(size = 12),
-    legend.text = element_text(size = 10)
-  )
+  my_map_theme
 
 
 # Save the plot
 ggsave("./out/csd_avg_address_dist_servicebc_sf.png", width = 10, height = 8, dpi = 300)
 ggsave(use_network_path("data/output/remoteness/csd_avg_address_dist_servicebc_sf.png"), width = 10, height = 8, dpi = 300)
+
+
+################################################################
+# interesting these results weren't what I was as expecting for the least remote. assuming longest drive time = most remote, then Smithers is less remote than Vancouver by this definition.
+# we can plot them in the map
+################################################################
+
+two_csd_avg_address_dist_servicebc_sf = da_shapefile %>% 
+  inner_join( CSD_DA_REMOTENESS  %>%  filter(tag == "servicebc") , 
+             join_by("DAUID") ) %>% 
+  filter(MUN_NAME_2021 %in% c("Smithers", "Vancouver"))
+
+CSD_DA_address_dist_drvtime %>% 
+  filter(MUN_NAME_2021 %in% c( "Vancouver")) 
+  
+
+  
+########## 
+#  A map plotting function for a CSD region
+##########  
+# data, sf, ; filter: tag/service, CSD; 
+map_data_fn <- function(df, CSD, service, sf) {
+  df %>%
+    filter(tag == service, MUN_NAME_2021 == CSD) %>%
+    inner_join(sf, join_by("DAUID"))%>% 
+    st_as_sf() 
+}
+
+# sf; fill_var; CSD; Service 
+map_plot_fn <- function(sf, fill_var,fill_var_name, CSD, service){
+  sf %>% ggplot() +
+    geom_sf(aes(fill = {{fill_var}}), color = "white")+
+    scale_fill_viridis_c(option = "viridis") +
+    labs(
+      # title = "Avg. Distance to ServiceBC by Region",
+      subtitle = glue::glue("Remoteness measurement in {CSD}"),
+      x = "Longitude",
+      y = "Latitude"
+    ) +
+    my_map_theme+ 
+    guides(fill=guide_legend(title=glue::glue("Avg. {stringr::str_to_title(fill_var_name)} to the {service}")))
+}
+
+map_dot_plot_fn <- function(sf, fill_var,fill_var_name, CSD, service){
+  sf %>% ggplot() +
+    geom_sf(aes(fill = {{fill_var}}), color = "white")+
+    scale_fill_viridis_c(option = "viridis") +
+    labs(
+      # title = "Avg. Distance to ServiceBC by Region",
+      subtitle = glue::glue("Remoteness measurement in {CSD}"),
+      x = "Longitude",
+      y = "Latitude"
+    ) +
+    my_map_theme+ 
+    guides(fill=guide_legend(title=glue::glue("Avg. {stringr::str_to_title(fill_var_name)} to the {service}")))
+}
+
+
+
+
+library(cowplot) # For aligning multiple plots
+library(patchwork )
+plot_a = map_data_fn(df = CSD_DA_REMOTENESS, CSD = "Vancouver", service = "servicebc", sf = da_shapefile) %>% 
+  map_plot_fn(sf =., fill_var = AVG_DRV_DIST, fill_var_name = "Distance", CSD = "Vancouver", service = "ServiceBC")
+
+
+plot_b = map_data_fn(df = CSD_DA_REMOTENESS, CSD = "Smithers", service = "servicebc", sf = da_shapefile) %>% 
+  map_plot_fn(sf =., fill_var = AVG_DRV_DIST, fill_var_name = "Distance", CSD = "Smithers", service = "ServiceBC")
+  
+  
+
+
+
+# Combine the two plots side by side
+# Combine the two plots using patchwork and add a shared title
+combined_plot <- (plot_a + plot_b +
+                    plot_layout(ncol = 2, guides = "collect") &
+                    theme(legend.position = "bottom")) +
+  plot_annotation(
+    title = "Remoteness measurement: Vancouver vs Smithers",
+    theme = theme(
+      plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+    )
+  )
+
+
+# combined_plot <- plot_a + plot_b +
+#   plot_layout(ncol = 2, guides = "collect") &
+#   theme(legend.position = "bottom") # Align legends at the bottom
+# 
+
+
+
+# Display the combined plot
+print(combined_plot)
+
+
+
+# Save the combined plot
+ggsave(use_network_path("data/output/remoteness/two_csd_avg_address_dist_servicebc_sf_by_da.png"),
+       plot = combined_plot,
+       width = 14, height = 7, dpi = 300)
+
 ################################################################
 # Hospital
 ################################################################
@@ -548,13 +558,7 @@ ggplot(data = csd_avg_address_dist_hospitals_sf
     x = "Longitude",
     y = "Latitude"
   ) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
-    plot.subtitle = element_text(hjust = 0.5, size = 12),
-    legend.title = element_text(size = 12),
-    legend.text = element_text(size = 10)
-  )
+  my_map_theme
 
 
 # Save the plot
@@ -575,4 +579,5 @@ unmatched <- address_with_da %>% filter(is.na(DA_ID))
 #   r
 # Find points near boundaries
 near_boundary <- st_is_within_distance(address_sf, da_shapefile, dist = 1)  # Adjust distance as needed
+
 
