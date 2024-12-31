@@ -124,10 +124,12 @@ servicebc_file_path = use_network_path("data/raw_data/remoteness/30_percent_site
 
 hospital_file_path = use_network_path("data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_nearest_hospitals_20241218_081633/30_percent_site_Hybrid_geocoder_nearest_hospitals_20241218_081633.csv")
 
+school_file_path = use_network_path("data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_nearest_schools_20241225_180826/30_percent_site_Hybrid_geocoder_nearest_schools_20241225_180826.csv")
 
 address_data_path_list = c(
   servicebc_file_path,
-  hospital_file_path
+  hospital_file_path,
+  school_file_path
 )
 
 address_dist_data <- address_data_path_list %>%  
@@ -296,10 +298,10 @@ CSD_REMOTENESS_ALL_SERVICE = CSD_DA_REMOTENESS %>%
   ) %>% 
   ungroup()
 
-CSD_REMOTENESS %>% 
+CSD_REMOTENESS_ALL_SERVICE %>% 
   write_csv("./out/CSD_REMOTENESS.csv")
 
-CSD_REMOTENESS %>% 
+CSD_REMOTENESS_ALL_SERVICE %>% 
   write_csv(use_network_path("data/output/remoteness/CSD_REMOTENESS.csv"))
 
 
@@ -313,7 +315,7 @@ CSD_REMOTENESS %>%
 ###########################################################################################
 
 # Spatial join: append dissemination area IDs to address points
-csd_sf_address_dist <- st_join(csd_shapefile,address_dist_df, left = TRUE)
+csd_sf_address_dist <- st_join(csd_shapefile,address_dist_sf, left = TRUE)
 
 csd_avg_address_dist_by_service = csd_sf_address_dist %>% 
   st_drop_geometry() %>%
@@ -548,6 +550,26 @@ csd_avg_address_dist_hospitals_sf = csd_shapefile %>%
   left_join( csd_avg_address_dist_by_service  %>%  filter(tag == "hospitals")  , 
              join_by(CSDUID, CSDNAME) )
 
+csd_avg_address_dist_hospitals_sf %>% 
+  filter(AVG_DRV_DIST > 400)
+  summary()
+  
+  # Stikine Region
+
+plot_csd_remoteness <-  function(data, remoteness_metric, remoteness_metric_name,service_name){
+  ggplot(data 
+  ) +
+    geom_sf(aes(fill = {{remoteness_metric}}), color = "white") +
+    scale_fill_viridis_c(option = "viridis", name = glue::glue("Avg. {remoteness_metric_name} to {service_name}")) +
+    labs(
+      title = glue::glue("Avg. {remoteness_metric_name} to {service_name} by Region"),
+      subtitle = "Remoteness measurement in BC",
+      x = "Longitude",
+      y = "Latitude"
+    ) +
+    my_map_theme
+}
+
 ggplot(data = csd_avg_address_dist_hospitals_sf
 ) +
   geom_sf(aes(fill = AVG_DRV_DIST), color = "white") +
@@ -564,6 +586,38 @@ ggplot(data = csd_avg_address_dist_hospitals_sf
 # Save the plot
 ggsave("./out/csd_avg_address_dist_hospitals_sf.png", width = 10, height = 8, dpi = 300)
 ggsave(use_network_path("data/output/remoteness/csd_avg_address_dist_hospitals_sf.png"), width = 10, height = 8, dpi = 300)
+
+
+################################################################
+# School
+################################################################
+
+csd_avg_address_dist_schools_sf = csd_shapefile %>% 
+  left_join( csd_avg_address_dist_by_service  %>%  filter(tag == "schools")  , 
+             join_by(CSDUID, CSDNAME) )
+
+
+csd_avg_address_dist_schools_sf %>% 
+  filter(AVG_DRV_DIST > 100)
+# North Tacla Lake
+summary()
+
+ggplot(data = csd_avg_address_dist_schools_sf %>% mutate(AVG_DRV_DIST = if_else( AVG_DRV_DIST < 100, AVG_DRV_DIST, 100))
+) +
+  geom_sf(aes(fill = AVG_DRV_DIST), color = "white") +
+  scale_fill_viridis_c(option = "viridis", name = "Avg. Distance to Schools") +
+  labs(
+    title = "Avg. Distance to Schools by Region",
+    subtitle = "Remoteness measurement in BC",
+    x = "Longitude",
+    y = "Latitude"
+  ) +
+  my_map_theme
+
+
+# Save the plot
+ggsave("./out/csd_avg_address_dist_schools_sf.png", width = 10, height = 8, dpi = 300)
+ggsave(use_network_path("data/output/remoteness/csd_avg_address_dist_schools_sf.png"), width = 10, height = 8, dpi = 300)
 
 ################################################################
 ################################################################
