@@ -45,11 +45,11 @@ From the selected clusters:
 
 #### **4. Sample Size Determination**
 
-Calculate the required sample size using: $\[ n = \frac{Z^2 \cdot p \cdot (1-p)}{E^2} \]$ Where: 
+Calculate the required sample size using: $ n = \frac{Z^2 \cdot p \cdot (1-p)}{E^2} $ Where: 
 
-  -  $( Z )$ = Z-score (e.g., 1.96 for 95% confidence level). 
-  -  $( p )$ = Estimated proportion of the population exhibiting the characteristic of interest (use pilot data if available). 
-  -  $( E )$ = Margin of error (e.g., 5%).
+  -  $( Z )$ = Z-score (e.g., 1.96 for 95% confidence level; 2,58 for 99%). 
+  -  $( p )$ = Estimated proportion of the population exhibiting the characteristic of interest (use pilot data if available). Default Value: If unknown, use p=0.5 (most conservative estimate, leading to the largest required sample size).
+  -  $( E )$ = Margin of error (e.g., 5% for ±5% margin).
 
 Adjust the sample size to ensure that at least one cluster is selected per DA.
 
@@ -77,17 +77,10 @@ Since theoretically, our sampling does not have any cost, we can skip stratifica
 1.  **Data Preparation**
     -   Acquire the latest census data, including DA boundaries, population sizes, and socioeconomic indicators.
     -   Geocode all addresses to ensure accurate DA allocation.
-2.  **Define Strata and Clusters**
-    -   Stratify DAs based on predefined criteria.
-    -   Divide each DA into clusters using geographic proximity.
-3.  **Sample Selection**
-    -   Randomly select DAs within each stratum.
-    -   Randomly select clusters within each DA.
-    -   Randomly sample addresses within clusters.
-4.  **Survey Administration**
-    -   Assign trained enumerators to visit selected addresses.
-    -   Use standardized tools for data collection (e.g., mobile apps for geotagging responses).
-5.  **Data Weighting and Analysis**
+    -   It will rely on the health client files.
+2.  **Sample Selection**
+    -   Randomly sample addresses within DAs
+3.  **Data Weighting and Analysis**
     -   Apply sampling weights to adjust for unequal probabilities of selection.
     -   Calculate DA-level averages and aggregate results to higher geographic levels.
 
@@ -95,27 +88,158 @@ Since theoretically, our sampling does not have any cost, we can skip stratifica
 
 ### **Addressing Distortion in DA-Level Averages**
 
-To reduce distortion: - **Oversample** small DAs with high variability or unique characteristics. - **Post-stratify** data during analysis to ensure results align with known population distributions.
+To reduce distortion: - **Oversample** small DAs with high variability or unique characteristics. 
+    -  **Post-stratify** data during analysis to ensure results align with known population distributions.
 
 ------------------------------------------------------------------------
 
 ### **Validation and Iteration**
 
-Before full implementation: 1. Conduct a pilot study in a small region to validate the design. 2. Assess biases and variability in results. 3. Refine the sampling plan based on pilot findings.
+Before full implementation: 
+1. Conduct a pilot study in a small region to validate the design. 
+2. Assess biases and variability in results. 3. Refine the sampling plan based on pilot findings.
 
 ------------------------------------------------------------------------
 
-Would you like assistance with specific steps, such as determining sample size, creating strata, or implementing the survey?
+#### **Estimate the sample size**
+
+##### **Province**
+You are conducting a survey to estimate the proportion of households in a province with access to health care. The province has a population of 5,600,000 households. You want:
+   - 95% confidence $(\( Z = 1.96 \))$,
+   - ±5% margin of error $(\( E = 0.05 \))$,
+   - No prior estimate for $\( p \)$ (use $\( p = 0.5 \)$).
+
 
 ```{r}
-1 + 1
+N = 5600000
+Z = 1.96
+E = 0.05
+p = 0.5
+n= (Z)^2*p*(1-p)/(E)^2
+print(n)
 ```
 
-You can add options to executable code like this
+##### **Population Size Adjustment** 
+   If the population size $\( N \)$ in a DA is small, use the **finite population correction**:  
+   $\[
+   n_{adj} = \frac{n}{1 + \frac{n-1}{N}}
+   \]$
+   This reduces the required sample size when sampling from small populations.
 
 ```{r}
-#| echo: false
-2 * 2
+N = 
+n_adj = n/(1+(n-1)/N)
+print(n_adj)
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+##### **Adjust for Clustering**
+If clustering is used, apply the **design effect** ($\( DE \)$), which accounts for increased variance due to clustering. Assume $\( DE = 1.5 \)$:
+$\[
+n_{final} = n_{adj} \cdot DE = 384 \cdot 1.5 = 576
+\]$
+
+
+```{r}
+DE = 1.5
+n_final = n_adj*DE
+print(n_final)
+```
+
+#### **Interpretation**
+- A sample size of **576 households/addresses** is needed to estimate the proportion of households with access to health care within ±5% margin of error at a 95% confidence level.
+- If stratified sampling is used, allocate the total sample proportionally across strata.
+
+#### *A DA is a observation/population*
+
+Repeat previous process for each DA. 
+
+```{r}
+get_n <- function(N, Z, E, p, DE) {
+  # N: Population size
+  # Z: Z-score for the desired confidence level
+  # E: Margin of error
+  # p: Estimated proportion (as a decimal)
+  # DE: Design effect
+  
+  # Step 1: Calculate the initial sample size
+  n = (Z)^2 * p * (1 - p) / (E)^2
+  
+  # Step 2: Adjust the sample size for finite population correction
+  n_adj = n / (1 + (n - 1) / N)
+  
+  # Step 3: Account for the design effect
+  n_final = n_adj * DE
+  
+  # Create a list of results
+  results <- list(n = n, n_adj = n_adj, n_final = n_final)
+  
+  # Print the results in a neat format
+  cat("Sample Size Calculation Results:\n")
+  cat("Initial sample size (n):", round(n, 2), "\n")
+  cat("Adjusted sample size (n_adj):", round(n_adj, 2), "\n")
+  cat("Final sample size (n_final):", round(n_final, 2), "\n")
+  
+  # Return the results as a list
+  return(results)
+}
+
+
+```
+
+
+
+
+```{r}
+get_n_with_min <- function(N, Z, E, p, DE, n_min = 30) {
+  # N: Population size
+  # Z: Z-score for the desired confidence level
+  # E: Margin of error
+  # p: Estimated proportion (as a decimal)
+  # DE: Design effect
+  # n_min: Minimum sample size threshold (default is 30)
+  
+  # Step 1: Calculate the initial sample size
+  n = (Z)^2 * p * (1 - p) / (E)^2
+  
+  # Step 2: Adjust the sample size for finite population correction
+  n_adj = n / (1 + (n - 1) / N)
+  
+  # Step 3: Account for the design effect
+  n_final = n_adj * DE
+  
+  # Step 4: Enforce minimum sample size and handle small population cases
+  if (N < n_min) {
+    # If the population size is less than n_min, use the population size as the sample size
+    n_final = N
+    message("Population size is less than n_min; using population size as the sample size.")
+  } else if (n_final < n_min) {
+    # If calculated sample size is less than n_min, enforce n_min
+    n_final = n_min
+    message("Calculated sample size is less than n_min; using n_min as the sample size.")
+  }
+  
+  # Create a list of results
+  results <- list(n = n, n_adj = n_adj, n_final = n_final)
+  
+  # Print the results in a neat format
+  cat("Sample Size Calculation Results:\n")
+  cat("Initial sample size (n):", round(n, 2), "\n")
+  cat("Adjusted sample size (n_adj):", round(n_adj, 2), "\n")
+  cat("Final sample size (n_final):", round(n_final, 2), "\n")
+  
+  # Return the results as a list
+  return(results)
+}
+
+```
+
+
+##### Get DA population size .
+
+```{r}
+
+```
+
+
+
+
