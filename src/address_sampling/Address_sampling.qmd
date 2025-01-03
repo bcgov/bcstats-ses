@@ -1,0 +1,121 @@
+---
+title: "address sampling"
+format: html
+editor: visual
+---
+
+Designing a survey that ensuring comprehensive representation across census dissemination areas (DAs) and based on best practices in survey sampling:
+
+------------------------------------------------------------------------
+
+### **Objective**
+
+To design a sampling mechanism that ensures: 1. Equal representation across all DAs in the province. 2. Improved accuracy and reliability of survey results at the DA level.
+
+------------------------------------------------------------------------
+
+### **Sampling Plan**
+
+#### **1. Stratification**
+
+Stratification ensures that specific subgroups (strata) are represented in the sample. The stratification criteria could include: 
+
+   -  **Geographic regions**: Divide the province into regions (e.g., urban, suburban, rural).
+   -  **Population density**: Group DAs into high, medium, and low-density strata. 
+   -  **Socioeconomic indicators**: Consider stratifying by income levels, education, or housing types.
+
+Each DA will belong to one stratum, ensuring balanced representation across varying conditions.
+
+#### **2. Clustering**
+
+Clustering helps reduce logistical costs by grouping nearby units. Within each DA, use clustering to identify groups of addresses: 
+
+  -  **Cluster size**: Define clusters of 5-10 addresses, ensuring clusters are small enough to capture local variability but large enough to reduce travel costs. 
+  -  **Cluster selection**: Randomly select clusters within each DA.
+
+
+#### **3. Random Sampling within Clusters**
+
+From the selected clusters: 
+
+  -  Conduct **simple random sampling** (SRS) to choose individual addresses. 
+  -  The number of addresses sampled in each cluster should be proportional to the DA's population or specific needs. 
+    -  At least 10% of address in each DA are sampled. 
+    -  At least 30 addresses are sampled. If the number of addresses in the DA is less than 30, all addresses are sampled.
+
+#### **4. Sample Size Determination**
+
+Calculate the required sample size using: $\[ n = \frac{Z^2 \cdot p \cdot (1-p)}{E^2} \]$ Where: 
+
+  -  $( Z )$ = Z-score (e.g., 1.96 for 95% confidence level). 
+  -  $( p )$ = Estimated proportion of the population exhibiting the characteristic of interest (use pilot data if available). 
+  -  $( E )$ = Margin of error (e.g., 5%).
+
+Adjust the sample size to ensure that at least one cluster is selected per DA.
+
+#### **5. Allocation of Sample**
+
+Use **proportional allocation**: 
+
+  -  Sample size in each $DA ( n_i ) = ( N_i/N \times n )$, where $( N_i )$ = population of $DA ( i )$, $( N )$ = total population, and $( n )$ = total sample size.
+
+For sparsely populated DAs, consider **minimum allocation** (e.g., a fixed number of households per DA) to ensure representation.
+
+#### *6. Conclusion*
+
+Since theoretically, our sampling does not have any cost, we can skip stratification and clustering and make sure each our strata or cluster get sampled.
+
+  -  Conduct **simple random sampling** (SRS) to choose individual addresses. 
+  -  The number of addresses sampled in each DA should be proportional to the DA's population or specific needs. 
+    -  At least 10% of address in each DA are sampled. 
+    -  At least 30 addresses are sampled. If the number of addresses in the DA is less than 30, all addresses are sampled.
+
+------------------------------------------------------------------------
+
+### **Implementation Steps**
+
+1.  **Data Preparation**
+    -   Acquire the latest census data, including DA boundaries, population sizes, and socioeconomic indicators.
+    -   Geocode all addresses to ensure accurate DA allocation.
+2.  **Define Strata and Clusters**
+    -   Stratify DAs based on predefined criteria.
+    -   Divide each DA into clusters using geographic proximity.
+3.  **Sample Selection**
+    -   Randomly select DAs within each stratum.
+    -   Randomly select clusters within each DA.
+    -   Randomly sample addresses within clusters.
+4.  **Survey Administration**
+    -   Assign trained enumerators to visit selected addresses.
+    -   Use standardized tools for data collection (e.g., mobile apps for geotagging responses).
+5.  **Data Weighting and Analysis**
+    -   Apply sampling weights to adjust for unequal probabilities of selection.
+    -   Calculate DA-level averages and aggregate results to higher geographic levels.
+
+------------------------------------------------------------------------
+
+### **Addressing Distortion in DA-Level Averages**
+
+To reduce distortion: - **Oversample** small DAs with high variability or unique characteristics. - **Post-stratify** data during analysis to ensure results align with known population distributions.
+
+------------------------------------------------------------------------
+
+### **Validation and Iteration**
+
+Before full implementation: 1. Conduct a pilot study in a small region to validate the design. 2. Assess biases and variability in results. 3. Refine the sampling plan based on pilot findings.
+
+------------------------------------------------------------------------
+
+Would you like assistance with specific steps, such as determining sample size, creating strata, or implementing the survey?
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
