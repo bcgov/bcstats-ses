@@ -1,0 +1,133 @@
+digraph BC_Prosperity_Index {
+	layout=dot nodesep=0.4 rankdir=TB ranksep=0.4
+	node [fontname=Helvetica fontsize=10 shape=box]
+	A [label="B.C. Prosperity Index"]
+	subgraph cluster_B {
+		style=invis
+		B [label="Business Environment"]
+		B1 [label="Labour Productivity"]
+		B2 [label=Investment]
+		B3 [label=Innovation]
+		B4 [label=Education]
+		node [height=0.01 label="" shape=point width=0.01]
+		B_line1
+		B_line2
+		B_line3
+		B_line4
+		B -> B_line1 [dir=none]
+		B_line1 -> B_line2 [dir=none]
+		B_line2 -> B_line3 [dir=none]
+		B_line3 -> B_line4 [dir=none]
+		B_line1 -> B1 [constraint=false dir=none]
+		B_line2 -> B2 [constraint=false dir=none]
+		B_line3 -> B3 [constraint=false dir=none]
+		B_line4 -> B4 [constraint=false dir=none]
+		{
+			rank=same
+			B_line1
+			B1
+		}
+		{
+			rank=same
+			B_line2
+			B2
+		}
+		{
+			rank=same
+			B_line3
+			B3
+		}
+		{
+			rank=same
+			B_line4
+			B4
+		}
+	}
+	node [fontname=Helvetica fontsize=10 shape=box]
+	subgraph cluster_C {
+		style=invis
+		C [label="Economic Well-Being"]
+		C1 [label="GDP Per Capita"]
+		C2 [label="Household Income"]
+		C3 [label="Unemployment Rate"]
+		C4 [label="Housing Affordability"]
+		node [height=0.01 label="" shape=point width=0.01]
+		C_line1
+		C_line2
+		C_line3
+		C_line4
+		C -> C_line1 [dir=none]
+		C_line1 -> C_line2 [dir=none]
+		C_line2 -> C_line3 [dir=none]
+		C_line3 -> C_line4 [dir=none]
+		C_line1 -> C1 [constraint=false dir=none]
+		C_line2 -> C2 [constraint=false dir=none]
+		C_line3 -> C3 [constraint=false dir=none]
+		C_line4 -> C4 [constraint=false dir=none]
+		{
+			rank=same
+			C_line1
+			C1
+		}
+		{
+			rank=same
+			C_line2
+			C2
+		}
+		{
+			rank=same
+			C_line3
+			C3
+		}
+		{
+			rank=same
+			C_line4
+			C4
+		}
+	}
+	node [fontname=Helvetica fontsize=10 shape=box]
+	subgraph cluster_D {
+		style=invis
+		D [label="Societal Well-Being"]
+		D1 [label="Life Expectancy"]
+		D2 [label="Poverty Rate"]
+		D3 [label="Income Inequality"]
+		D4 [label=Environment]
+		node [height=0.01 label="" shape=point width=0.01]
+		D_line1
+		D_line2
+		D_line3
+		D_line4
+		D -> D_line1 [dir=none]
+		D_line1 -> D_line2 [dir=none]
+		D_line2 -> D_line3 [dir=none]
+		D_line3 -> D_line4 [dir=none]
+		D_line1 -> D1 [constraint=false dir=none]
+		D_line2 -> D2 [constraint=false dir=none]
+		D_line3 -> D3 [constraint=false dir=none]
+		D_line4 -> D4 [constraint=false dir=none]
+		{
+			rank=same
+			D_line1
+			D1
+		}
+		{
+			rank=same
+			D_line2
+			D2
+		}
+		{
+			rank=same
+			D_line3
+			D3
+		}
+		{
+			rank=same
+			D_line4
+			D4
+		}
+	}
+	A -> B
+	A -> C
+	A -> D
+}
