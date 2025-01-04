@@ -249,6 +249,14 @@ library(arrow)
 library(nanoarrow)  # For Arrow integration
 library(duckdb)
 library(log4r)
+
+log_info <- function(msg, log_file = file_logger, print_flag = T) {
+  if (print_flag) cat(sprintf("[%s] %s\n", Sys.time(), msg))  # Simple logging
+  info(log_file, msg)
+}
+
+
+
 ```
 
 ```{r}
@@ -262,6 +270,9 @@ decimal_con <- dbConnect(odbc::odbc(),
                          Server = db_config$server,
                          Database = db_config$database,
                          Trusted_Connection = "True")
+
+
+
 ```
 
 
@@ -535,31 +546,44 @@ dbExecute(decimal_con, query)
 #   )
 # ")
 
+log_dir= "log"
+
+dir.create(file.path(log_dir))
+
+log_file_path = file.path(file.path(log_dir), glue::glue("Write_sampled_address_{Sys.Date()}.log"))
+
+file_logger = logger(appenders = file_appender(log_file_path))
 
 # Step 4: Process each DA and sample rows in batches
-for (i in seq_len(nrow(bc_da_samplesize))) {
+for (i in (5508:nrow(bc_da_samplesize))) {
+  
   # Extract DA_ID and SAMPLE_SIZE for the current iteration
   da_id <- bc_da_samplesize$GEO_UID[i]
   sample_size <- bc_da_samplesize$SAMPLE_SIZE[i]
-  
+  log_info(sprintf("Start processing DA: '%s'.", da_id))
   # Fetch sampled rows for the current DA_ID
-  query <- glue("
+  query <- glue::glue("
     SELECT TOP ({sample_size}) *
-    FROM dev.FCT_POSTALCODE_ADDRESS_DA
-    WHERE DA_ID = '{da_id}'
+    FROM (SELECT *, '59' + CD_2021 + DA_2021 AS DA_ID
+    FROM dev.FCT_POSTALCODE_ADDRESS_DA) a
+    WHERE a.DA_ID = '{da_id}'
     ORDER BY NEWID()
   ")
   
     # Fetch rows
-  sampled_rows <- dbGetQuery(con, query)
+  sampled_rows <- dbGetQuery(decimal_con, query)
   
   # Append sampled rows to the new table
   if (nrow(sampled_rows) > 0) {
-    dbWriteTable(con, "dev.FCT_SAMPLED_ADDRESSES", 
-                 sampled_rows, 
-                 append = i>1, 
-                 row.names = FALSE)
+    dbWriteTable(
+      conn = decimal_con,
+      name = DBI::Id(schema = "dev", table = "FCT_SAMPLED_ADDRESSES"),
+      value = sampled_rows,
+      append =  i > 1,
+      row.names = FALSE
+    )
   }
+  log_info(sprintf("Finish processing DA: '%s'.", da_id))
 }
   
 
