@@ -238,8 +238,343 @@ get_n_with_min <- function(N, Z, E, p, DE, n_min = 30) {
 
 ```{r}
 
+# Load required library
+library(tidyverse)
+library(fs)
+library(stringr)
+library(DBI)
+library(odbc)
+library(dplyr)
+library(arrow)
+library(nanoarrow)  # For Arrow integration
+library(duckdb)
+library(log4r)
+```
+
+```{r}
+
+# ---- Configuration ----
+db_config <- config::get("decimal")
+my_schema <- config::get("myschema")
+# ---- Connection to decimal ----
+decimal_con <- dbConnect(odbc::odbc(),
+                         Driver = db_config$driver,
+                         Server = db_config$server,
+                         Database = db_config$database,
+                         Trusted_Connection = "True")
+```
+
+
+```{r}
+dev_schema = "dev"
+prod_schema = "Prod"
+table_name = "FCT_Health_client"
+# read the Arrow Table batch to MS SQL Server
+# health_client_tab = dbReadTableArrow(
+#   conn = mssql_conn,
+#   name = DBI::Id(schema = dev_schema, table = table_name),  # Target schema and table name
+# )
+dbExistsTable(decimal_con, SQL(glue::glue('"{prod_schema}"."{table_name}"')))
+health_client_tab = tbl(src = decimal_con, DBI::Id(schema = prod_schema, table = table_name))
+
+```
+###### Health Client File
+
+```{r}
+health_client_tab %>% glimpse()
+```
+
+###### Translation Master File
+
+
+```{r}
+table_name = "GCS_202406"
+tmf_tab = tbl(src = decimal_con, DBI::Id(schema = prod_schema, table = table_name))
 ```
 
 
 
+```{r}
+# tmf_tab %>% glimpse()
+# the postal code is the key to link two tables
+postalcode_da_tbl = health_client_tab %>% 
+  filter(!is.na(POSTAL_CODE)) %>% 
+  count(CITY, STREET_LINE, POSTAL_CODE, LHA  ) %>% 
+  mutate(N_YEAR_ID = n) %>% 
+  left_join(tmf_tab %>% 
+              select(POSTALCODE, LONGITUDE, LATITUDE , LHA_TMF = LHA, CD_2021, MUN_NAME_2021, CSD_2021, DA_2021         )
+              , by = c("POSTAL_CODE" = "POSTALCODE"))
+# postalcode_da_tbl %>% glimpse()
+
+```
+
+
+###### Postal code with address and DA
+
+```{r}
+# postalcode_da_tbl %>% show_query()
+# MS SQL Server does not support the CREATE TABLE ... AS SELECT syntax directly. Instead, you need to use the SELECT ... INTO statement to create a new table based on a query.
+tbl_create_qry = '
+SELECT
+  "LHS".*,
+  "LONGITUDE",
+  "LATITUDE",
+  "GCS_202406"."LHA" AS "LHA_TMF",
+  "CD_2021",
+  "MUN_NAME_2021",
+  "CSD_2021",
+  "DA_2021"
+INTO dev.FCT_POSTALCODE_ADDRESS_DA
+FROM (
+  SELECT
+    "CITY",
+    "STREET_LINE",
+    "POSTAL_CODE",
+    "LHA",
+    COUNT(*) AS "N_YEAR_ID"
+  FROM (
+    SELECT "FCT_Health_client".*
+    FROM "Prod"."FCT_Health_client"
+    WHERE (NOT(("POSTAL_CODE" IS NULL)))
+  ) "q01"
+  GROUP BY "CITY", "STREET_LINE", "POSTAL_CODE", "LHA"
+) "LHS"
+LEFT JOIN "Prod"."GCS_202406"
+  ON ("LHS"."POSTAL_CODE" = "GCS_202406"."POSTALCODE")
+'
+
+dbExecute(decimal_con, statement = tbl_create_qry)
+
+
+```
+
+
+###### StatsCan Census for Population Size in DAs
+
+```{r}
+use_cache = TRUE
+
+
+# Put all the variable strings together: 
+CA21_VECTORS = c(
+  'POP'             = 'v_CA21_1',  # Population, 2021
+  
+  'POP_PCT_CHANGE'  = 'v_CA21_3',  # Population percentage change, 2016 to 2021
+  
+  'POP_DENS' = 'v_CA21_6' # Population density
+  )
+
+# convert the vector to a dataframe, so we can  join to other table
+CA21_VECTORS_DF <- data.frame(
+  name = names(CA21_VECTORS),
+  vector = as.character(CA21_VECTORS)
+)
+
+# vector_list_21  <-  list_census_vectors("CA21")
+
+# CA21_VECTORS_DF_DICT <-  CA21_VECTORS_DF %>% 
+#   left_join(vector_list_21, by = join_by(vector))
+#   
+  # since we have cache on the LAN, we need vpn2 and connect to LAN 
+bc_da <- cancensus::get_census(dataset='CA21', 
+                    regions=list(PR="59"),
+                    vectors=CA21_VECTORS, 
+                    level='DA', 
+                    quiet = TRUE, 
+                    geo_format = NA,
+                    use_cache = use_cache,
+                    labels = 'short')
+
+
+
+bc_da = bc_da %>% 
+  janitor::clean_names(case = "screaming_snake" ) 
+# bc_da %>% glimpse()
+```
+
+###### Calculate the sample size in each DA based on StatsCan's table
+
+The households are the population here. 
+
+
+```{r}
+# Since we have perfect information about the population and able to access all the population, we assume the DE = 1, and p = 0.9 in which almost every observation has access to health care. 
+get_n_with_min_x <- function(N) {
+  # N: Population size
+  # Z: Z-score for the desired confidence level
+  # E: Margin of error
+  # p: Estimated proportion (as a decimal)
+  # DE: Design effect
+  # n_min: Minimum sample size threshold (default is 30)
+  Z  = 1.96 
+  E = 0.05
+  p = 0.9
+  DE = 1
+  n_min = 30
+  # Step 1: Calculate the initial sample size
+  n = (Z)^2 * p * (1 - p) / (E)^2
+  
+  # Step 2: Adjust the sample size for finite population correction
+  n_adj = n / (1 + (n - 1) / N)
+  
+  # Step 3: Account for the design effect
+  n_final = n_adj * DE
+  
+  # Step 4: Enforce minimum sample size and handle small population cases
+  if (N < n_min) {
+    # If the population size is less than n_min, use the population size as the sample size
+    n_final = N
+    # message("Population size is less than n_min; using population size as the sample size.")
+  } else if (n_final < n_min) {
+    # If calculated sample size is less than n_min, enforce n_min
+    n_final = n_min
+    # message("Calculated sample size is less than n_min; using n_min as the sample size.")
+  }
+  
+  # Print the results in a neat format
+  # cat("Sample Size Calculation Results:\n")
+  # cat("Initial sample size (n):", round(n, 2), "\n")
+  # cat("Adjusted sample size (n_adj):", round(n_adj, 2), "\n")
+  # cat("Final sample size (n_final):", round(n_final, 2), "\n")
+  
+  # Return the results as a list
+  return(as.integer(n_final))
+}
+
+
+get_n_with_min_vect = Vectorize(get_n_with_min_x)
+bc_da_samplesize = bc_da %>% 
+  mutate(
+    SAMPLE_SIZE = get_n_with_min_vect(N = HOUSEHOLDS)
+  )
+# bc_da_samplesize %>% as_arrow_table()
+dbWriteTableArrow(
+      conn = decimal_con,
+      name = DBI::Id(schema = "dev", table = "DIM_BC_DA_POP_SAMPLESIZE"),  # Target schema and table name
+      value = bc_da_samplesize  
+      # append = total_rows_copied > 0 # Append after the first batch
+)
+```
+
+
+```{r}
+# move the statcan 2021 census data in da level to MSSQL Server
+census21_da <- read_csv("../../out/StatsCAN_Census_21_BC_DA_DIP.csv")
+dbWriteTableArrow(
+      conn = decimal_con,
+      name = DBI::Id(schema = "dev", table = "DIM_StatsCAN_Census_21_BC_DA"),  # Target schema and table name
+      value = census21_da  
+      # append = total_rows_copied > 0 # Append after the first batch
+)
+
+```
+
+
+###### Create Sample Flag in MSSQL Server
+      [CITY]
+      ,[STREET_LINE]
+      ,[POSTAL_CODE]
+      ,[CD_2021]
+      ,[MUN_NAME_2021]
+      ,[CSD_2021]
+      ,[DA_2021]
+
+```{r}
+query <- "
+SELECT 
+    s.[REGION_NAME]
+  , s.[AREA_SQ_KM]
+  , s.[POPULATION]
+  , s.[DWELLINGS]
+  , s.[HOUSEHOLDS]
+  , s.[POP_PCT_CHANGE]
+  , s.[POP_DENS]
+  , s.[SAMPLE_SIZE]
+  , sampled.*
+INTO 
+    dev.FCT_SAMPLED_ADDRESSES
+FROM 
+    dev.DIM_BC_DA_POP_SAMPLESIZE AS s
+CROSS APPLY 
+    (SELECT TOP (s.SAMPLE_SIZE) *
+     FROM (SELECT [CITY]
+      ,[STREET_LINE]
+      ,[POSTAL_CODE]
+      ,[LHA]
+      ,[LHA_TMF]
+      ,[LONGITUDE]
+      ,[LATITUDE]
+      ,[N_YEAR_ID]
+      ,[CD_2021]
+      ,[MUN_NAME_2021]
+      ,[CSD_2021]
+      ,[DA_2021]
+      , '59' + CD_2021 + DA_2021 AS DA_ID  
+     FROM dev.FCT_POSTALCODE_ADDRESS_DA) a
+     WHERE a.DA_ID = s.GEO_UID
+     ORDER BY NEWID()) AS sampled
+"
+
+# Execute the query
+dbExecute(decimal_con, query)
+
+
+```
+
+
+###### Sampling in R and append it to MSSQL Server
+
+```{r}
+# Step 3: Create a new table for sampled addresses
+# dbExecute(con, "
+#   IF OBJECT_ID('dev.FCT_SAMPLED_ADDRESSES', 'U') IS NULL
+#   CREATE TABLE dev.FCT_SAMPLED_ADDRESSES (
+#     DA_ID NVARCHAR(50),
+#     Address NVARCHAR(255),
+#     OtherColumns NVARCHAR(MAX)  -- Add other columns as necessary
+#   )
+# ")
+
+
+# Step 4: Process each DA and sample rows in batches
+for (i in seq_len(nrow(bc_da_samplesize))) {
+  # Extract DA_ID and SAMPLE_SIZE for the current iteration
+  da_id <- bc_da_samplesize$GEO_UID[i]
+  sample_size <- bc_da_samplesize$SAMPLE_SIZE[i]
+  
+  # Fetch sampled rows for the current DA_ID
+  query <- glue("
+    SELECT TOP ({sample_size}) *
+    FROM dev.FCT_POSTALCODE_ADDRESS_DA
+    WHERE DA_ID = '{da_id}'
+    ORDER BY NEWID()
+  ")
+  
+    # Fetch rows
+  sampled_rows <- dbGetQuery(con, query)
+  
+  # Append sampled rows to the new table
+  if (nrow(sampled_rows) > 0) {
+    dbWriteTable(con, "dev.FCT_SAMPLED_ADDRESSES", 
+                 sampled_rows, 
+                 append = i>1, 
+                 row.names = FALSE)
+  }
+}
+  
+
+
+```
+
+
+###### Check the results
+
+
+```{r}
+
+check_query = "SELECT DA_ID, COUNT(*) AS SampledRows
+FROM dev.FCT_SAMPLED_ADDRESSES
+GROUP BY DA_ID"
+
+```
 

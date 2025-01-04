@@ -151,7 +151,6 @@ window.Quarto = {
 <li><strong>Cluster size</strong>: Define clusters of 5-10 addresses, ensuring clusters are small enough to capture local variability but large enough to reduce travel costs.</li>
 <li><strong>Cluster selection</strong>: Randomly select clusters within each DA.</li>
 </ul>
-<p>Since theoretically, our sampling does not have any cost, we can skip stratification and clustering and make sure each our strata or cluster get sampled.</p>
 </section>
 <section id="random-sampling-within-clusters" class="level4">
 <h4 class="anchored" data-anchor-id="random-sampling-within-clusters"><strong>3. Random Sampling within Clusters</strong></h4>
@@ -163,11 +162,11 @@ window.Quarto = {
 </section>
 <section id="sample-size-determination" class="level4">
 <h4 class="anchored" data-anchor-id="sample-size-determination"><strong>4. Sample Size Determination</strong></h4>
-<p>Calculate the required sample size using: <span class="math inline">\(\[ n = \frac{Z^2 \cdot p \cdot (1-p)}{E^2} \]\)</span> Where:</p>
+<p>Calculate the required sample size using: $ n = $ Where:</p>
 <ul>
-<li><span class="math inline">\(( Z )\)</span> = Z-score (e.g., 1.96 for 95% confidence level).</li>
-<li><span class="math inline">\(( p )\)</span> = Estimated proportion of the population exhibiting the characteristic of interest (use pilot data if available).</li>
-<li><span class="math inline">\(( E )\)</span> = Margin of error (e.g., 5%).</li>
+<li><span class="math inline">\(( Z )\)</span> = Z-score (e.g., 1.96 for 95% confidence level; 2,58 for 99%).</li>
+<li><span class="math inline">\(( p )\)</span> = Estimated proportion of the population exhibiting the characteristic of interest (use pilot data if available). Default Value: If unknown, use p=0.5 (most conservative estimate, leading to the largest required sample size).</li>
+<li><span class="math inline">\(( E )\)</span> = Margin of error (e.g., 5% for ±5% margin).</li>
 </ul>
 <p>Adjust the sample size to ensure that at least one cluster is selected per DA.</p>
 </section>
@@ -178,6 +177,14 @@ window.Quarto = {
 <li>Sample size in each <span class="math inline">\(DA ( n_i ) = ( N_i/N \times n )\)</span>, where <span class="math inline">\(( N_i )\)</span> = population of <span class="math inline">\(DA ( i )\)</span>, <span class="math inline">\(( N )\)</span> = total population, and <span class="math inline">\(( n )\)</span> = total sample size.</li>
 </ul>
 <p>For sparsely populated DAs, consider <strong>minimum allocation</strong> (e.g., a fixed number of households per DA) to ensure representation.</p>
+</section>
+<section id="conclusion" class="level4">
+<h4 class="anchored" data-anchor-id="conclusion"><em>6. Conclusion</em></h4>
+<p>Since theoretically, our sampling does not have any cost, we can skip stratification and clustering and make sure each our strata or cluster get sampled.</p>
+<ul>
+<li>Conduct <strong>simple random sampling</strong> (SRS) to choose individual addresses.</li>
+<li>The number of addresses sampled in each DA should be proportional to the DA’s population or specific needs. - At least 10% of address in each DA are sampled. - At least 30 addresses are sampled. If the number of addresses in the DA is less than 30, all addresses are sampled.</li>
+</ul>
 <hr>
 </section>
 </section>
@@ -188,22 +195,11 @@ window.Quarto = {
 <ul>
 <li>Acquire the latest census data, including DA boundaries, population sizes, and socioeconomic indicators.</li>
 <li>Geocode all addresses to ensure accurate DA allocation.</li>
-</ul></li>
-<li><strong>Define Strata and Clusters</strong>
-<ul>
-<li>Stratify DAs based on predefined criteria.</li>
-<li>Divide each DA into clusters using geographic proximity.</li>
+<li>It will rely on the health client files.</li>
 </ul></li>
 <li><strong>Sample Selection</strong>
 <ul>
-<li>Randomly select DAs within each stratum.</li>
-<li>Randomly select clusters within each DA.</li>
-<li>Randomly sample addresses within clusters.</li>
-</ul></li>
-<li><strong>Survey Administration</strong>
-<ul>
-<li>Assign trained enumerators to visit selected addresses.</li>
-<li>Use standardized tools for data collection (e.g., mobile apps for geotagging responses).</li>
+<li>Randomly sample addresses within DAs</li>
 </ul></li>
 <li><strong>Data Weighting and Analysis</strong>
 <ul>
@@ -222,20 +218,139 @@ window.Quarto = {
 <h3 class="anchored" data-anchor-id="validation-and-iteration"><strong>Validation and Iteration</strong></h3>
 <p>Before full implementation: 1. Conduct a pilot study in a small region to validate the design. 2. Assess biases and variability in results. 3. Refine the sampling plan based on pilot findings.</p>
 <hr>
-<p>Would you like assistance with specific steps, such as determining sample size, creating strata, or implementing the survey?</p>
+<section id="estimate-the-sample-size" class="level4">
+<h4 class="anchored" data-anchor-id="estimate-the-sample-size"><strong>Estimate the sample size</strong></h4>
+<section id="province" class="level5">
+<h5 class="anchored" data-anchor-id="province"><strong>Province</strong></h5>
+<p>You are conducting a survey to estimate the proportion of households in a province with access to health care. The province has a population of 5,600,000 households. You want: - 95% confidence <span class="math inline">\((\( Z = 1.96 \))\)</span>, - ±5% margin of error <span class="math inline">\((\( E = 0.05 \))\)</span>, - No prior estimate for <span class="math inline">\(\( p \)\)</span> (use <span class="math inline">\(\( p = 0.5 \)\)</span>).</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="dv">1</span> <span class="sc">+</span> <span class="dv">1</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>N <span class="ot">=</span> <span class="dv">5600000</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>Z <span class="ot">=</span> <span class="fl">1.96</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>E <span class="ot">=</span> <span class="fl">0.05</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>p <span class="ot">=</span> <span class="fl">0.5</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>n<span class="ot">=</span> (Z)<span class="sc">^</span><span class="dv">2</span><span class="sc">*</span>p<span class="sc">*</span>(<span class="dv">1</span><span class="sc">-</span>p)<span class="sc">/</span>(E)<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(n)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 2</code></pre>
+<pre><code>[1] 384.16</code></pre>
 </div>
 </div>
-<p>You can add options to executable code like this</p>
+</section>
+<section id="population-size-adjustment" class="level5">
+<h5 class="anchored" data-anchor-id="population-size-adjustment"><strong>Population Size Adjustment</strong></h5>
+<p>If the population size <span class="math inline">\(\( N \)\)</span> in a DA is small, use the <strong>finite population correction</strong>:<br>
+<span class="math inline">\(\[
+   n_{adj} = \frac{n}{1 + \frac{n-1}{N}}
+   \]\)</span> This reduces the required sample size when sampling from small populations.</p>
 <div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>N <span class="ot">=</span> </span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>n_adj <span class="ot">=</span> n<span class="sc">/</span>(<span class="dv">1</span><span class="sc">+</span>(n<span class="dv">-1</span>)<span class="sc">/</span>N)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(n_adj)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 4</code></pre>
+<pre><code>[1] 384.1337</code></pre>
 </div>
 </div>
-<p>The <code>echo: false</code> option disables the printing of code (only output is displayed).</p>
+</section>
+<section id="adjust-for-clustering" class="level5">
+<h5 class="anchored" data-anchor-id="adjust-for-clustering"><strong>Adjust for Clustering</strong></h5>
+<p>If clustering is used, apply the <strong>design effect</strong> (<span class="math inline">\(\( DE \)\)</span>), which accounts for increased variance due to clustering. Assume <span class="math inline">\(\( DE = 1.5 \)\)</span>: <span class="math inline">\(\[
+n_{final} = n_{adj} \cdot DE = 384 \cdot 1.5 = 576
+\]\)</span></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>DE <span class="ot">=</span> <span class="fl">1.5</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>n_final <span class="ot">=</span> n_adj<span class="sc">*</span>DE</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(n_final)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 576.2006</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="interpretation" class="level4">
+<h4 class="anchored" data-anchor-id="interpretation"><strong>Interpretation</strong></h4>
+<ul>
+<li>A sample size of <strong>576 households/addresses</strong> is needed to estimate the proportion of households with access to health care within ±5% margin of error at a 95% confidence level.</li>
+<li>If stratified sampling is used, allocate the total sample proportionally across strata.</li>
+</ul>
+</section>
+<section id="a-da-is-a-observationpopulation" class="level4">
+<h4 class="anchored" data-anchor-id="a-da-is-a-observationpopulation"><em>A DA is a observation/population</em></h4>
+<p>Repeat previous process for each DA.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>get_n <span class="ot">&lt;-</span> <span class="cf">function</span>(N, Z, E, p, DE) {</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># N: Population size</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Z: Z-score for the desired confidence level</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="co"># E: Margin of error</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># p: Estimated proportion (as a decimal)</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="co"># DE: Design effect</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Step 1: Calculate the initial sample size</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  n <span class="ot">=</span> (Z)<span class="sc">^</span><span class="dv">2</span> <span class="sc">*</span> p <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> p) <span class="sc">/</span> (E)<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Step 2: Adjust the sample size for finite population correction</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  n_adj <span class="ot">=</span> n <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">+</span> (n <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> N)</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Step 3: Account for the design effect</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>  n_final <span class="ot">=</span> n_adj <span class="sc">*</span> DE</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Create a list of results</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>  results <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">n =</span> n, <span class="at">n_adj =</span> n_adj, <span class="at">n_final =</span> n_final)</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Print the results in a neat format</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">"Sample Size Calculation Results:</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">"Initial sample size (n):"</span>, <span class="fu">round</span>(n, <span class="dv">2</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">"Adjusted sample size (n_adj):"</span>, <span class="fu">round</span>(n_adj, <span class="dv">2</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">"Final sample size (n_final):"</span>, <span class="fu">round</span>(n_final, <span class="dv">2</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Return the results as a list</span></span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(results)</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>get_n_with_min <span class="ot">&lt;-</span> <span class="cf">function</span>(N, Z, E, p, DE, <span class="at">n_min =</span> <span class="dv">30</span>) {</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># N: Population size</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Z: Z-score for the desired confidence level</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="co"># E: Margin of error</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># p: Estimated proportion (as a decimal)</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="co"># DE: Design effect</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="co"># n_min: Minimum sample size threshold (default is 30)</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Step 1: Calculate the initial sample size</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  n <span class="ot">=</span> (Z)<span class="sc">^</span><span class="dv">2</span> <span class="sc">*</span> p <span class="sc">*</span> (<span class="dv">1</span> <span class="sc">-</span> p) <span class="sc">/</span> (E)<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Step 2: Adjust the sample size for finite population correction</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>  n_adj <span class="ot">=</span> n <span class="sc">/</span> (<span class="dv">1</span> <span class="sc">+</span> (n <span class="sc">-</span> <span class="dv">1</span>) <span class="sc">/</span> N)</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Step 3: Account for the design effect</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>  n_final <span class="ot">=</span> n_adj <span class="sc">*</span> DE</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Step 4: Enforce minimum sample size and handle small population cases</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (N <span class="sc">&lt;</span> n_min) {</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>    <span class="co"># If the population size is less than n_min, use the population size as the sample size</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>    n_final <span class="ot">=</span> N</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">message</span>(<span class="st">"Population size is less than n_min; using population size as the sample size."</span>)</span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> <span class="cf">if</span> (n_final <span class="sc">&lt;</span> n_min) {</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>    <span class="co"># If calculated sample size is less than n_min, enforce n_min</span></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>    n_final <span class="ot">=</span> n_min</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>    <span class="fu">message</span>(<span class="st">"Calculated sample size is less than n_min; using n_min as the sample size."</span>)</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Create a list of results</span></span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>  results <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">n =</span> n, <span class="at">n_adj =</span> n_adj, <span class="at">n_final =</span> n_final)</span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Print the results in a neat format</span></span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">"Sample Size Calculation Results:</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">"Initial sample size (n):"</span>, <span class="fu">round</span>(n, <span class="dv">2</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">"Adjusted sample size (n_adj):"</span>, <span class="fu">round</span>(n_adj, <span class="dv">2</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">"Final sample size (n_final):"</span>, <span class="fu">round</span>(n_final, <span class="dv">2</span>), <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Return the results as a list</span></span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(results)</span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="get-da-population-size-." class="level5">
+<h5 class="anchored" data-anchor-id="get-da-population-size-.">Get DA population size .</h5>
+</section>
+</section>
 </section>
 
 </main>
