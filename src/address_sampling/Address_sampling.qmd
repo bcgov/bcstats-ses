@@ -555,7 +555,7 @@ log_file_path = file.path(file.path(log_dir), glue::glue("Write_sampled_address_
 file_logger = logger(appenders = file_appender(log_file_path))
 
 # Step 4: Process each DA and sample rows in batches
-for (i in (5508:nrow(bc_da_samplesize))) {
+for (i in (1:nrow(bc_da_samplesize))) {
   
   # Extract DA_ID and SAMPLE_SIZE for the current iteration
   da_id <- bc_da_samplesize$GEO_UID[i]
@@ -600,5 +600,10 @@ check_query = "SELECT DA_ID, COUNT(*) AS SampledRows
 FROM dev.FCT_SAMPLED_ADDRESSES
 GROUP BY DA_ID"
 
+
+
+
 ```
+
+The results are matched, but  a lot of DAs in TMF are missed in the sampled address table, which means the DAs in the health client files are not full DAs population, we  need to get better address data.
 
