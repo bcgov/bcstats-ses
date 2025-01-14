@@ -1,0 +1,126 @@
+---
+title: "Sampling Addresses in Dissemination Area"
+format: html
+editor: visual
+---
+
+Designing a survey that ensuring comprehensive representation across census dissemination areas (DAs) and based on best practices in survey sampling:
+
+------------------------------------------------------------------------
+
+### **Objective**
+
+To design a sampling mechanism that ensures:
+
+1.  Equal representation across all DAs in the province.
+
+2.  Improved accuracy and reliability of survey results at the DA level.
+
+------------------------------------------------------------------------
+
+### **Sampling Plan**
+
+#### **1. Stratification**
+
+Stratification ensures that specific subgroups (strata) are represented in the sample. The stratification criteria could include:
+
+-   **Geographic regions**: Divide the province into regions (e.g., urban, suburban, rural).
+-   **Population density**: Group DAs into high, medium, and low-density strata.
+-   **Socioeconomic indicators**: Consider stratifying by income levels, education, or housing types.
+
+Each DA will belong to one stratum, ensuring balanced representation across varying conditions.
+
+#### **3. Random Sampling within Strata**
+
+From the selected clusters:
+
+-   Conduct **simple random sampling** (SRS) to choose individual addresses.
+-   The number of addresses sampled in each cluster should be proportional to the DA's population or specific needs. 
+-   At least 10% of address in each DA are sampled. 
+-   At least 30 addresses are sampled. If the number of addresses in the DA is less than 30, all addresses are sampled.
+
+#### **3. Sample Size Determination**
+
+When measuring something on a numerical scale, the appropriate formula for sample size determination depends on whether you're estimating a population mean or a population proportion. For estimating a population mean, you should use the following formula:
+
+$$n = \frac{(Z \sigma)^2}{E^2}$$
+
+Where: 
+
+$n$ = sample size 
+
+$Z$ = Z-score for the desired confidence level 
+
+$σ$ = population standard deviation 
+
+$E$ = margin of error
+
+Here are two examples:
+
+1.  Estimating average age of college students: Suppose we want to estimate the average age of UVic students with a margin of error of 0.5 years and 99% confidence level. From a previous study, we know the population standard deviation is 2.9 years.
+
+$Z$ (99% confidence) = 2.58 
+
+$σ$ = 2.9 
+
+$E$ = 0.5
+
+$$n = \frac{(2.58 \times 2.9)^2}{0.5^2} = 224.7$$
+
+Round up to 225 students for sample size.
+
+
+
+```{r}
+get_sample_size <-  function(Z, s, E){
+  n = (Z*s)^2/E^2
+  return(n)
+}
+```
+
+
+These formulas assume a normal distribution and known population standard deviation. If the standard deviation is unknown, we may need to use a t-distribution or conduct a pilot study to estimate it.
+
+
+#### **4.Estimate the population standard deviation of distance/time**
+```{r}
+
+
+address_sf_with_da <-  
+  read_csv("../../out/address_sf_with_da.csv")
+# DA population
+
+StatsCAN_Census_21_BC_DA_DIP <- read_csv("../../out/StatsCAN_Census_21_BC_DA_DIP.csv")
+
+address_distance_time_mean_sd <-  address_sf_with_da %>% 
+  left_join(StatsCAN_Census_21_BC_DA_DIP %>% 
+              select(GEO_UID, POPULATION), by = c("DAUID" = "GEO_UID")) %>% 
+  group_by(tag, DAUID) %>%
+  summarise(across(
+    .cols = c(drv_time_sec, drv_dist),
+    .fns = list(mean = mean, sd = sd),
+    .names = "{.col}_{.fn}"
+  )) %>% 
+  ungroup()
+  # knitr::kable()
+  # DT::datatable()
+
+
+  
+```
+
+Citations: 
+
+\[1\] https://byjus.com/sample-size-formula/ 
+
+\[2\] https://ca.indeed.com/career-advice/career-development/how-to-calculate-sample-size-formula 
+
+\[3\] https://www.statisticshowto.com/probability-and-statistics/find-sample-size/ 
+
+\[4\] https://en.wikipedia.org/wiki?curid=1776839 
+
+\[5\] http://www.stat.columbia.edu/\~gelman/stuff_for_blog/chap20.pdf 
+
+\[6\] https://pmc.ncbi.nlm.nih.gov/articles/PMC5037946/ 
+
+\[7\] https://measuringu.com/sample-sizes-for-rating-scales/

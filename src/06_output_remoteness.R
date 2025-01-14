@@ -139,7 +139,8 @@ address_dist_data <- address_data_path_list %>%
 # Convert to an sf object (BC Albers projection: EPSG 3005)
 address_dist_sf <- st_as_sf(address_dist_data, coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
 
-
+address_dist_data %>% 
+  count(tag)
 
 
 # Efficiency:
@@ -162,8 +163,8 @@ st_write(address_sf_with_da,
 address_sf_with_da %>% 
   st_drop_geometry() %>% 
   # inner_join(address_dist_data) %>% 
-  write_csv(use_network_path("data/raw_data/remoteness/address_sf_with_da.csv"))
-
+  # write_csv(use_network_path("data/raw_data/remoteness/address_sf_with_da.csv"))
+  write_csv(("./out/address_sf_with_da.csv")) 
 
 
 

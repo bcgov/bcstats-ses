@@ -18,46 +18,43 @@ To design a sampling mechanism that ensures: 1. Equal representation across all 
 
 #### **1. Stratification**
 
-Stratification ensures that specific subgroups (strata) are represented in the sample. The stratification criteria could include: 
+Stratification ensures that specific subgroups (strata) are represented in the sample. The stratification criteria could include:
 
-   -  **Geographic regions**: Divide the province into regions (e.g., urban, suburban, rural).
-   -  **Population density**: Group DAs into high, medium, and low-density strata. 
-   -  **Socioeconomic indicators**: Consider stratifying by income levels, education, or housing types.
+-   **Geographic regions**: Divide the province into regions (e.g., urban, suburban, rural).
+-   **Population density**: Group DAs into high, medium, and low-density strata.
+-   **Socioeconomic indicators**: Consider stratifying by income levels, education, or housing types.
 
 Each DA will belong to one stratum, ensuring balanced representation across varying conditions.
 
 #### **2. Clustering**
 
-Clustering helps reduce logistical costs by grouping nearby units. Within each DA, use clustering to identify groups of addresses: 
+Clustering helps reduce logistical costs by grouping nearby units. Within each DA, use clustering to identify groups of addresses:
 
-  -  **Cluster size**: Define clusters of 5-10 addresses, ensuring clusters are small enough to capture local variability but large enough to reduce travel costs. 
-  -  **Cluster selection**: Randomly select clusters within each DA.
-
+-   **Cluster size**: Define clusters of 5-10 addresses, ensuring clusters are small enough to capture local variability but large enough to reduce travel costs.
+-   **Cluster selection**: Randomly select clusters within each DA.
 
 #### **3. Random Sampling within Clusters**
 
-From the selected clusters: 
+From the selected clusters:
 
-  -  Conduct **simple random sampling** (SRS) to choose individual addresses. 
-  -  The number of addresses sampled in each cluster should be proportional to the DA's population or specific needs. 
-    -  At least 10% of address in each DA are sampled. 
-    -  At least 30 addresses are sampled. If the number of addresses in the DA is less than 30, all addresses are sampled.
+-   Conduct **simple random sampling** (SRS) to choose individual addresses.
+-   The number of addresses sampled in each cluster should be proportional to the DA's population or specific needs. - At least 10% of address in each DA are sampled. - At least 30 addresses are sampled. If the number of addresses in the DA is less than 30, all addresses are sampled.
 
 #### **4. Sample Size Determination**
 
-Calculate the required sample size using: $ n = \frac{Z^2 \cdot p \cdot (1-p)}{E^2} $ Where: 
+Calculate the required sample size using: \$ n = \frac{Z^2 \cdot p \cdot (1-p)}{E^2} \$ Where:
 
-  -  $( Z )$ = Z-score (e.g., 1.96 for 95% confidence level; 2,58 for 99%). 
-  -  $( p )$ = Estimated proportion of the population exhibiting the characteristic of interest (use pilot data if available). Default Value: If unknown, use p=0.5 (most conservative estimate, leading to the largest required sample size).
-  -  $( E )$ = Margin of error (e.g., 5% for ±5% margin).
+-   $( Z )$ = Z-score (e.g., 1.96 for 95% confidence level; 2,58 for 99%).
+-   $( p )$ = Estimated proportion of the population exhibiting the characteristic of interest (use pilot data if available). Default Value: If unknown, use p=0.5 (most conservative estimate, leading to the largest required sample size).
+-   $( E )$ = Margin of error (e.g., 5% for ±5% margin).
 
 Adjust the sample size to ensure that at least one cluster is selected per DA.
 
 #### **5. Allocation of Sample**
 
-Use **proportional allocation**: 
+Use **proportional allocation**:
 
-  -  Sample size in each $DA ( n_i ) = ( N_i/N \times n )$, where $( N_i )$ = population of $DA ( i )$, $( N )$ = total population, and $( n )$ = total sample size.
+-   Sample size in each $DA ( n_i ) = ( N_i/N \times n )$, where $( N_i )$ = population of $DA ( i )$, $( N )$ = total population, and $( n )$ = total sample size.
 
 For sparsely populated DAs, consider **minimum allocation** (e.g., a fixed number of households per DA) to ensure representation.
 
@@ -65,10 +62,8 @@ For sparsely populated DAs, consider **minimum allocation** (e.g., a fixed numbe
 
 Since theoretically, our sampling does not have any cost, we can skip stratification and clustering and make sure each our strata or cluster get sampled.
 
-  -  Conduct **simple random sampling** (SRS) to choose individual addresses. 
-  -  The number of addresses sampled in each DA should be proportional to the DA's population or specific needs. 
-    -  At least 10% of address in each DA are sampled. 
-    -  At least 30 addresses are sampled. If the number of addresses in the DA is less than 30, all addresses are sampled.
+-   Conduct **simple random sampling** (SRS) to choose individual addresses.
+-   The number of addresses sampled in each DA should be proportional to the DA's population or specific needs. - At least 10% of address in each DA are sampled. - At least 30 addresses are sampled. If the number of addresses in the DA is less than 30, all addresses are sampled.
 
 ------------------------------------------------------------------------
 
@@ -88,27 +83,21 @@ Since theoretically, our sampling does not have any cost, we can skip stratifica
 
 ### **Addressing Distortion in DA-Level Averages**
 
-To reduce distortion: - **Oversample** small DAs with high variability or unique characteristics. 
-    -  **Post-stratify** data during analysis to ensure results align with known population distributions.
+To reduce distortion: - **Oversample** small DAs with high variability or unique characteristics. - **Post-stratify** data during analysis to ensure results align with known population distributions.
 
 ------------------------------------------------------------------------
 
 ### **Validation and Iteration**
 
-Before full implementation: 
-1. Conduct a pilot study in a small region to validate the design. 
-2. Assess biases and variability in results. 3. Refine the sampling plan based on pilot findings.
+Before full implementation: 1. Conduct a pilot study in a small region to validate the design. 2. Assess biases and variability in results. 3. Refine the sampling plan based on pilot findings.
 
 ------------------------------------------------------------------------
 
 #### **Estimate the sample size**
 
 ##### **Province**
-You are conducting a survey to estimate the proportion of households in a province with access to health care. The province has a population of 5,600,000 households. You want:
-   - 95% confidence $(\( Z = 1.96 \))$,
-   - ±5% margin of error $(\( E = 0.05 \))$,
-   - No prior estimate for $\( p \)$ (use $\( p = 0.5 \)$).
 
+You are conducting a survey to estimate the proportion of households in a province with access to health care. The province has a population of 5,600,000 households. You want: - 95% confidence $(\( Z = 1.96 \))$, - ±5% margin of error $(\( E = 0.05 \))$, - No prior estimate for $\( p \)$ (use $\( p = 0.5 \)$).
 
 ```{r}
 N = 5600000
@@ -119,12 +108,12 @@ n= (Z)^2*p*(1-p)/(E)^2
 print(n)
 ```
 
-##### **Population Size Adjustment** 
-   If the population size $\( N \)$ in a DA is small, use the **finite population correction**:  
-   $\[
+##### **Population Size Adjustment**
+
+If the population size $\( N \)$ in a DA is small, use the **finite population correction**:\
+$\[
    n_{adj} = \frac{n}{1 + \frac{n-1}{N}}
-   \]$
-   This reduces the required sample size when sampling from small populations.
+   \]$ This reduces the required sample size when sampling from small populations.
 
 ```{r}
 N = 
@@ -133,11 +122,10 @@ print(n_adj)
 ```
 
 ##### **Adjust for Clustering**
-If clustering is used, apply the **design effect** ($\( DE \)$), which accounts for increased variance due to clustering. Assume $\( DE = 1.5 \)$:
-$\[
+
+If clustering is used, apply the **design effect** ($\( DE \)$), which accounts for increased variance due to clustering. Assume $\( DE = 1.5 \)$: $\[
 n_{final} = n_{adj} \cdot DE = 384 \cdot 1.5 = 576
 \]$
-
 
 ```{r}
 DE = 1.5
@@ -146,12 +134,13 @@ print(n_final)
 ```
 
 #### **Interpretation**
-- A sample size of **576 households/addresses** is needed to estimate the proportion of households with access to health care within ±5% margin of error at a 95% confidence level.
-- If stratified sampling is used, allocate the total sample proportionally across strata.
+
+-   A sample size of **576 households/addresses** is needed to estimate the proportion of households with access to health care within ±5% margin of error at a 95% confidence level.
+-   If stratified sampling is used, allocate the total sample proportionally across strata.
 
 #### *A DA is a observation/population*
 
-Repeat previous process for each DA. 
+Repeat previous process for each DA.
 
 ```{r}
 get_n <- function(N, Z, E, p, DE) {
@@ -185,9 +174,6 @@ get_n <- function(N, Z, E, p, DE) {
 
 
 ```
-
-
-
 
 ```{r}
 get_n_with_min <- function(N, Z, E, p, DE, n_min = 30) {
@@ -233,7 +219,6 @@ get_n_with_min <- function(N, Z, E, p, DE, n_min = 30) {
 
 ```
 
-
 ##### Get DA population size .
 
 ```{r}
@@ -275,7 +260,6 @@ decimal_con <- dbConnect(odbc::odbc(),
 
 ```
 
-
 ```{r}
 dev_schema = "dev"
 prod_schema = "Prod"
@@ -289,6 +273,7 @@ dbExistsTable(decimal_con, SQL(glue::glue('"{prod_schema}"."{table_name}"')))
 health_client_tab = tbl(src = decimal_con, DBI::Id(schema = prod_schema, table = table_name))
 
 ```
+
 ###### Health Client File
 
 ```{r}
@@ -297,13 +282,10 @@ health_client_tab %>% glimpse()
 
 ###### Translation Master File
 
-
 ```{r}
 table_name = "GCS_202406"
 tmf_tab = tbl(src = decimal_con, DBI::Id(schema = prod_schema, table = table_name))
 ```
-
-
 
 ```{r}
 # tmf_tab %>% glimpse()
@@ -318,7 +300,6 @@ postalcode_da_tbl = health_client_tab %>%
 # postalcode_da_tbl %>% glimpse()
 
 ```
-
 
 ###### Postal code with address and DA
 
@@ -358,7 +339,6 @@ dbExecute(decimal_con, statement = tbl_create_qry)
 
 
 ```
-
 
 ###### StatsCan Census for Population Size in DAs
 
@@ -405,8 +385,7 @@ bc_da = bc_da %>%
 
 ###### Calculate the sample size in each DA based on StatsCan's table
 
-The households are the population here. 
-
+The households are the population here.
 
 ```{r}
 # Since we have perfect information about the population and able to access all the population, we assume the DE = 1, and p = 0.9 in which almost every observation has access to health care. 
@@ -467,7 +446,6 @@ dbWriteTableArrow(
 )
 ```
 
-
 ```{r}
 # move the statcan 2021 census data in da level to MSSQL Server
 census21_da <- read_csv("../../out/StatsCAN_Census_21_BC_DA_DIP.csv")
@@ -480,15 +458,17 @@ dbWriteTableArrow(
 
 ```
 
-
 ###### Create Sample Flag in MSSQL Server
-      [CITY]
-      ,[STREET_LINE]
-      ,[POSTAL_CODE]
-      ,[CD_2021]
-      ,[MUN_NAME_2021]
-      ,[CSD_2021]
-      ,[DA_2021]
+
+```         
+  [CITY]
+  ,[STREET_LINE]
+  ,[POSTAL_CODE]
+  ,[CD_2021]
+  ,[MUN_NAME_2021]
+  ,[CSD_2021]
+  ,[DA_2021]
+```
 
 ```{r}
 query <- "
@@ -531,7 +511,6 @@ dbExecute(decimal_con, query)
 
 
 ```
-
 
 ###### Sampling in R and append it to MSSQL Server
 
@@ -590,9 +569,7 @@ for (i in (1:nrow(bc_da_samplesize))) {
 
 ```
 
-
 ###### Check the results
-
 
 ```{r}
 
@@ -605,5 +582,4 @@ GROUP BY DA_ID"
 
 ```
 
-The results are matched, but  a lot of DAs in TMF are missed in the sampled address table, which means the DAs in the health client files are not full DAs population, we  need to get better address data.
-
+The results are matched, but a lot of DAs in TMF are missed in the sampled address table, which means the DAs in the health client files are not full DAs population, we need to get better address data.
