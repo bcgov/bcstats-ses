@@ -60,3 +60,4 @@ renv/
 *.csv
 *.db
 data/
+out/
