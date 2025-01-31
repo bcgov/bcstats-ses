@@ -54,6 +54,7 @@ BC_wildfire_perimeter_historic <- bcdc_query_geodata('22c7cb44-1463-48f7-8e47-88
 
 # show all the features
 BC_wildfire_perimeter_historic %>% glimpse()
+# Rows: 6,749
 BC_wildfire_perimeter_historic %>% # Save to a new file (optional)
   st_write( use_network_path("data/raw_data/Wildfire/Wildfires_DB/Input/BC_wildfire_perimeter_historic.geojson"))
 
@@ -76,10 +77,12 @@ print(st_crs(BC_wildfire_perimeter_historic))
 # - For **Canada-wide analyses**: Use **Canada Atlas Lambert (EPSG:3347)**.
 
 
-## FIX CASES WITH FIRES SPLIT INTO SEVERAL PARTS (DUPLICATED FIRES)
+## FIX CASES WITH FIRES SPLIT INTO SEVERAL PARTS (DUPLICATED FIRES) ?    
 dups <- unique(BC_wildfire_perimeter_historic$FIRE_LABEL[which(duplicated(BC_wildfire_perimeter_historic$FIRE_LABEL))])
 BC_dups <- BC_wildfire_perimeter_historic[BC_wildfire_perimeter_historic$FIRE_LABEL %in% dups, ] 
-
+BC_dups %>% 
+  arrange(FIRE_LABEL) # FIRE_LABEL is combination of fire_number and year, if it is duplicated, it means the same fire is in different parts in the same year
+# For example, 2000-C50173 has five rows with different geometries and fire sizes. 
 # Before performing st_union(), reproject the data to a suitable projected coordinate system (e.g., UTM or an equal-area projection). This ensures that the union operation is done in a coordinate system that respects spatial distances and areas.
 # Reproject to UTM (adjust to your area)
 # BC spans several **UTM (Universal Transverse Mercator)** zones, and UTM is commonly used for regional-scale analyses because it minimizes distortions for smaller areas.
@@ -90,49 +93,51 @@ BC_dups <- BC_wildfire_perimeter_historic[BC_wildfire_perimeter_historic$FIRE_LA
 # - Central BC: **Zone 9N** (`EPSG:32609`)
 # - Northern BC: **Zone 8N** (`EPSG:32608`)
 
-projected_BC_dups <- st_transform(BC_dups, crs = 32610)
-
+# stick to bc albers
 # Ensure geometries are valid
-valid_projected_BC_dups <- st_make_valid(projected_BC_dups)
-
-# Perform the union
-# st_union could union geometry to get an accurate range of the fire
+valid_projected_BC_dups <- st_make_valid(BC_dups)
+print(st_crs(valid_projected_BC_dups))
+# Perform the union operation
+# st_union could union geometry to get an accurate range of the fire area,  FIRE_LABEL is combination of fire_number and year, so basically group by year and fire_number
 union_valid_projected_BC_dups <- valid_projected_BC_dups %>%
-  group_by(FIRE_LABEL) %>%
+  group_by( FIRE_LABEL) %>% # FIRE_LABEL is combination of fire_number and year, so basically group by year and fire_number
   summarize(geometry = sf::st_union(geometry)) 
-
-# Reproject back to geographic CRS if needed
-dups_merge <- st_transform(union_valid_projected_BC_dups, crs = st_crs(BC_wildfire_perimeter_historic))
+print(st_crs(union_valid_projected_BC_dups))
 
 library(units)
+
 # ensure that both datasets have the same units for the var column. You can use units::set_units() to assign the appropriate units:
 # or you can strip the units from the column with the units::drop_units()
-BC_dups <- BC_dups %>%
+BC_dups_grouped <- BC_dups %>%
   st_drop_geometry() %>%   # remove area variables before we calculate the new area variables using union geometry.
-  group_by(FIRE_LABEL) %>% # FIRE_LABEL is combination of fire_number and year, so basically group by year and fire_number
-  summarise(across(.cols = everything(),
-                   .fns = max)) %>% 
-  # FEATURE_LENGTH_M , OBJECTID etc. are different across the same FIRE_LABEL
-  inner_join(dups_merge, by = join_by(FIRE_LABEL)) %>%
+  group_by(FIRE_NUMBER,  FIRE_YEAR, FIRE_CAUSE, FIRE_LABEL) %>% # FIRE_LABEL is combination of fire_number and year, so basically group by year and fire_number
+  summarise(across(.cols = c(FIRE_SIZE_HECTARES, FEATURE_AREA_SQM, FEATURE_LENGTH_M ),
+                   .fns = ~sum(.x,  na.rm = TRUE)  # sum the fire size and area
+                   )) %>%
+  # FEATURE_LENGTH_M , OBJECTID etc. are different across the same FIRE_LABEL, so we need to keep the max value.Or we don't care other columns, we can just keep key columns like FIRE_SIZE_HECTARES, FEATURE_AREA_SQM, if before the union, the geometry is not overlapped, then we can get the sum of the firesize and area.
+  inner_join(union_valid_projected_BC_dups, by = join_by(FIRE_LABEL)) %>%
+  ungroup() %>%
   mutate(
-    FEATURE_AREA_SQM = st_area(geometry) ,
-    FIRE_SIZE_HECTARES = (FEATURE_AREA_SQM)/10000
-  ) %>%
-  distinct(FIRE_LABEL, .keep_all = TRUE)   #this will keep the first row within group/distinct value
+    FEATURE_AREA_SQM_ESTIMATED = units::drop_units(st_area(geometry)) ,
+    FIRE_SIZE_HECTARES_ESTIMATED = (FEATURE_AREA_SQM_ESTIMATED)/10000
+  ) 
+  # distinct(FIRE_LABEL, .keep_all = TRUE)   #this will keep the first row within group/distinct value
 # 70 unique elements are previously duplicated 
-
-
+# except one fire, all the fires' total estimated area is the same as the sum of the areas of the parts.
+# BC_dups_grouped %>% 
+#   filter(FIRE_NUMBER == 'C10322')
 BC_wildfire_perimeter_historic <- BC_wildfire_perimeter_historic %>% 
   filter(!FIRE_LABEL %in% dups) %>% 
   bind_rows(
-    BC_dups %>%
+    BC_dups_grouped %>%
       mutate(
-        FEATURE_AREA_SQM  = units::drop_units(FEATURE_AREA_SQM),
-        FIRE_SIZE_HECTARES  = units::drop_units(FIRE_SIZE_HECTARES)
-      )
+        FEATURE_AREA_SQM  = FEATURE_AREA_SQM_ESTIMATED,
+        FIRE_SIZE_HECTARES  = FIRE_SIZE_HECTARES_ESTIMATED
+      ) %>% 
+      select(-c(FEATURE_AREA_SQM_ESTIMATED, FIRE_SIZE_HECTARES_ESTIMATED))
   )
 
-
+BC_wildfire_perimeter_historic %>% glimpse()
 ###################################################################
 # BC Wildfire Fire Perimeters - Current
 # https://catalogue.data.gov.bc.ca/dataset/cdfc2d7b-c046-4bf0-90ac-4897232619e1
@@ -185,9 +190,15 @@ print(common_columns) # ["b"]
 BC_wildfire_perimeter = bind_rows(BC_wildfire_perimeter_historic, BC_wildfire_perimeter_current) %>% 
   arrange(FIRE_LABEL) 
 
+BC_wildfire_perimeter %>% 
+  glimpse()
+BC_wildfire_perimeter %>% count(FIRE_YEAR)
+# 7,097 fires over 25 years
 
 BC_wildfire_perimeter %>% # Save to a new file (optional)
-  st_write( use_network_path("data/raw_data/Wildfire/Wildfires_DB/Input/BC_wildfire_perimeter.geojson"))
+  # st_write( use_network_path("data/raw_data/Wildfire/Wildfires_DB/Input/BC_wildfire_perimeter.geojson"))
+  st_write( "out/BC_wildfire_perimeter.geojson")
+# Writing 7097 features with 20 fields and geometry
 
 
 ###################################################################
@@ -209,21 +220,23 @@ file_path <- use_network_path("data/raw_data/remoteness/lda_000a21a_e/lda_000b21
 
 DAs <- st_read(file_path) %>%
   filter(PRUID == '59') %>%
-  st_transform(, crs = st_crs(BC_wildfire_perimeter_historic)) %>%
-  mutate(DA_AREA = st_area(.)) 
+  st_transform(, crs = st_crs(BC_wildfire_perimeter_historic)) %>% # stick to bc albers
+  mutate(DA_AREA =  units::drop_units(st_area(.))) 
+# DA_AREA is the area of the DA in square meters and larger than the LANDAREA, which is the land area in hectares.
 
+DAs %>% glimpse()
+# 7,848 rows, 5 columns. 
 # DA_filtered <- DAs %>%
 #   select(c(DAUID, DA_AREA)) %>%
 #   st_drop_geometry()
 
 
-# Reproject datasets to a suitable CRS
-BC_wildfire_perimeter_projected <- st_transform(BC_wildfire_perimeter, crs = 32610)  
-DAs_projected <- st_transform(DAs, crs = 32610)
+
+
 
 # Ensure geometries are valid
-BC_wildfire_perimeter_projected <- st_make_valid(BC_wildfire_perimeter_projected)
-DAs_projected <- st_make_valid(DAs_projected)
+BC_wildfire_perimeter_projected <- st_make_valid(BC_wildfire_perimeter)
+DAs_projected <- st_make_valid(DAs)
 
 ## COMBINE DAs AND FIRES # Perform the intersection
 BC_DA_wildfire_perimeter_projected <- st_intersection(DAs_projected, BC_wildfire_perimeter_projected) %>% 
@@ -234,13 +247,19 @@ BC_DA_wildfire_perimeter_projected <- st_intersection(DAs_projected, BC_wildfire
   arrange(DAUID, FIRE_LABEL)
   # select(c(DAUID, FIRE_LABEL, FIRE_NUMBER, FIRE_YEAR, FIRE_CAUSE, FIRE_DATE, FIRE_STATUS, TRACK_DATE, FIRE_SIZE_HECTARES,
   #          FEATURE_AREA_SQM))
-
-##. Reproject back to original CRS 
-BC_DA_wildfire_perimeter <- st_transform(BC_DA_wildfire_perimeter_projected, st_crs(BC_wildfire_perimeter))
+# 7969 features and 11 fields
 
 
-# Get back the DA area, only areas that cover fires, one DA could have three fires in one year
-# BC_DA_wildfire_perimeter_perimeter <- DA_filtered %>% inner_join(BC_DA_wildfire_perimeter_perimeter, by = join_by(DAUID) )
+BC_DA_wildfire_perimeter_projected %>% glimpse()
+# Rows: 7,969 columns: 26
+# each row is a fire in a DA, so the number of rows could be larger than the number of fires. A fire could be in multiple DAs.
+
+BC_DA_wildfire_perimeter_projected %>% st_crs()
+# stick to bc albers
+
+BC_DA_wildfire_perimeter <- BC_DA_wildfire_perimeter_projected %>% 
+  select(c(DAUID, DA_AREA, LANDAREA, FIRE_LABEL, FIRE_NUMBER, FIRE_YEAR, FIRE_CAUSE, FIRE_DATE, FIRE_SIZE_HECTARES, FEATURE_AREA_SQM, FEATURE_LENGTH_M, geometry))
+
 
 # ? should we group by DA to get the total percent? or if the fire areas are overlapped, should we st_union them to avoid double counting?
 
@@ -261,7 +280,7 @@ overlap_results <- BC_DA_wildfire_perimeter %>%
       function(i) {
         # Work with the current group only
         current_group <-  st_as_sf(pick(everything()))  # Ensure it's an sf object # Access only rows within the group
-        current_group <- st_transform(current_group, crs =  st_crs(BC_wildfire_perimeter))  # BC Albers projection
+        # current_group <- st_transform(current_group, crs =  st_crs(BC_wildfire_perimeter))  # BC Albers projection
         others <- current_group[-i, ]  # Exclude the i-th row within the group
         overlaps <- st_intersects(current_group[i, ], others, sparse = FALSE)
         # Check if overlaps occur with different times, skip time this time. 
@@ -272,7 +291,7 @@ overlap_results <- BC_DA_wildfire_perimeter %>%
   )
 
 
-# it seems that some 93 DAs have the overlaps, but not sure if they are significant. 
+# it seems that some 74 DAs have the overlaps, but not sure if they are significant. 
 overlap_results %>% 
   filter(overlaps)
 
@@ -283,26 +302,32 @@ BC_DA_wildfire_perimeter_grouped <- BC_DA_wildfire_perimeter_projected %>%
   group_by(FIRE_YEAR, DAUID, DA_AREA, LANDAREA) %>%
   summarise(
     N_FIRE = n(),
-    FIRE_NUMBER = str_c(FIRE_NUMBER, collapse = ", ", na.rm = TRUE),
+    FIRE_NUMBER_LIST = str_c(FIRE_NUMBER, collapse = ", ", na.rm = TRUE),
     across(
       .cols = c(FIRE_SIZE_HECTARES ,FEATURE_AREA_SQM),
       .fns = sum,
-      .names = "SIMPLE_SUM_{col}"
+      .names = "SIMPLE_SUM_{col}"  # this could be over estimate the total area, since the overlapped area could be counted twice or the FIRE_SIZE_HECTARES may be shared by two DAs and should be split into two DAs.
     ),
-    geometry = st_union(geometry),  # Union geometries within each group
+    geometry = st_union(geometry),  # Union geometries within each group DA and year  
     .groups = "drop"
   ) %>%
-  mutate(TOTAO_FIRE_AREA = st_area(geometry))  # Calculate the total area  
+  ungroup %>% 
+  mutate(TOTAO_FIRE_AREA = units::drop_units(st_area(geometry)))  # Calculate the total area  
  
 
-BC_DA_wildfire_perimeter_grouped = st_transform(BC_DA_wildfire_perimeter_grouped,  st_crs(BC_wildfire_perimeter)) 
-# 6736 rows
+
 
 # Get percentage of fire area
 BC_DA_wildfire_perimeter_grouped <- BC_DA_wildfire_perimeter_grouped %>%
   mutate(FIRE_PERCENT_DA = 100*as.numeric(TOTAO_FIRE_AREA)/as.numeric(DA_AREA), # one DA could have three fires in one year, so the percent could small but the total percent could be large.  
          FIRE_PERCENT_FIRE = 100*as.numeric(TOTAO_FIRE_AREA)/as.numeric(SIMPLE_SUM_FEATURE_AREA_SQM   ),
-         FIRE_PERCENT_FIRE = ifelse(FIRE_PERCENT_FIRE>100, 100, FIRE_PERCENT_FIRE)) # why it could be larger than 100? due geometry computation?
+         FIRE_PERCENT_FIRE = ifelse(FIRE_PERCENT_FIRE>100, 100, FIRE_PERCENT_FIRE)
+         ) # why it could be larger than 100? due geometry computation?
+
+BC_DA_wildfire_perimeter_grouped %>% 
+  # st_crs()
+  glimpse()
+# 3433 rows? so only 3433 DAs have the fires, the rest 4845 DAs do not have the fires.
 
 
 ###################################################################
@@ -315,7 +340,7 @@ BC_DA_wildfire_perimeter_grouped <- BC_DA_wildfire_perimeter_grouped %>%
 file_path <- use_network_path("data/Output/Wildfires_DB/BC_DA_grouped_wildfires_2000_2024.csv")
 write.csv(BC_DA_wildfire_perimeter_grouped, file = file_path)
 file_path <- "out/BC_DA_grouped_wildfires_2000_2024.csv"
-write.csv(BC_DA_wildfire_perimeter_grouped, file = file_path)
+write.csv(BC_DA_wildfire_perimeter_grouped %>%  st_drop_geometry() , file = file_path)
 
 # the geospatial data could be saved ad geojson. 
 file_path <- use_network_path("data/Output/Wildfires_DB/BC_DA_grouped_wildfires_2000_2024.geojson")
@@ -372,28 +397,28 @@ write.csv(BC_DA_wildfire_perimeter_grouped_dict, file = file_path)
 # The full wild fire table with details of each wild fire.
 ###################################################################
 
-BC_DA_wildfire_perimeter <- BC_DA_wildfire_perimeter %>%
-  mutate(FIRE_DA_AREA_SQM = st_area(geometry)) %>%
-  rename(FIRE_AREA_SQM = FEATURE_AREA_SQM) %>% 
-  mutate(ESTIMATED_AREA = ifelse(FIRE_LABEL %in% dups, 1, 0),
-         FIRE_LABEL_DA = paste(FIRE_LABEL, DAUID, sep='-')
-  ) 
+# BC_DA_wildfire_perimeter <- BC_DA_wildfire_perimeter %>%
+#   mutate(FIRE_DA_AREA_SQM = st_area(geometry)) %>%
+#   rename(FIRE_AREA_SQM = FEATURE_AREA_SQM) %>% 
+#   mutate(ESTIMATED_AREA = ifelse(FIRE_LABEL %in% dups, 1, 0),
+#          FIRE_LABEL_DA = paste(FIRE_LABEL, DAUID, sep='-')
+#   ) 
 
 # Get percentage of fire area
-BC_DA_wildfire_perimeter<- BC_DA_wildfire_perimeter %>%
-  mutate(FIRE_PERCENT_DA = 100*as.numeric(FIRE_DA_AREA_SQM)/as.numeric(DA_AREA), # one DA could have three fires in one year, so the percent could small but the total percent could be large.  
-         FIRE_PERCENT_DA = ifelse(FIRE_PERCENT_DA>100, 100, FIRE_PERCENT_DA) , # should be capped by 100% 
-         FIRE_PERCENT_FIRE = 100*as.numeric(FIRE_DA_AREA_SQM)/as.numeric(FIRE_DA_AREA_SQM   ),
-         FIRE_PERCENT_FIRE = ifelse(FIRE_PERCENT_FIRE>100, 100, FIRE_PERCENT_FIRE)) %>% # why it could be larger than 100? due geometry computation?
-  select(c(FIRE_LABEL_DA, FIRE_LABEL, DAUID, FIRE_NUMBER, FIRE_YEAR, 
-           FIRE_CAUSE, FIRE_DATE, TRACK_DATE, FIRE_STATUS, FIRE_SIZE_HECTARES, 
-           FIRE_AREA_SQM, DA_AREA, FIRE_DA_AREA_SQM, FIRE_PERCENT_DA, FIRE_PERCENT_FIRE,
-           ESTIMATED_AREA))
+# BC_DA_wildfire_perimeter<- BC_DA_wildfire_perimeter %>%
+#   mutate(FIRE_PERCENT_DA = 100*as.numeric(FIRE_DA_AREA_SQM)/as.numeric(DA_AREA), # one DA could have three fires in one year, so the percent could small but the total percent could be large.  
+#          FIRE_PERCENT_DA = ifelse(FIRE_PERCENT_DA>100, 100, FIRE_PERCENT_DA) , # should be capped by 100% 
+#          FIRE_PERCENT_FIRE = 100*as.numeric(FIRE_DA_AREA_SQM)/as.numeric(FIRE_DA_AREA_SQM   ),
+#          FIRE_PERCENT_FIRE = ifelse(FIRE_PERCENT_FIRE>100, 100, FIRE_PERCENT_FIRE)) %>% # why it could be larger than 100? due geometry computation?
+#   select(c(FIRE_LABEL_DA, FIRE_LABEL, DAUID, FIRE_NUMBER, FIRE_YEAR, 
+#            FIRE_CAUSE, FIRE_DATE, TRACK_DATE, FIRE_STATUS, FIRE_SIZE_HECTARES, 
+#            FIRE_AREA_SQM, DA_AREA, FIRE_DA_AREA_SQM, FIRE_PERCENT_DA, FIRE_PERCENT_FIRE,
+#            ESTIMATED_AREA))
 
 file_path <- use_network_path("data/Output/Wildfires_DB/BC_DA_wildfire_perimeter_2000_2004.csv")
 write.csv(BC_DA_wildfire_perimeter, file = file_path)
 file_path <- "out/BC_DA_wildfire_perimeter_2000_2004.csv"
-write.csv(BC_DA_wildfire_perimeter, file = file_path)
+write.csv(BC_DA_wildfire_perimeter %>%  st_drop_geometry(), file = file_path)
 
 # the geospatial data could be saved ad geojson. 
 file_path <- use_network_path("data/Output/Wildfires_DB/BC_DA_wildfires_2000_2024.geojson")
@@ -523,7 +548,7 @@ BC_DA_wildfire_perimeter_extended <- BC_DA_wildfire_perimeter_extended %>%
 file_path <- use_network_path("data/Output/Wildfires_DB/BC_wildfires_2000_2024_extended.csv")
 write.csv(BC_DA_wildfire_perimeter_extended, file = file_path)
 file_path <- "out/BC_wildfires_2000_2024_extended.csv"
-write.csv(BC_DA_wildfire_perimeter_extended, file = file_path)
+write.csv(BC_DA_wildfire_perimeter_extended%>%  st_drop_geometry(), file = file_path)
 
 # the geospatial data could be saved ad geojson. 
 file_path <- use_network_path("data/Output/Wildfires_DB/BC_DA_wildfire_perimeter_extended.geojson")
