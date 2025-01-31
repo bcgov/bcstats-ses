@@ -1,0 +1,125 @@
+---
+title: "02_BC_data_cataglogue"
+format: html
+editor: visual
+---
+
+```{r}
+pacman::p_load(tidyverse, readxl)
+```
+
+## BC_data_cataglogue
+
+This document stores information of data set that are used in SES project and from BC data catalogue <https://catalogue.data.gov.bc.ca>.
+
+## BC ECC data set
+
+BC ECC provides data sets for estimating BC education index:
+
+### Graduation rate
+
+## First Time G12 Graduation Rate 1996/97-2023/24 - Residents Only 
+
+<https://catalogue.data.gov.bc.ca/dataset/bc-schools-first-time-grade-12-graduation-rate/resource/f690db99-6969-450c-bb39-81482385233d>
+
+```{r}
+firsttime_g12_gradution_rate_url = "https://catalogue.data.gov.bc.ca/dataset/58a3f04d-99c5-4696-bff2-602fe69f5363/resource/f690db99-6969-450c-bb39-81482385233d/download/first_time_g12_graduation_rate_1996-97-2022-23_residents_only.xlsx"
+
+firsttime_g12_gradution_rate_doc_url= "https://catalogue.data.gov.bc.ca/dataset/58a3f04d-99c5-4696-bff2-602fe69f5363/resource/1530eaf5-1894-4bb3-ab46-71139761ff78/download/first-time-grade-12-graduation-rate-field-definitions-2023-12.pdf"
+```
+
+You can add options to executable code like this
+
+```{r}
+# xlsx files
+firsttime_g12_gradution_rate_file = "../../data/first_time_g12_graduation_rate_1996-97-2022-23_residents_only.xlsx"
+download.file(firsttime_g12_gradution_rate_url, 
+              destfile=firsttime_g12_gradution_rate_file, 
+              mode='wb')
+firsttime_g12_gradution_rate_df <- read_excel(temp_file)
+
+
+```
+
+Look at the sd 43 .
+
+```{r}
+firsttime_g12_gradution_rate_df %>% 
+  filter(
+    DATA_LEVEL == 'District Level',
+    DISTRICT_NUMBER == '043',
+    SCHOOL_YEAR >= '2000/2001')
+```
+
+## BC Population Estimates, Projections
+
+## Population estimates, projection and statistics
+
+![](https://www2.gov.bc.ca/icons/last-updated-star.svg){alt=""} Last updated on September 20, 2024
+
+View statistics that reflect the people of B.C. including socioeconomic profiles, population projections, and migration figures.
+
+<https://www2.gov.bc.ca/gov/content/data/statistics/people-population-community>
+
+-    	[Quarterly population highlights report (PDF, 186KB)](https://www2.gov.bc.ca/assets/gov/data/statistics/people-population-community/population/quarterly_population_highlights.pdf)
+
+-    	[Quarterly population and migration estimates for B.C. (XLSX, 108KB)](https://www2.gov.bc.ca/assets/gov/data/statistics/people-population-community/population/quarterly_population_components.xlsx)
+
+-   
+
+```{r}
+
+```
+
+<https://bcstats.shinyapps.io/popApp/>
+
+### BC [catalogue](https://catalogue.data.gov.bc.ca/dataset/bc-population-projections)
+
+Sub-provincial population estimates and projections by age and gender for a variety of region types. Customizable breakdowns for counts and additional statistics are available via [BC Stats' Population App](https://bcstats.shinyapps.io/popApp/).
+
+Estimates: A population estimate is a measure of the current or historical population. BC Stats annually releases total population estimates for sub-provincial region types. These estimates are consistent in aggregate with the July 1st provincial level estimates produced by Statistics Canada. More information can be found on BC Stats' [Population Estimates page](https://www2.gov.bc.ca/gov/content?id=36D1A7A4BEE248598281824C13CB65B6).
+
+Projections: A population projection is a forecast of future population growth. BC Stats applies the Component/Cohort-Survival method to project the population. This method "grows" the population from the latest base year estimate by forecasting births, deaths and migration by age. These forecasts are based on past trends modified to account for possible future changes and, consequently, should be viewed as only one possible scenario of future population. Projections are also released annually and are as of July 1st. More information can be found on BC Stats' [Population Projections page](https://www2.gov.bc.ca/gov/content?id=BB4112D90F38414984C25A75CC4F029B).
+
+<https://catalogue.data.gov.bc.ca/dataset/86839277-986a-4a29-9f70-fa9b1166f6cb>
+
+Resource <https://catalogue.data.gov.bc.ca/dataset/86839277-986a-4a29-9f70-fa9b1166f6cb/resource/0e15d04d-127c-457a-b999-20800c929927/download/municipality-population.csv>
+
+```{r}
+municipality_population_url <- "https://catalogue.data.gov.bc.ca/dataset/86839277-986a-4a29-9f70-fa9b1166f6cb/resource/0e15d04d-127c-457a-b999-20800c929927/download/municipality-population.csv"
+municipality_population_file <- "../../data//municipality-population.csv"
+
+download.file(municipality_population_url, 
+              destfile=municipality_population_file, 
+              mode='wb')
+
+municipality_population_df <- read_csv(municipality_population_url)
+```
+
+```{r}
+municipality_population_df %>% 
+  filter(Type == "Estimate",
+         Year>=2000)
+```
+
+A population projection is a
+forecast of future population growth. BC Stats applies the
+Component/Cohort-Survival method to project the population. This method
+"grows" the population from the latest base year estimate by
+forecasting births, deaths and migration by age. These forecasts are
+based on past trends modified to account for possible future changes
+and, consequently, should be viewed as only one possible scenario of
+future population
+
+<https://catalogue.data.gov.bc.ca/dataset/bc-population-projections>
+
+```{r}
+population_prj_url <- "https://catalogue.data.gov.bc.ca/dataset/c8e0d421-a4c7-43d4-aac9-aa13ca634c16/resource/25d7fb36-003d-4d0d-a8b3-18ada3e8a987/download/1971-table_2023_estimates_-_2024-2046_projections.xlsx"
+population_prj_file <- "../../data/1971-table_2023_estimates_-_2024-2046_projections.xlsx"
+
+download.file(population_prj_url, 
+              destfile=population_prj_file, 
+              mode='wb')
+population_prj_df <- read_excel(population_prj_file, sheet = 2)
+
+```
