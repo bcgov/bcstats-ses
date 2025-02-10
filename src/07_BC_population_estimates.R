@@ -133,10 +133,12 @@ municipality_population_CSD_df = municipality_population_df %>%
     final_data,
     # should use CSD code to join
     by = c("CDCSD" = "CDCSD", "YEAR" = "YEAR")  # Region.Name is not standardized, for example, Langley, District Municipality; Langley, City of
-  ) 
+  ) %>% 
+  select(CDCSD , REGION_ID = Region,  REGION_NAME = Region.Name, MUN_NAME = MUNNAME, YEAR,   POPULATION = Total)
 
 # save to out folder
-municipality_population_CSD_df %>% 
+municipality_population_CSD_df  %>%
+  # janitor::clean_names(case = "") %>%
   write_csv("out/BC_municipality_CSD_population_estimate.csv")
 
 # create a dictionary of the data types
@@ -148,9 +150,21 @@ municipality_population_CSD_df %>%
 
 # 2. Create a dictionary 
 library(datadictionary)
-schema = "{
-        'Year': 'INTEGER',
-        'Type': 'VARCHAR',
-        'Municipality': 'VARCHAR',
-        'Population': 'INTEGER'
-    }"
+municipality_population_CSD_labels = c(
+        'CDCSD' = 'Census Subdivision Code',
+        'REGION_ID'= 'Region ID',
+        'REGION_NAME'= 'Region Name',
+        'MUN_NAME'= 'Census Subdivision Name',
+        'YEAR' = 'Year',
+        'POPULATION'= 'Total Population Estimate'
+    )
+
+
+municipality_population_CSD_dict <- create_dictionary(municipality_population_CSD_df ,
+                                                            id_var = c("CDCSD", "YEAR"),
+                                                            var_labels = municipality_population_CSD_labels)
+# 
+file_path <- use_network_path("data/Output/municipality_population_CSD_dict.csv")
+write.csv(municipality_population_CSD_dict, file = file_path)
+file_path <- "out/municipality_population_CSD_dict.csv"
+write.csv(municipality_population_CSD_dict, file = file_path)
