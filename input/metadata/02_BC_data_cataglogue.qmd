@@ -68,12 +68,12 @@ View statistics that reflect the people of B.C. including socioeconomic profiles
 ```
 
 -   
+
 ```         
       [Quarterly population and migration estimates for B.C. (XLSX, 108KB)](https://www2.gov.bc.ca/assets/gov/data/statistics/people-population-community/population/quarterly_population_components.xlsx)
 ```
 
 -   Online R shiny app
-
 
 <https://bcstats.shinyapps.io/popApp/>
 
@@ -89,8 +89,6 @@ Projections: A population projection is a forecast of future population growth. 
 
 Resource <https://catalogue.data.gov.bc.ca/dataset/86839277-986a-4a29-9f70-fa9b1166f6cb/resource/0e15d04d-127c-457a-b999-20800c929927/download/municipality-population.csv>
 
-
-
 ```{r}
 municipality_population_url <- "https://catalogue.data.gov.bc.ca/dataset/86839277-986a-4a29-9f70-fa9b1166f6cb/resource/0e15d04d-127c-457a-b999-20800c929927/download/municipality-population.csv"
 municipality_population_file <- "../../data/municipality-population.csv"
@@ -102,9 +100,6 @@ download.file(municipality_population_url,
 municipality_population_df <- read_csv(municipality_population_url)
 ```
 
-
-
-
 ```{r}
 municipality_population_df %>% 
   filter(Type == "Estimate",
@@ -112,11 +107,7 @@ municipality_population_df %>%
   write_csv("../../out/BC_municipality_population_estimate.csv")
 ```
 
-
 ### Data dictionary for population estimates
-
-
-
 
 A population projection is a forecast of future population growth. BC Stats applies the Component/Cohort-Survival method to project the population. This method "grows" the population from the latest base year estimate by forecasting births, deaths and migration by age. These forecasts are based on past trends modified to account for possible future changes and, consequently, should be viewed as only one possible scenario of future population
 
