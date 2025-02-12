@@ -13,17 +13,30 @@
 # This script is used to download the population estimates for British Columbia from the BC Stats Datacatalogue website
 # The data is downloaded in CSV format and saved to the out folder
 
-pacman::p_load(tidyverse, readxl, safepaths)
+pacman::p_load(tidyverse, readxl, safepaths,bcdata)
+
+bcdc_search("municipality-population")
+
+bcdc_browse("86839277-986a-4a29-9f70-fa9b1166f6cb")
+
+
+bc_sub_provincial_population_estimates_and_projections <- bcdc_get_record("86839277-986a-4a29-9f70-fa9b1166f6cb")
+
+bcdc_tidy_resources('86839277-986a-4a29-9f70-fa9b1166f6cb')
+
+bcdc_get_data("bc-sub-provincial-population-estimates-and-projections")
+
+municipality_population_df <- bcdc_get_data('86839277-986a-4a29-9f70-fa9b1166f6cb', resource = '0e15d04d-127c-457a-b999-20800c929927')
 
 # Download the population estimates for British Columbia
-municipality_population_url <- "https://catalogue.data.gov.bc.ca/dataset/86839277-986a-4a29-9f70-fa9b1166f6cb/resource/0e15d04d-127c-457a-b999-20800c929927/download/municipality-population.csv"
-municipality_population_file <- "../../data/municipality-population.csv"
-
-download.file(municipality_population_url, 
-              destfile=municipality_population_file, 
-              mode='wb')
-
-municipality_population_df <- read_csv(municipality_population_url)
+# municipality_population_url <- "https://catalogue.data.gov.bc.ca/dataset/86839277-986a-4a29-9f70-fa9b1166f6cb/resource/0e15d04d-127c-457a-b999-20800c929927/download/municipality-population.csv"
+# municipality_population_file <- "../../data/municipality-population.csv"
+# 
+# download.file(municipality_population_url, 
+#               destfile=municipality_population_file, 
+#               mode='wb')
+# 
+# municipality_population_df <- read_csv(municipality_population_url)
 
 municipality_population_df %>%
   count(Region, Region.Name, Region.Type) %>% 
