@@ -13,6 +13,13 @@
 ####################################################################
 # This script reads distance and drive time data from home address to nearest facilities(Service BC office, school, and hospital) data from geo-location service team in BC Data Service. 
 # This data is link to the shape file for Dessimination Block/Dessimination Area to get a DB/DA id for the home, so we can calculate the DB/DA level average distance and drive time. 
+# Based on the DB/DA level data, we can calculate the CSD level average distance and drive time.
+# Brian updated the data with DA id and randomly sampled addresses within DA strata in 2025-02-11. 
+# We have two sets of data, one is the original data which do not have DA id and randomly sampled within locality id strata, and the other is the updated data.
+# Previously, we added DA id into the original data using st_join function, and now we will combine the original data with the updated data.
+# Therefore, we need to deal with potential duplicated row issues. 
+# TODO: previous, when we drop the geometry from a sf object, we lost the coordinates columns. 
+# We need to keep the coordinates columns when we drop the geometry column, or we need to add the coordinates columns back after we drop the geometry column from original data.
 ###################################################################
 
 
@@ -172,7 +179,7 @@ if (!exists("address_sf_with_da")) {
 }
 address_sf_with_da_df %>% glimpse()
 
-
+# format(2.021e-304, scientific = FALSE)
 ###########################################################################################
 # add brian's new samples
 ###########################################################################################
@@ -233,9 +240,43 @@ new_da_servicebc_address_sf_with_da %>% st_drop_geometry() %>% select(FULL_ADDRE
 count(FULL_ADDRESS) %>%
   filter(n > 1) %>%
   glimpse()
+# a few duplicated rows, but the distance measures are the same.
 
+###########################################################################################
+# add brian's new samples with DA id already
+###########################################################################################
+get_network_path()
+new_da_servicebc_file_path = use_network_path("data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250207_140020/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250207_140020.csv")
+new_da_servicebc_file_path = file.path("G:/Operations/Data Science and Analytics/2024 SES Index", "data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250207_140020/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250207_140020.csv")
+new_da_servicebc_df <-    read_csv(new_da_servicebc_file_path) 
+# find some duplicated rows in terms of FULL_ADDRESS, but the SITE_ALBERS_X, SITE_ALBERS_Y seem to be different, however, the distance measures are the same.
+new_da_servicebc_df %>% 
+  filter(FULL_ADDRESS == "Abbotsford BC") %>%
+  glimpse()
+# 16 rows
+new_da_servicebc_sf <- st_as_sf(new_da_servicebc_df , coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
+# Spatial join: append dissemination area IDs to address points
+new_da_servicebc_address_sf_with_da <- st_join(new_da_servicebc_sf, da_shapefile, left = TRUE)
 
+address_plus_new_with_da_df <- dplyr::union(address_sf_with_da_df %>% 
+                                              mutate(across(
+                                                .cols = c(DAUID, DGUID, PRUID),
+                                                .fns = as.character
+                                              ))%>% select(-DGUID), 
+                                            new_da_servicebc_address_sf_with_da %>% st_drop_geometry() %>% select(-DGUID))
 
+address_plus_new_with_da_df %>% 
+  write_csv("out/address_plus_new_with_da.csv")
+
+if (!exists("address_sf_with_da")) {
+  address_plus_new_with_da_df <- read_csv( "./out/address_plus_new_with_da.csv")
+}
+address_plus_new_with_da_df %>% glimpse()
+# Rows: 2,281,715
+address_plus_new_with_da_df %>% 
+  filter(FULL_ADDRESS == "Abbotsford BC") %>%
+  glimpse()
+# 72 rows
 
 ###########################################################################################
 #   create a DA level summary. 
