@@ -135,7 +135,7 @@ print(final_data)
 #################################################################################
 
 # Join the population estimates with the TMF_CSD file
-municipality_population_CSD_df = municipality_population_df %>% 
+municipality_population_CSD_df <- municipality_population_df %>% 
   select(Region, Region.Name, Region.Type,Year,Type,Gender, Total ) %>%
   filter(Type == "Estimate",
          Gender == "T",
