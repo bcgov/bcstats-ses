@@ -14,7 +14,9 @@
 # The data is downloaded in CSV format and saved to the out folder
 
 pacman::p_load(tidyverse, readxl, safepaths,bcdata)
-
+library(dplyr)
+library(tidyr)
+library(janitor)
 bcdc_search("municipality-population")
 
 bcdc_browse("86839277-986a-4a29-9f70-fa9b1166f6cb")
@@ -23,8 +25,6 @@ bcdc_browse("86839277-986a-4a29-9f70-fa9b1166f6cb")
 bc_sub_provincial_population_estimates_and_projections <- bcdc_get_record("86839277-986a-4a29-9f70-fa9b1166f6cb")
 
 bcdc_tidy_resources('86839277-986a-4a29-9f70-fa9b1166f6cb')
-
-bcdc_get_data("bc-sub-provincial-population-estimates-and-projections")
 
 municipality_population_df <- bcdc_get_data('86839277-986a-4a29-9f70-fa9b1166f6cb', resource = '0e15d04d-127c-457a-b999-20800c929927')
 
@@ -50,6 +50,7 @@ municipality_population_df %>%
 ######################################################################################
 
 # The GCS 202406 csv file is provided by Econ team and saved in LAN. Need safe network path to get it.
+# The network path should be set to a location that could be save in the environment variable SAFEPATHS_NETWORK_PATH or a config file.
 stopifnot(Sys.getenv("SAFEPATHS_NETWORK_PATH") != "")
 
 TMF_file  <-  use_network_path("data/raw_data/TMF/GCS_202406.csv")
@@ -69,7 +70,7 @@ TMF <-
   janitor::clean_names(case = "screaming_snake" ) 
 
 
-# To reshape your data frame TMF from a wide format to a long format using the pivot_longer() function from the tidyr package in R,
+# To reshape data frame TMF from a wide format to a long format using the pivot_longer() function from the tidyr package in R,
 # 
 # Explanation:
 #   
@@ -93,10 +94,8 @@ TMF_CSD <- TMF %>%
   count(CDCSD, CSD, MUNNAME, YEAR) %>%
   rename(COUNT_POSTAL_CODE = n) %>% 
   
-library(dplyr)
-library(tidyr)
 
-# To transform your TMF_CSD data frame to include a continuous YEAR column ranging from 2000 to 2024, and to fill in missing values appropriately, you can follow these steps in R:
+# To transform TMF_CSD data frame to include a continuous YEAR column ranging from 2000 to 2024, and to fill in missing values appropriately, you can follow these steps in R:
 #   
 #   Create a Complete Data Frame with All Year Combinations:
 #   
