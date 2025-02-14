@@ -2,7 +2,7 @@ if(!require(pacman)){
   install.packages("pacman")
 }
 
-pacman::p_load(odbc, tidyverse, DBI, dbplyr,nanoarrow, arrow)
+pacman::p_load(odbc, tidyverse, duckdb, DBI, dbplyr,nanoarrow, arrow)
 
 
 ##################################################################################
@@ -36,7 +36,7 @@ dbSendStatement()
 #   sp_rename 'old_table_name','new_table_name';
 
 # rename new data by remove "day"
-DBI::dbExecute(con, "exec sp_rename 'IDIR\\JDUAN.BC_Stat_CLR_EXT_20230525', 'BC_Stat_CLR_EXT_202305' ;")
+DBI::dbExecute(con, "exec sp_rename 'dev.BC_Stat_CLR_EXT_20230525', 'BC_Stat_CLR_EXT_202305' ;")
 
 dbWriteTableArrow() 
 # Copy Arrow objects to database tables
@@ -219,7 +219,7 @@ dbWriteTable(bcstats_con, "iris", iris)
 
 
 # create / connect to database file
-drv <- duckdb(dbdir = "C:\\Users\\JDUAN\\OneDrive - Government of BC\\2024-025 Brett and Jon Database Test Warehouse/backup/bcstats_db.duckdb")
+drv <- duckdb(dbdir = "C:\\Users\\/bcstats_db.duckdb")
 bcstats_con <- dbConnect(drv)
 
 # Show how many tables in database

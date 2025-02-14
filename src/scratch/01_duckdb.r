@@ -36,22 +36,59 @@ dbExecute(con, "COPY (SELECT * FROM ontime) TO './src/scratch/'  (
           OVERWRITE_OR_IGNORE 1
 );")
 
-
-
-dbExecute(con, "CREATE TABLE ontime2 AS 
+dbExecute(con, "CREATE TABLE ontime2 AS
 SELECT * FROM read_csv('./src/scratch/flights.csv',
                        delim = '|',
                        header = true,
                        columns = {
                          'FlightDate': 'DATE',
-                         'UniqueCarrier': 'VARCHAR',
-                         'OriginCityName': 'VARCHAR',
-                         'DestCityName': 'VARCHAR'
+                         'UniqueCarrier': 'VARCHAR'
                        });
 ")
 
 # retrieve the items again
 res <- dbGetQuery(con, "SELECT * FROM ontime2")
+
+path = './src/scratch/flights.csv'
+duckdb_read_csv(con, "ontime22", 
+                path,
+                col.types = c(
+                  FlightDate = "DATE",
+                  UniqueCarrier = "VARCHAR"
+                )
+)
+
+
+# Providing data types for columns
+path <- tempfile(fileext = ".csv")
+write.csv(iris, path, row.names = FALSE)
+
+con <- dbConnect(duckdb())
+duckdb_read_csv(con, "iris", path,
+                # columns = c("FlightDate", "UniqueCarrier", "OriginCityName", "DestCityName"),
+                # col.types = c(
+                #   Sepal.Length = "DOUBLE",
+                #   Sepal.Width = "DOUBLE",
+                #   Petal.Length = "DOUBLE",
+                #   Petal.Width = "DOUBLE",
+                #   Species = "VARCHAR"
+                # )
+)
+
+
+
+dbExecute(con, "CREATE TABLE ontime3 AS 
+SELECT * FROM read_csv('./src/scratch/flights.csv',
+                       delim = '|',
+                       header = true,
+                       column_types = {
+                         'FlightDate': 'DATE',
+                         'UniqueCarrier': 'VARCHAR'
+                       });
+")
+
+# retrieve the items again
+res <- dbGetQuery(con, "SELECT * FROM ontime3")
 
 dbExecute(con, "CREATE TABLE ontime4 AS 
 SELECT * FROM read_csv('./src/scratch/flights.csv',
