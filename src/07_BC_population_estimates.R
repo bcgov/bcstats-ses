@@ -91,7 +91,7 @@ TMF_CSD <- TMF %>%
     names_sep = "_"
   ) %>% 
   count(CDCSD, CSD, MUNNAME, YEAR) %>%
-  rename(COUNT_POSTAL_CODE = n) %>% 
+  rename(COUNT_POSTAL_CODE = n)
   
 library(dplyr)
 library(tidyr)
