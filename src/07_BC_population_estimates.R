@@ -65,17 +65,8 @@ TMF <-
   janitor::clean_names(case = "screaming_snake" ) 
 
 
-# To reshape data frame TMF from a wide format to a long format using the pivot_longer() function from the tidyr package in R,
-# 
-# Explanation:
-#   
-# cols = starts_with("CDCSD_") | starts_with("CSD_") | starts_with("MUN_NAME_"): This argument selects all columns that start with "CDCSD_", "CSD_", or "MUN_NAME_".
-# 
-# names_to = c(".value", "YEAR"): This specifies that the column names will be split into two parts:
-#   
-# .value: Indicates that the first part of the column name (e.g., "CDCSD", "CSD", "MUN_NAME") should be used as the name of the resulting columns.
-# YEAR: The second part of the column name (e.g., "2011", "2016", "2021") will be stored in a new column named "YEAR".
-# names_sep = "_": This specifies that the underscore character ("_") is used to separate the components in the original column names.
+# reshape TMF from wide to long format so CDCSD, Municipalities and CSDS are all in one column each.
+
 
 TMF_CSD <- TMF %>% 
   select(POSTALCODE, CDCSD_2021, CSD_2021, MUNNAME_2021 = MUN_NAME_2021, 
@@ -83,47 +74,33 @@ TMF_CSD <- TMF %>%
         CDCSD_2011, CSD_2011, MUNNAME_2011 = MUN_NAME_2011) %>%
   pivot_longer(
     cols = starts_with("CDCSD_") | starts_with("CSD_") | starts_with("MUNNAME_"),
-    names_to = c(".value", "YEAR"),
-    names_sep = "_"
+    names_to = c(".value", "YEAR"), # .value: Indicates that the first part of the column name (e.g., "CDCSD", "CSD", "MUN_NAME") should be used as the name of the resulting columns.
+    # YEAR: The second part of the column name (e.g., "2011", "2016", "2021") will be stored in a new column named "YEAR".
+    names_sep = "_" # names_sep = "_": This specifies that the underscore character ("_") is used to separate the components in the original column names.
   ) %>% 
   count(CDCSD, CSD, MUNNAME, YEAR) %>%
   rename(COUNT_POSTAL_CODE = n)
   
 
-# To transform TMF_CSD data frame to include a continuous YEAR column ranging from 2000 to 2024, and to fill in missing values appropriately,
-#   Create a Complete Data Frame with All Year Combinations:
-#   
-#   Generate a sequence of years from 2000 to 2024.
-# Use expand.grid() to create all combinations of POSTALCODE, CDCSD, CSD, MUNNAME, and YEAR.
-# Merge with the Original Data:
-#   
-#   Perform a left join between the complete data frame and original TMF_CSD data to align existing data with the complete set.
-# Fill Missing Values:
-#   
-#   Use the fill() function from the tidyr package to propagate non-missing values backward within each group.
+# Transform TMF_CSD data frame to include a continuous YEAR column ranging from 2000 to 2024, and to fill in missing values appropriately,
 
-# Step 1: Create a complete data frame with all combinations
 years <- 2000:2024
 
 complete_data <- TMF_CSD %>%
   distinct( CDCSD, CSD, MUNNAME) %>%
-  expand_grid(YEAR = years) %>% 
+  expand_grid(YEAR = years) %>%  # expand.grid() to create all combinations of POSTALCODE, CDCSD, CSD, MUNNAME, and YEAR.
   mutate(YEAR = as.character(YEAR))
 
-# Step 2: Left join with the original data
 merged_data <- complete_data %>%
   left_join(TMF_CSD, by = c( "CDCSD", "CSD", "MUNNAME", "YEAR"))
 
-# Step 3: Fill missing COUNT_POSTAL_CODE values backward within each group
+# Fill missing COUNT_POSTAL_CODE values backward and forward within each group
 final_data <- merged_data %>%
   group_by( CDCSD, CSD, MUNNAME) %>%
-  fill(COUNT_POSTAL_CODE, .direction = "up") %>%
+  fill(COUNT_POSTAL_CODE, .direction = "up") %>% # the fill() function from the tidyr package to propagate non-missing values backward and forward within each group.
   fill(COUNT_POSTAL_CODE, .direction = "down") %>% # for the last couples of year after 2021, use propagate non-mi  forward 
   ungroup() 
   
-
-# View the final data
-print(final_data)
 
 #################################################################################
 
