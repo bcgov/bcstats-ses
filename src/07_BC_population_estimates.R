@@ -26,7 +26,8 @@ bc_sub_provincial_population_estimates_and_projections <- bcdc_get_record("86839
 
 bcdc_tidy_resources('86839277-986a-4a29-9f70-fa9b1166f6cb')
 
-municipality_population_df <- bcdc_get_data('86839277-986a-4a29-9f70-fa9b1166f6cb', resource = '0e15d04d-127c-457a-b999-20800c929927')
+municipality_population_df <- bcdc_get_data('86839277-986a-4a29-9f70-fa9b1166f6cb', 
+                                            resource = '0e15d04d-127c-457a-b999-20800c929927')
 
 # Download the population estimates for British Columbia
 # municipality_population_url <- "https://catalogue.data.gov.bc.ca/dataset/86839277-986a-4a29-9f70-fa9b1166f6cb/resource/0e15d04d-127c-457a-b999-20800c929927/download/municipality-population.csv"
@@ -51,6 +52,7 @@ municipality_population_df %>%
 
 # The GCS 202406 csv file is provided by Econ team and saved in LAN. Need safe network path to get it.
 # The network path should be set to a location that could be save in the environment variable SAFEPATHS_NETWORK_PATH or a config file.
+
 stopifnot(Sys.getenv("SAFEPATHS_NETWORK_PATH") != "")
 
 TMF_file  <-  use_network_path("data/raw_data/TMF/GCS_202406.csv")
@@ -95,15 +97,14 @@ TMF_CSD <- TMF %>%
   rename(COUNT_POSTAL_CODE = n)
   
 
-# To transform TMF_CSD data frame to include a continuous YEAR column ranging from 2000 to 2024, and to fill in missing values appropriately, you can follow these steps in R:
-#   
+# To transform TMF_CSD data frame to include a continuous YEAR column ranging from 2000 to 2024, and to fill in missing values appropriately,
 #   Create a Complete Data Frame with All Year Combinations:
 #   
 #   Generate a sequence of years from 2000 to 2024.
 # Use expand.grid() to create all combinations of POSTALCODE, CDCSD, CSD, MUNNAME, and YEAR.
 # Merge with the Original Data:
 #   
-#   Perform a left join between the complete data frame and your original TMF_CSD data to align existing data with the complete set.
+#   Perform a left join between the complete data frame and original TMF_CSD data to align existing data with the complete set.
 # Fill Missing Values:
 #   
 #   Use the fill() function from the tidyr package to propagate non-missing values backward within each group.
@@ -124,7 +125,7 @@ merged_data <- complete_data %>%
 final_data <- merged_data %>%
   group_by( CDCSD, CSD, MUNNAME) %>%
   fill(COUNT_POSTAL_CODE, .direction = "up") %>%
-  fill(COUNT_POSTAL_CODE, .direction = "down") %>%
+  fill(COUNT_POSTAL_CODE, .direction = "down") %>% # for the last couples of year after 2021, use propagate non-mi  forward 
   ungroup() 
   
 
@@ -150,7 +151,7 @@ municipality_population_CSD_df <- municipality_population_df %>%
 
 # save to out folder
 municipality_population_CSD_df  %>%
-  # janitor::clean_names(case = "") %>%
+  janitor::clean_names(case = "screaming_snake" ) %>% 
   write_csv("out/BC_municipality_CSD_population_estimate.csv")
 
 # create a dictionary of the data types
