@@ -92,7 +92,7 @@ TMF_CSD <- TMF %>%
     names_sep = "_"
   ) %>% 
   count(CDCSD, CSD, MUNNAME, YEAR) %>%
-  rename(COUNT_POSTAL_CODE = n) %>% 
+  rename(COUNT_POSTAL_CODE = n)
   
 
 # To transform TMF_CSD data frame to include a continuous YEAR column ranging from 2000 to 2024, and to fill in missing values appropriately, you can follow these steps in R:
@@ -134,7 +134,7 @@ print(final_data)
 #################################################################################
 
 # Join the population estimates with the TMF_CSD file
-municipality_population_CSD_df = municipality_population_df %>% 
+municipality_population_CSD_df <- municipality_population_df %>% 
   select(Region, Region.Name, Region.Type,Year,Type,Gender, Total ) %>%
   filter(Type == "Estimate",
          Gender == "T",
