@@ -45,3 +45,4 @@ renv/
 data/
 out/
 my_database.duckdb.wal
+bcstats-ses.Rproj
