@@ -96,7 +96,7 @@ BC_dups_grouped <- BC_dups %>%
     FEATURE_AREA_SQM_ESTIMATED = units::drop_units(st_area(geometry)) ,
     FIRE_SIZE_HECTARES_ESTIMATED = (FEATURE_AREA_SQM_ESTIMATED)/10000
   ) 
-  # distinct(FIRE_LABEL, .keep_all = TRUE)   #this will keep the first row within group/distinct value
+  # distinct(FIRE_LABEL, .keep_all = TRUE)   #this will keep the first row within group/distinct value since we already group by FIRE_LABEL, it does not change anything.
 # 70 unique elements are previously duplicated 
 # except one fire C10322, all the fires' total estimated area is the same as the sum of the areas of the parts.
 # BC_dups_grouped %>% 
