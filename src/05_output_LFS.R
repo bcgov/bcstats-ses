@@ -178,7 +178,7 @@ readr::write_csv(LFS, here::here("out", "Labour_Fource_Survey_DIP.csv"))
 LFS_dict_labels = c(
   "REF_DATE" = "The month and year of the observation (in '%b %Y' format)",
   
-  "GEO" = "Geographical Area of BC.\nExcluded from the coverage of the estimates are persons living on reserves and other Indigenous settlements in the provinces, full-time members of the Canadian Armed Forces, the institutionalized population, and households in extremely remote areas with very low population density. These groups together represent an exclusion of approximately 2% of the population aged 15 and older.",
+  # "GEO" = "Geographical Area of BC.\nExcluded from the coverage of the estimates are persons living on reserves and other Indigenous settlements in the provinces, full-time members of the Canadian Armed Forces, the institutionalized population, and households in extremely remote areas with very low population density. These groups together represent an exclusion of approximately 2% of the population aged 15 and older.",
   
   "GEO_TYPE" = "A census metropolitan area (CMA) is formed by one or more adjacent municipalities centered on a population centre known as the core. A CMA must have a total population of at least 100,000 of which 50,000 or more must live in the core. 
   
@@ -186,23 +186,24 @@ LFS_dict_labels = c(
   
   A self-contained labour area (SLA) is a functional area composed of census subdivisions which are not already included in a CMA or CA. All three types of regions are determined using commuting flows derived from census program place of work data.",
   
+  "REGION" = "Self-contained Labour Areas (SLA) name. SLA are functional areas composed of Census Subdivisions (CSD) grouped according to commuting patterns (OECD, 2020).",
+  
   "LABOUR_FORCE_CHARACTERISTICS" = "The employment rate is the small area estimate of the number of employed persons expressed as a percentage of the population 15 years of age and older. Estimates are percentages, rounded to the nearest tenth.
   
   The unemployment rate is the number of unemployed people as a percentage of the labour force (employed and unemployed). The unemployment rate is the number of unemployed persons expressed as a percentage of the labour force. Unemployed persons are those who were without work, had looked for work in the past four weeks, and were available for work. Those persons on layoff or who had a new job to start in four weeks or less are also considered unemployed. The labour force is all civilian, non-institutionalized persons 15 years or age and older who were employed or unemployed. Estimates are percentages, rounded to the nearest tenth.
   
   Employment is the small area estimate of the number of persons who worked for pay or profit, or had a job but were not at work due to own illness or disability, personal or family responsibilities, labour dispute, vacation, or other reason. Estimates are rounded to the nearest ten.",
   
-  # "STATISTICS" = "The statistic being measured",
-  
-  "UOM" = "Count of people or percentage",
-  
-  # "VECTOR" = "A unique identifier assigned to a specific geographic unit or spatial feature", 
-  
-  # "COORDINATE" = "The geographical position of the geographical point on the Earth's surface,  expressed in terms of latitude and longitude",
-  
   "VALUE" = "The value of the observation", 
   
-  "STATUS" = "One of 'E' (use with caution) or 'F' (too unreliable to be published)."
+  "STATUS" = "One of 'E' (use with caution) or 'F' (too unreliable to be published).",
+  
+  "CSD" = "Census subdivision (CSD) is the general term for municipalities (as determined by provincial/territorial legislation) or areas treated as municipal equivalents for statistical purposes (e.g., Indian reserves, Indian settlements and unorganized territories).",
+  
+  "CSD_NAME" = "Name of the CSD",
+  
+  "CMA" = "A census metropolitan area (CMA) or a census agglomeration (CA) is formed by one or more adjacent municipalities centred on a population centre (known as the core). A CMA must have a total population of at least 100,000 of which 50,000 or more must live in the core, based on adjusted data from the previous census. A CA must have a core population of at least 10,000, also based on data from the previous census. To be included in the CMA or CA, other adjacent municipalities must have a high degree of integration with the core, as measured by commuting flows derived from data on place of work from the previous census."
+
 )
 
 LFS_dict = create_dictionary(LFS, var_labels = LFS_dict_labels)
