@@ -208,4 +208,5 @@ LFS_dict_labels = c(
 
 LFS_dict = create_dictionary(LFS, var_labels = LFS_dict_labels)
 
+# since there are comma "," in the labels so use write.csv2 with semicolon ";" as delimiter. 
 write.csv2(LFS_dict, here::here("out/Labour_Force_Survey_Dict_DIP.csv"))
