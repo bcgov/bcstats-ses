@@ -1,7 +1,10 @@
 # this file is used for outputting data for importing to DIP
 
 pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow, duckdb)
-
+library(dplyr)
+library(datadictionary)
+library(readr)
+library(readxl)
 ######################################################################################
 # 
 # Translation Master File: a table with different levels of geography to link the data
@@ -49,13 +52,10 @@ TMF <-
 # 1. BC Translation_Master_File
 TMF %>% readr::write_csv(here::here("out", "Translation_Master_File_DIP.csv"))
 
-
-
 #################################################################################################
 # Data dictionary
 #################################################################################################
 # 2. Create a dictionary for BC Translation_Master_File
-library(datadictionary)
 
 TMF <- TMF %>%
   mutate(across(
@@ -69,37 +69,15 @@ TMF_dict = create_dictionary(TMF,
                   id_var = "POSTALCODE",
                   var_labels = NULL)
 
-
 # f2 <- "https://www2.gov.bc.ca/assets/gov/health/forms/5512datadictionary.pdf"
-# a better data dictionary in Geocoding Self-Service (GCS) User Guide Prepared by BC Stats March 2020, not online, provided by Brett.
+# a better data dictionary in Geocoding Self-Service (GCS) User Guide Prepared by BC Stats March 2020, not online, provided by Econ team
 # f3 <-  use_network_path("docs/GCS_User_Guide.pdf")
 
-# manually create a item field in this detail dataframe to join the TMF_dict dataframe using Chatgpt.
+# manually create a item field in this detail dataframe to join the TMF_dict dataframe
 
-library(readr)
 TMF_dict_detail <- read_csv( use_network_path("docs/TMF_data_dict.csv"))
 View(TMF_dict_detail)
 
-
-# TMF_dict_detail %>% pull(`Field Name`)
-# 
-# # Your vector of strings
-# strings <- TMF_dict_detail %>% pull(`Field Name`)
-# 
-# # Create the mapping
-# mapping <- setNames(strings, strings)
-# 
-# # Custom print function
-# formatted_output <- paste0('"', names(mapping), '" = "', mapping, '"', collapse = ", ")
-# 
-# # Print the formatted string
-# cat(formatted_output)
-
-# then I can copy the results to our new switch function
-# maybe better just do it in CSV file.
-# or I should use those as labels in create_dictionary function. liek c(POSTAL_CODE = "Postal code")
-# finally use chatgpt to translate the switch function to a case_when
-library(dplyr)
 
 create_item <- function(x) {
   # Use case_match for value mapping
@@ -157,11 +135,6 @@ TMF_dict <- TMF_dict %>%
 
 # TMF_dict's summary for numerica number does not mean a lot since it is a fact table, and all dimension tables are in another lookup.xlsx excel file. 
 # so we could simplify the TMF_dict
-# TMF_dict_simple <- TMF_dict %>% 
-#   group_by(item) %>% 
-# slice_head(n = 1)
-# filter(row_number() == 1)
-
 # or it does not matter, we can add value label later using our dimension table
 TMF_dict <- TMF_dict %>% 
   left_join(TMF_dict_detail, join_by( item_short))
@@ -171,11 +144,10 @@ TMF_dict %>% readr::write_csv(here::here("out", "Translation_Master_File_Dict_DI
 
 
 #################################################################################################
-# Now we deal with the dimension table aka lookup tables
+# Save the dimension table aka lookup tables separately
 #################################################################################################
 
-# Load necessary libraries
-library(readxl)
+
 
 # Path to the Excel file
 file_path <- use_network_path("data/raw_data/TMF/GCS_Lookup_Table.xlsx")
