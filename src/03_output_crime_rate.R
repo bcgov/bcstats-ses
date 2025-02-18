@@ -27,12 +27,16 @@ pacman::p_load( tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow
 # Incident-based crime STATISTICS, by detailed VIOLATIONS, police services in British Columbia 1, 2, 3, 4, 5
 # Frequency: Annual
 # STATISTICS Canada. Table 35-10-0184-01 Incident-based crime STATISTICS, by detailed VIOLATIONS, police services in British Columbia, annual (number unless otherwise noted)
-# Release date: 2023-07-27
+# Release date: 2023-07-27, 
+# This is outdated
 # GEOgraphy: Province or territory, Policing district/zone
+
 # https://www2.gov.bc.ca/assets/gov/law-crime-and-justice/criminal-justice/police/publications/STATISTICS/bc-crime-STATISTICS-2022.xlsx
+
 # Policing district/zone is different from 
 # https://catalogue.data.gov.bc.ca/dataset/policing-jurisdictions-and-regions-in-bc
 # annual and policing district data. Luckily, BC stats team already aggregate the one data variable (total rate excluding traffic) to region level which is close to CD. 
+
 # https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3510018401
 # For our project, we use the most recently updated data Table 35-10-0184-01 from StatsCAN
 ########################################################################################################
@@ -53,7 +57,7 @@ connection <- cansim::get_cansim_sqlite(cansim_id,
                                         cache_path = getOption("cansim.cache_path")
                                         # refresh=TRUE # only occasionally refresh
 )
-# ignore the warning, the cache does not have the date right. It is retrieved in July 30th, so it is updated. 
+# ignore the warning, the cache does not have the date right. It is retrieved in July 30th 2024, so it is updated. 
 # 
 connection %>% glimpse()
 
