@@ -11,8 +11,8 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 
-
 # this file is used for cleaning the crime rate Excel file and exporting to DIP.
+# To access the LAN, we need to install the safepaths package
 # library("remotes")
 # install_github("bcgov/safepaths")
 pacman::p_load( tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow, duckdb,datadictionary)
@@ -27,22 +27,28 @@ pacman::p_load( tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow
 # Incident-based crime STATISTICS, by detailed VIOLATIONS, police services in British Columbia 1, 2, 3, 4, 5
 # Frequency: Annual
 # STATISTICS Canada. Table 35-10-0184-01 Incident-based crime STATISTICS, by detailed VIOLATIONS, police services in British Columbia, annual (number unless otherwise noted)
-# Release date: 2023-07-27
+# Release date: 2023-07-27, 
+# This is outdated
 # GEOgraphy: Province or territory, Policing district/zone
+
 # https://www2.gov.bc.ca/assets/gov/law-crime-and-justice/criminal-justice/police/publications/STATISTICS/bc-crime-STATISTICS-2022.xlsx
+
 # Policing district/zone is different from 
 # https://catalogue.data.gov.bc.ca/dataset/policing-jurisdictions-and-regions-in-bc
 # annual and policing district data. Luckily, BC stats team already aggregate the one data variable (total rate excluding traffic) to region level which is close to CD. 
+
 # https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3510018401
+# For our project, we use the most recently updated data Table 35-10-0184-01 from StatsCAN
 ########################################################################################################
-# get_cansim_sqlite is particularly beneficial when working with large tables or when you need to perform complex filtering operations before bringing data into memory. For example, table 35-10-0184-01 is several gigabytes in size, making it impractical to load entirely into memory.
-# However, for smaller tables that can be easily processed in memory, get_cansim may still be a simpler and more straightforward option. The choice between the two functions depends on the specific requirements of your data analysis task and the size of the dataset you're working with.
-# it was supposed to save sqlite to a cache folder. 
+# use get_cansim_sqlite when working with large tables such as table 35-10-0184-01 which is several gigabytes in size, 
+# making it impractical to load entirely into memory.
+# get_cansim_sqlite saves a sqlite file to cansim.cache_path folder. 
 cansim_id <- "35-10-0184-01"
 # options(cansim.cache_path = use_network_path("data/cansim_cache"))
-# it is too slow to index in sqlite on a network drive, so switch to a local folder, and create a copy from LAN use_network_path("data/cansim_cache") to C drive repo_folder/data. 
+# it is too slow to index in sqlite on a network drive, 
+# So switch to a local folder, and create a copy from LAN use_network_path("data/cansim_cache") to C drive repo_folder/data. 
 # this only needs to run once: 
-# fs::file_copy(use_network_path("data/cansim_cache/35100184-eng.sqlite"), "./data/")
+fs::file_copy(use_network_path("data/cansim_cache/35100184-eng.sqlite"), "./data/")
 options(cansim.cache_path = "./data")
 
 getOption("cansim.cache_path")
@@ -51,7 +57,7 @@ connection <- cansim::get_cansim_sqlite(cansim_id,
                                         cache_path = getOption("cansim.cache_path")
                                         # refresh=TRUE # only occasionally refresh
 )
-# ignore the warning, the cache does not have the date right. It is retrieved in July 30th, so it is updated. 
+# ignore the warning, the cache does not have the date right. It is retrieved in July 30th 2024, so it is updated. 
 # 
 connection %>% glimpse()
 
@@ -80,7 +86,7 @@ violations_list = connection %>%
 # http://apps.who.int/classifications/icd10/browse/2010/en 
 # 
 # 10.Juvenile crime rates. See crime rate definitions above. Note that juvenile rates are based on charges as it is only when a charge is laid that the age of the suspect is determined. 
-# I cannot get the Juenile crime and illicite drug death 
+# I cannot get the Juvenile crime and illicit drug death yet.
 violations_selected_list = violations_list %>% 
   filter(str_detect(str_to_lower(Violations) , 
                     pattern = "all criminal code violations \\(excluding traffic\\)|total violent criminal code violations|homicide|attempted murder|assault|breaking|entering|youth criminal justice act|total drug violation" )) %>% 
@@ -88,10 +94,10 @@ violations_selected_list = violations_list %>%
 
 
 # str(VIOLATIONS_selected_list)
-# Brett's idea
-# Total, all Criminal Code VIOLATIONS (excluding traffic) [50]
-# Total violent Criminal Code VIOLATIONS [100]
-# Homicide [110]
+# Econ team's idea: only keep three types of crimes
+# 1. Total, all Criminal Code VIOLATIONS (excluding traffic) [50]
+# 2. Total violent Criminal Code VIOLATIONS [100]
+# 3. Homicide [110]
 
 crime_GEO_list = connection %>%
   count(GEO ) %>%
