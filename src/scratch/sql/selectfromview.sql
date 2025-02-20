@@ -1,2 +1,0 @@
-
-select top 100 * from [IDIR\JDUAN].DA_MEDIAN_HOUSE_PRICE_VIEW;
