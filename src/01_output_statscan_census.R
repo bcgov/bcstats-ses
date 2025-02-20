@@ -248,7 +248,8 @@ CA21_DATA <- get_census(dataset='CA21',
 
 
 CA21_DATA = CA21_DATA %>% 
-  janitor::clean_names(case = "screaming_snake" ) 
+  janitor::clean_names(case = "screaming_snake" ) %>% 
+  mutate(REGION_NAME = as.character(REGION_NAME))
 
 CA21_DATA %>% 
   mutate(CENSUS_YEAR = 2021) %>% 
@@ -298,7 +299,7 @@ create_census_data_label <- function(DATA, VECTORS, CENSUS_COMMON_LABELS) {
 }
 
 
-CA21_DATA_labels <- create_census_data_label(CA21_DATA, CA21_VECTORS)
+CA21_DATA_labels <- create_census_data_label(CA21_DATA, CA21_VECTORS, CENSUS_COMMON_LABELS)
   
 
 # add label to dictionary, which is similar to decription.
@@ -379,11 +380,16 @@ CA16_DATA <- get_census(dataset="CA16",
                         regions=list(PR="59"),
                         vectors=
                           CA16_VECTORS,
-                        level='DA')
+                        level='DA', 
+                        quiet = TRUE, 
+                        geo_format = NA,
+                        use_cache = use_cache,
+                        labels = 'short')
 
 
 CA16_DATA = CA16_DATA %>% 
-  janitor::clean_names(case = "screaming_snake" ) 
+  janitor::clean_names(case = "screaming_snake" ) %>% 
+  mutate(REGION_NAME = as.character(REGION_NAME))
 
 
 CA16_DATA %>% 
@@ -394,7 +400,7 @@ CA16_DATA %>%
 str(CA16_DATA)
 # tibble [7,848 × 54]
 
-CA16_DATA_labels <- create_census_data_label(CA16_DATA, CA16_VECTORS)
+CA16_DATA_labels <- create_census_data_label(CA16_DATA, CA16_VECTORS,CENSUS_COMMON_LABELS)
 
 str(CA16_DATA_labels)
 # 54 
@@ -480,16 +486,21 @@ CA11_DATA <- get_census(dataset="CA11",
                         regions=list(PR="59"),
                         vectors=
                           CA11_VECTORS,
-                        level='DA')
+                        level='DA', 
+                        quiet = TRUE, 
+                        geo_format = NA,
+                        use_cache = use_cache,
+                        labels = 'short')
 
 
 CA11_DATA = CA11_DATA %>% 
-  mutate(CENSUS_YEAR = 2011) 
-
+  janitor::clean_names(case = "screaming_snake" )%>% 
+  mutate(REGION_NAME = as.character(REGION_NAME))
+  
 
 CA11_DATA %>% 
+  mutate(CENSUS_YEAR = 2011) %>% 
   select(CENSUS_YEAR,everything()) %>% 
-  janitor::clean_names(case = "screaming_snake" ) %>% 
   readr::write_csv(here::here("out", "StatsCAN_Census_11_BC_DA_DIP.csv")   )
 
 CENSUS_COMMON_LABELS_11 <- c(
@@ -512,9 +523,11 @@ CENSUS_COMMON_LABELS_11 <- c(
 CA11_DATA_labels <- create_census_data_label(CA11_DATA, CA11_VECTORS,CENSUS_COMMON_LABELS_11)
 
 str(CA11_DATA)
-# tibble [7,848 × 58]
+names(CA11_DATA)
+# tibble [7,848 × 63]
 str(CA11_DATA_labels)
-# 58
+# 63
+names(CA11_DATA_labels)
 
 # add label to dictionary, which is similar to decription.
 skimr::skim(CA11_DATA)  # this is for exploring purpose
@@ -583,12 +596,17 @@ CA06_DATA <- get_census(dataset="CA06",
                         regions=list(PR="59"),
                         vectors=
                           CA06_VECTORS,
-                        level='DA')
+                        level='DA', 
+                        quiet = TRUE, 
+                        geo_format = NA,
+                        use_cache = use_cache,
+                        labels = 'short')
 
 
 
 CA06_DATA = CA06_DATA %>% 
-  janitor::clean_names(case = "screaming_snake" ) 
+  janitor::clean_names(case = "screaming_snake" ) %>% 
+  mutate(REGION_NAME = as.character(REGION_NAME))
 
 
 CA06_DATA %>% 
@@ -672,10 +690,15 @@ CA01_DATA <- get_census(dataset="CA01",
                         regions=list(PR="59"),
                         vectors=
                           CA01_VECTORS,
-                        level='DA')
+                        level='DA', 
+                        quiet = TRUE, 
+                        geo_format = NA,
+                        use_cache = use_cache,
+                        labels = 'short')
 
 CA01_DATA <- CA01_DATA %>% 
-  janitor::clean_names(case = 'screaming_snake')
+  janitor::clean_names(case = 'screaming_snake')%>% 
+  mutate(REGION_NAME = as.character(REGION_NAME))
 
 
 CA01_DATA %>% 
