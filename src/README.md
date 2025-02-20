@@ -29,6 +29,8 @@ Collect data from StatsCan and other statistical agencies and convert to clean C
 6. [BC Remoteness Index](https://www150.statcan.gc.ca/n1/pub/17-26-0001/172600012020001-eng.htm)
 All data are stored on the LAN. BC Stats data may be slightly different from the public-available data.  
 
+To access those data, you need to have a secure connection to the LAN. The `safepaths` package is used to access the data.The safe paths network paths are stored in the `.Renviron` file or a config file.
+
 A data documentation is created for how, when, and where we collect and clean those data. The data documentation is stored in the project folder on the LAN.
 
 ### Usage
