@@ -18,7 +18,7 @@ if (!fs::dir_exists("out")) fs::dir_create("out")
 ######################################################################################
 # Census data
 ######################################################################################
-# see census/background.txt to get informaiton for installation and background.
+# see census/background.txt to get information for installation and background.
 
 # if you get the cache for cancensus package working, set use_cache flag as TRUE, then it will pull data from cache.
 # Otherwise, keep the use_cache flag as FALSE, then it will download the data from statscan. It may take a few minutes. 
@@ -108,15 +108,6 @@ CA21_VECTORS = c(
   'LICO_AT_PREVALENCE' = 'v_CA21_1085', # Prevalence of low income based on the Low-income cut-offs, after tax (LICO-AT) (%): Share of people in low income (LICO-AT)
   'LIM_AT_PREVALENCE' = 'v_CA21_1040', # Prevalence of low income based on the Low-income measure, after tax (LIM-AT) (%)
   
-  # 'DEP_RAT1' = 'v_CA21_35',
-  # # DEP_RAT1
-  # 'DEP_RAT2' = 'v_CA21_37',
-  # # DEP_RAT2
-  # 
-  # 'DET_HOMES1' = 'v_CA21_41',
-  # # DET_HOMES1
-  # 'DET_HOMES2' = 'v_CA21_42',
-  # # DET_HOMES2
   
   ###########################################################################################################################################
   # Occupation
@@ -259,8 +250,10 @@ CA21_DATA <- get_census(dataset='CA21',
 CA21_DATA = CA21_DATA %>% 
   janitor::clean_names(case = "screaming_snake" ) 
 
-
-CA21_DATA %>% readr::write_csv(here::here("out", "StatsCAN_Census_21_BC_DA_DIP.csv")   )
+CA21_DATA %>% 
+  mutate(CENSUS_YEAR = 2021) %>% 
+  select(CENSUS_YEAR,everything()) %>% 
+  readr::write_csv(here::here("out", "StatsCAN_Census_21_BC_DA_DIP.csv")   )
 
 str(CA21_DATA)
 attr(CA21_DATA, "last_updated")
@@ -392,7 +385,11 @@ CA16_DATA <- get_census(dataset="CA16",
 CA16_DATA = CA16_DATA %>% 
   janitor::clean_names(case = "screaming_snake" ) 
 
-CA16_DATA %>% readr::write_csv(here::here("out", "StatsCAN_Census_16_BC_DA_DIP.csv")   )
+
+CA16_DATA %>% 
+  mutate(CENSUS_YEAR = 2016) %>% 
+  select(CENSUS_YEAR,everything())%>%
+  readr::write_csv(here::here("out", "StatsCAN_Census_16_BC_DA_DIP.csv")   )
 
 str(CA16_DATA)
 # tibble [7,848 × 54]
@@ -487,9 +484,13 @@ CA11_DATA <- get_census(dataset="CA11",
 
 
 CA11_DATA = CA11_DATA %>% 
-  janitor::clean_names(case = "screaming_snake" ) 
+  mutate(CENSUS_YEAR = 2011) 
 
-CA11_DATA %>% readr::write_csv(here::here("out", "StatsCAN_Census_11_BC_DA_DIP.csv")   )
+
+CA11_DATA %>% 
+  select(CENSUS_YEAR,everything()) %>% 
+  janitor::clean_names(case = "screaming_snake" ) %>% 
+  readr::write_csv(here::here("out", "StatsCAN_Census_11_BC_DA_DIP.csv")   )
 
 CENSUS_COMMON_LABELS_11 <- c(
   'GEO_UID'  = "Geographic unique ID",
@@ -589,7 +590,11 @@ CA06_DATA <- get_census(dataset="CA06",
 CA06_DATA = CA06_DATA %>% 
   janitor::clean_names(case = "screaming_snake" ) 
 
-CA06_DATA %>% readr::write_csv(here::here("out", "StatsCAN_Census_06_BC_DA_DIP.csv")   )
+
+CA06_DATA %>% 
+  mutate(CENSUS_YEAR = 2006) %>% 
+  select(CENSUS_YEAR,everything())%>% 
+  readr::write_csv(here::here("out", "StatsCAN_Census_06_BC_DA_DIP.csv")   )
 
 CA06_DATA_labels <- create_census_data_label(CA06_DATA, CA06_VECTORS,CENSUS_COMMON_LABELS)
 
@@ -672,7 +677,10 @@ CA01_DATA <- get_census(dataset="CA01",
 CA01_DATA <- CA01_DATA %>% 
   janitor::clean_names(case = 'screaming_snake')
 
+
 CA01_DATA %>% 
+  mutate(CENSUS_YEAR = 2001) %>% 
+  select(CENSUS_YEAR,everything()) %>% 
   readr::write_csv(here::here("out", "StatsCAN_Census_01_BC_DA_DIP.csv")   )
 
 CA01_DATA_labels <- create_census_data_label(CA01_DATA, CA01_VECTORS,CENSUS_COMMON_LABELS)
