@@ -145,8 +145,6 @@ CA21_VECTORS = c(
   'IN_LAB_FORCE_TOT'  = 'v_CA21_6492', # Population aged 15 years and over by Labour force status - Total
   'IN_LAB_FORCE_YES'  = 'v_CA21_6495', # Population aged 15 years and over by Labour force status - in labour force
   'IN_LAB_FORCE_NO'  = 'v_CA21_6504', # Population aged 15 years and over by Labour force status - not in labour force Done
-  # 'LABOUR_PART_RT'  = 'v_CA21_5612', # Labour Force - Participation Rate  in yes tot/tot
-  # 'LABOUR_EMPL_RT'  = 'v_CA21_5615', # Labour Force - Employment Rate  need to calculate emp cnt/in labor
   'LABOUR_EMPL_CNT'  = 'v_CA21_6498',
   'LABOUR_UNEM_CNT'  = 'v_CA21_6501',  # Need to calculate the rate cnt/total Done
   
@@ -263,7 +261,7 @@ attr(CA21_DATA, "last_updated")
 CENSUS_COMMON_LABELS <- c(
   'GEO_UID'  = "Geographic unique ID",
   'TYPE' = 'Geographic type: DA or CSD',
-  'REGION_NAME' = 'Geographic name; in 2021 it is DA id, but in other waves of survey; it was region name.',
+  'REGION_NAME' = 'Geographic name; in 2021 it is DA id; but in other waves of survey; it was region name.',
   'AREA_SQ_KM' = 'Aear in squared kilometer',
   
   'POPULATION' =  "Population",
@@ -398,7 +396,7 @@ CA16_DATA %>%
   readr::write_csv(here::here("out", "StatsCAN_Census_16_BC_DA_DIP.csv")   )
 
 str(CA16_DATA)
-# tibble [7,848 × 54]
+# tibble [7,617 × 54]
 
 CA16_DATA_labels <- create_census_data_label(CA16_DATA, CA16_VECTORS,CENSUS_COMMON_LABELS)
 
