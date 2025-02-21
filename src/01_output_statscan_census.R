@@ -13,16 +13,12 @@
 # this file is used for downloading data from StatsCan and other source. 
 # library("remotes")
 # install_github("bcgov/safepaths")
-pacman::p_load(cancensus,geojsonsf, sf, tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow, duckdb)
-
-
-
-
-
+pacman::p_load(cancensus,geojsonsf, sf, tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow, duckdb, datadictionary)
+if (!fs::dir_exists("out")) fs::dir_create("out")
 ######################################################################################
 # Census data
 ######################################################################################
-# see census/background.txt to get informaiton for installation and background.
+# see census/background.txt to get information for installation and background.
 
 # if you get the cache for cancensus package working, set use_cache flag as TRUE, then it will pull data from cache.
 # Otherwise, keep the use_cache flag as FALSE, then it will download the data from statscan. It may take a few minutes. 
@@ -31,109 +27,27 @@ use_cache = TRUE
 
 # Put all the variable strings together: 
 CA21_VECTORS = c(
-  'POP'             = 'v_CA21_1',  # Population, 2021
+  # 'POP'             = 'v_CA21_1',  # Population, 2021
   
   'POP_PCT_CHANGE'  = 'v_CA21_3',  # Population percentage change, 2016 to 2021
   
   'POP_DENS' = 'v_CA21_6',  # Population density
   
-  ###########################################################################################################################################
-  # Age group
-  'AGE_GRP_TOT'     = 'v_CA21_8',  # Total - Age
-  'AGE_GRP_00_04'   = 'v_CA21_14',  # 0 - 4 years
-  'AGE_GRP_00_14'   = 'v_CA21_11',  # 0 - 14 years
-  'AGE_GRP_65_PLUS'   = 'v_CA21_251',  # 65 years and over
   
-  ###########################################################################################################################################
-  # Race
-  # Indigenous identity, status, and ancestry
-  # Total - Indigenous identity for the population in private households
-  # Indigenous identity
-  # Non-Indigenous identity
-  
-  'ABORIGINAL_TOT'  = 'v_CA21_4201', # Aboriginal Identity - Total Total - Aboriginal identity for the population in private households - 25% sample data
-  'ABORIGINAL_YES'  = 'v_CA21_4204', # Aboriginal Identity - Yes Aboriginal identity
-  'ABORIGINAL_NO'   = 'v_CA21_4225', # Aboriginal Identity - No Non-Aboriginal identity Done
-  
-  'REG_INDIAN_TOT'  = 'v_CA21_4228', # Population by Registered or Treaty Indian status - Total
-  'REG_INDIAN_YES'  = 'v_CA21_4231', # Population by Registered or Treaty Indian status - Reigstered or Treaty Indian
-  'REG_INDIAN_NO'   = 'v_CA21_4234', # Population by Registered or Treaty Indian status - Not a Reigstered or Treaty Indian Done
-  
-  # Visible minority and ethnic origin
-  # Total - Visible minority for the population in private households
-  # Total visible minority population
-  # Not a visible minority
-  
-  'MINORITY_TOT'    = 'v_CA21_4872', # Visible Minority - Total
-  'MINORITY_YES'    = 'v_CA21_4875', # Visible Minority - Yes
-  'MINORITY_NO'     = 'v_CA21_4914', # Visible Minority - No Done
-  
-  # 25% Data
-  # Citizenship and immigration
-  # Total - Citizenship for the population in private households
-  # Canadian citizens
-  # Not Canadian citizens
-  
-  
-  'CITIZEN_TOT'     = 'v_CA21_4389', # Citizenship - Total
-  'CITIZEN_CAN'     = 'v_CA21_4392', # Citizenship - Canadian
-  'CITIZEN_NOT_CAN' = 'v_CA21_4401', # Citizenship - Not Canadian
-  
-  # 25% Data
-  # Citizenship and immigration
-  # Total - Immigrant status and period of immigration for the population in private households
-  # Non-immigrants
-  # Immigrants
-  
-  'IMMIGRANT_TOT'   = 'v_CA21_4404', # Immigrant - Total
-  'IMMIGRANT_YES'   = 'v_CA21_4410', # Immigrant - Yes
-  'IMMIGRANT_NO'    = 'v_CA21_4407', # Immigrant - No
-  
-  # 100% data
-  # Language
-  # Knowledge of official languages for the total population excluding institutional residents
-  # English only
-  # French only
-  # English and French
-  # Neither English nor French
-  
-  'LANG_KNOW_TOT'  = 'v_CA21_1144', # Knowledge of official languages - total
-  'LANG_KNOW_EN'   = 'v_CA21_1147', # Knowledge of official languages - english only
-  'LANG_KNOW_FR'   = 'v_CA21_1150', # Knowledge of official languages - french only
-  'LANG_KNOW_BOTH' = 'v_CA21_1153', # Knowledge of official languages - english and french
-  'LANG_KNOW_NONE' = 'v_CA21_1156', # Knowledge of official languages - neither english nor french Done
-  
-  # 100% data
-  # Language
-  # First official language spoken for the total population excluding institutional residents
-  # English
-  # French
-  # English and French
-  # Neither English nor French
-  
-  'LANG_SPOKE_TOT'   = 'v_CA21_1159', # First official language spoken - total
-  'LANG_SPOKE_EN'    = 'v_CA21_1162', # First official language spoken - english only
-  'LANG_SPOKE_FR'    = 'v_CA21_1165', # First official language spoken - french only
-  'LANG_SPOKE_BOTH'  = 'v_CA21_1168', # First official language spoken - english and french
-  'LANG_SPOKE_NONE'  = 'v_CA21_1171', # First official language spoken - neither english nor french Done
+  'DWELL_TOT'       = 'v_CA21_434',  # Dwellings - Total
+  'DWELL_HOUS'      = 'v_CA21_435',  # Dwellings - Single detached house
+  'DWELL_APT_LRG'   = 'v_CA21_440',  # Dwellings - Apartment 5+ stories
+  'DWELL_APT_SML'   = 'v_CA21_439',  # Dwellings - Apartment < 5 stories
+  'DWELL_MOVE'      = 'v_CA21_442',  # Dwellings - Movable Done
   
   
   ###########################################################################################################################################
   # Family
-  # 'SING_PAR1' = 'v_CA21_78',
-  # # SING_PAR1
-  # 'SING_PAR2' = 'v_CA21_86',
-  # # SING_PAR2
-  
-  
-  'MARITAL_TOT'     = 'v_CA21_453',  # Marital Status - Total
-  'MARITAL_SEP'     = 'v_CA21_483',  # Marital Status - Separated
-  'MARITAL_DIV'     = 'v_CA21_486',  # Marital Status - Divorced
   
   'FAMILIES_TOT' = 'v_CA21_499', # Total number of census families in private households
-  'SING_PARENT_TOT' = 'v_CA21_507',  # Lone Parent - Total
-  'SING_PARENT_F'   = 'v_CA21_508',  # Lone Parent - Female
-  'SING_PARENT_M'   = 'v_CA21_509',  # Lone Parent - Male Done
+  'LONE_PARENT_TOT' = 'v_CA21_507',  # Lone Parent - Total
+  'LONE_PARENT_F'   = 'v_CA21_508',  # Lone Parent - Female
+  'LONE_PARENT_M'   = 'v_CA21_509',  # Lone Parent - Male Done
   
   
   ###########################################################################################################################################
@@ -194,15 +108,6 @@ CA21_VECTORS = c(
   'LICO_AT_PREVALENCE' = 'v_CA21_1085', # Prevalence of low income based on the Low-income cut-offs, after tax (LICO-AT) (%): Share of people in low income (LICO-AT)
   'LIM_AT_PREVALENCE' = 'v_CA21_1040', # Prevalence of low income based on the Low-income measure, after tax (LIM-AT) (%)
   
-  # 'DEP_RAT1' = 'v_CA21_35',
-  # # DEP_RAT1
-  # 'DEP_RAT2' = 'v_CA21_37',
-  # # DEP_RAT2
-  # 
-  # 'DET_HOMES1' = 'v_CA21_41',
-  # # DET_HOMES1
-  # 'DET_HOMES2' = 'v_CA21_42',
-  # # DET_HOMES2
   
   ###########################################################################################################################################
   # Occupation
@@ -225,48 +130,6 @@ CA21_VECTORS = c(
   
   'OCC_TOT'         = 'v_CA21_6561', # Occupation - Total
   'OCC_MGMT'        = 'v_CA21_6570', # Occupation - Management
-  'OCC_BUS_FIN_AD'  = 'v_CA21_6573', # Occupation - Business, Finance and Admin
-  'OCC_NAT_APP_SCI' = 'v_CA21_6576', # Occupation - Natural and Applied Sciences
-  'OCC_HLTH'        = 'v_CA21_6579', # Occupation - Health
-  'OCC_SOCI_SERV'   = 'v_CA21_6582', # Occupation - Education, Law and Social, Community and Government
-  'OCC_ART_CUL_REC' = 'v_CA21_6585', # Occupation - Arts, Culture, Recreation, Sport
-  'OCC_SALE_SERV'   = 'v_CA21_6588', # Occupation - Sales and Service
-  'OCC_TRADES'      = 'v_CA21_6591', # Occupation - Trades, Transport and Equipment Operators
-  'OCC_NAT_RSRC'    = 'v_CA21_6594', # Occupation - Natural Resources, Agriculture / Production
-  'OCC_MAN_UTIL'    = 'v_CA21_6597', # Occupation - Manufacturing and Utilities Done
-  
-  ###########################################################################################################################################
-  # Education attainment
-  # 25% Data
-  # Education
-  # Total - Highest certificate, diploma or degree for the population aged 15 years and over in private households
-  # No certificate, diploma or degree
-  # Total - Highest certificate, diploma or degree for the population aged 25 to 64 years in private households
-  # No certificate, diploma or degree
-  # High (secondary) school diploma or equivalency certificate
-  # Postsecondary certificate, diploma or degree
-  # Postsecondary certificate or diploma below bachelor level
-  # Apprenticeship or trades certificate or diploma
-  # College, CEGEP or other non-university certificate or diploma
-  # University certificate or diploma below bachelor level
-  # Bachelor's degree or higher
-  # Bachelor's degree
-  # University certificate or diploma above bachelor level
-  # Degree in medicine, dentistry, veterinary medicine or optometry
-  # Master's degree
-  # Earned doctorate
-  
-  'EDUC_TOT'        = 'v_CA21_5817', # Education for population aged 25 - 64 - Total
-  'EDUC_NONE'       = 'v_CA21_5820', # Education for population aged 25 - 64 - No certificate, diploma or degree
-  'EDUC_HIGHSCH'    = 'v_CA21_5871', # Education for population aged 25 - 64 - Secondary (high) school diploma or equivalency certificate
-  'EDUC_POSTSEC'    = 'v_CA21_5874', # Education for population aged 25 - 64 - Postsecondary certificate, diploma or degree
-  'EDUC_COLLEGE'    = 'v_CA21_5889', # Education for population aged 25 - 64 - College, CEGEP or other non-university certificate or diploma
-  'EDUC_BACHELOR'   = 'v_CA21_5898', # Education for population aged 25 - 64 - Bachelor's degree
-  'EDUC_TRADES'     = 'v_CA21_5880', # Education for population aged 25 - 64 - Apprenticeship or trades certificate or diploma
-  'EDUC_CRT_ABV_BACH' = 'v_CA21_5901', # Education for population aged 25 - 64 - University certificate or diploma above bachelor level
-  'EDUC_MEDICAL'   = 'v_CA21_5904', # Education for population aged 25 - 64 - Degree in medicine, dentistry, veterinary medicine or optometry
-  'EDUC_MASTERS'   = 'v_CA21_5907', # Education for population aged 25 - 64 - Master's degree
-  'EDUC_PHD'   = 'v_CA21_5910', # Education for population aged 25 - 64 - Earned doctorate Done
   
   
   ###########################################################################################################################################
@@ -282,8 +145,6 @@ CA21_VECTORS = c(
   'IN_LAB_FORCE_TOT'  = 'v_CA21_6492', # Population aged 15 years and over by Labour force status - Total
   'IN_LAB_FORCE_YES'  = 'v_CA21_6495', # Population aged 15 years and over by Labour force status - in labour force
   'IN_LAB_FORCE_NO'  = 'v_CA21_6504', # Population aged 15 years and over by Labour force status - not in labour force Done
-  # 'LABOUR_PART_RT'  = 'v_CA21_5612', # Labour Force - Participation Rate  in yes tot/tot
-  # 'LABOUR_EMPL_RT'  = 'v_CA21_5615', # Labour Force - Employment Rate  need to calculate emp cnt/in labor
   'LABOUR_EMPL_CNT'  = 'v_CA21_6498',
   'LABOUR_UNEM_CNT'  = 'v_CA21_6501',  # Need to calculate the rate cnt/total Done
   
@@ -298,7 +159,32 @@ CA21_VECTORS = c(
   'HOME_OWN_TOT'    = 'v_CA21_4237', # Home ownership - Total
   'HOME_OWN_OWN'    = 'v_CA21_4238', # Home ownership - Owner
   'HOME_OWN_RENT'   = 'v_CA21_4239', # Home ownership - Renter
-  # 'HOME_OWN_BAND'   = 'v_CA21_4240', # Home ownership - Band Housing Done
+  'HOME_OWN_BAND'   = 'v_CA21_4240', # Home ownership - Band Housing Done
+  
+  
+  # 25% Data
+  # Housing
+  # Total - Owner households in non-farm, non-reserve private dwellings
+  # % of owner households with a mortgage
+  # % of owner households spending 30% or more of its income on shelter costs
+  # % in core housing need
+  # Median monthly shelter costs for owned dwellings ($)
+  # Average monthly shelter costs for owned dwellings ($)
+  # Median value of dwellings ($)
+  # Average value of dwellings ($)
+  
+  'DWELLING_VALUE_AVG'  = 'v_CA21_4312', # Average value of dwelling
+  'DWELLING_VALUE_MED'  = 'v_CA21_4311', # Median value of dwelling
+  'DWELLING_COST_OWN'   = 'v_CA21_4310', # Average monthly shelter costs for owned dwellings Done
+  
+  # 25% Data
+  # Housing
+  # Total - Tenant households in non-farm, non-reserve private dwellings
+  # Median monthly shelter costs for rented dwellings ($)
+  # Average monthly shelter costs for rented dwellings ($)
+  
+  'DWELLING_RENT_AVG'   = 'v_CA21_4318', # Average monthly shelter costs for rented dwellings
+  'DWELLING_RENT_MED'   = 'v_CA21_4317', # Median monthly shelter costs for rented dwellings Done
   
   # 25% Data
   # Housing
@@ -319,25 +205,36 @@ CA21_VECTORS = c(
   # Housing suitability
   # refers to whether a private household is living in suitable accommodations according to the National Occupancy Standard (NOS); that is, whether the dwelling has enough bedrooms for the size and composition of the household. A household is deemed to be living in suitable accommodations if its dwelling has enough bedrooms, as calculated using the
   # NOS .
-  'HOME_SUITABLE_TOT' = 'v_CA21_4260', # Private households by housing suitability - Total
-  'HOME_SUITABLE_YES' = 'v_CA21_4261', # Private households by housing suitability - Suitable
-  'HOME_SUITABLE_NO'  = 'v_CA21_4262' # Private households by housing suitability - Not suitable Done
+  'HOUSING_SUITABLE_TOT' = 'v_CA21_4260', # Private households by housing suitability - Total
+  'HOUSING_SUITABLE_YES' = 'v_CA21_4261', # Private households by housing suitability - Suitable
+  'HOUSING_SUITABLE_NO'  = 'v_CA21_4262' # Private households by housing suitability - Not suitable Done
   
 )
 
-# convert the vector to a dataframe, so we can  join to other table
-CA21_VECTORS_DF <- data.frame(
-  name = names(CA21_VECTORS),
-  vector = as.character(CA21_VECTORS)
-)
 
-vector_list_21  <-  list_census_vectors("CA21")
-
-CA21_VECTORS_DF_DICT <-  CA21_VECTORS_DF %>% 
-  left_join(vector_list_21, by = join_by(vector))
+# this function extracts information of vector/variable from StatsCan website. 
+create_census_meta_data <- function( CENSUS_NUMBER = "CA21", VECTORS = CA21_VECTORS ){
+  # convert the vector to a dataframe, so we can  join to other table
+  VECTORS_DF <- data.frame(
+    name = names(VECTORS),
+    vector = as.character(VECTORS)
+  )
   
-  # since we have cache on the LAN, we need vpn2 and connect to LAN 
-bc_da <- get_census(dataset='CA21', 
+  vector_list  <-  list_census_vectors(CENSUS_NUMBER)
+  
+  VECTORS_DF_DICT <-  VECTORS_DF %>%
+    left_join(vector_list, by = join_by(vector))
+  
+  return(VECTORS_DF_DICT)
+}
+
+
+CA21_META_DATA <- create_census_meta_data( CENSUS_NUMBER = "CA21", VECTORS = CA21_VECTORS )
+  
+CA21_META_DATA %>% readr::write_csv(here::here("out", "StatsCAN_Census_21_BC_META_DATA_DIP.csv")   )
+
+# since we have cache on the LAN, we need vpn2 and connect to LAN 
+CA21_DATA <- get_census(dataset='CA21', 
                     regions=list(PR="59"),
                     vectors=CA21_VECTORS, 
                     level='DA', 
@@ -348,38 +245,484 @@ bc_da <- get_census(dataset='CA21',
 
 
 
-bc_da = bc_da %>% 
-  janitor::clean_names(case = "screaming_snake" ) 
+CA21_DATA = CA21_DATA %>% 
+  janitor::clean_names(case = "screaming_snake" ) %>% 
+  mutate(REGION_NAME = as.character(REGION_NAME))
 
-# 2. BC Census 2021
-if (!fs::dir_exists("out")) fs::dir_create("out")
-bc_da %>% readr::write_csv(here::here("out", "StatsCAN_Census_21_BC_DA_DIP.csv")   )
+CA21_DATA %>% 
+  mutate(CENSUS_YEAR = 2021) %>% 
+  select(CENSUS_YEAR,everything()) %>% 
+  readr::write_csv(here::here("out", "StatsCAN_Census_21_BC_DA_DIP.csv")   )
 
-CA21_VECTORS_DF_DICT %>% readr::write_csv(here::here("out", "StatsCAN_Census_21_BC_DA_DICT_DIP.csv")   )
-
-# 
-# 
-# library(datadictionary)
-# 
-# str(bc_da)
-# 
-# bc_da = bc_da %>% 
-#   mutate(REGION_NAME = as.character(REGION_NAME) )
-# 
-# # A simple dictionary printed to console
-# create_dictionary(bc_da)
-# 
-# # add label to dictionary, which is similar to decription. 
-# # skimr::skim(bc_da)  # this is for exploring purpose
-# # Create labels as a named vector. 
-# 
-# 
-# 
-# bc_da_dict = create_dictionary(bc_da, 
-#                                id_var = REGION_NAME,
-#                                var_labels = bc_da.labels)
+str(CA21_DATA)
+attr(CA21_DATA, "last_updated")
 
 
+CENSUS_COMMON_LABELS <- c(
+  'GEO_UID'  = "Geographic unique ID",
+  'TYPE' = 'Geographic type: DA or CSD',
+  'REGION_NAME' = 'Geographic name; in 2021 it is DA id; but in other waves of survey; it was region name.',
+  'AREA_SQ_KM' = 'Aear in squared kilometer',
+  
+  'POPULATION' =  "Population",
+  'DWELLINGS' = "Number of dwellings",
+  'HOUSEHOLDS' = 'Number of households',
+  
+  'CSD_UID' = 'CSD_UID',
+  'CD_UID' = 'CD_UID',
+  'CT_UID' = 'CT_UID',
+  'CMA_UID' = 'CMA_UID'
+)
+
+
+# # this function creates labels for vector/variable and for the datadictionary function.
+create_census_data_label <- function(DATA, VECTORS, CENSUS_COMMON_LABELS) {
+  DATA_VECTOR_DETAIL <- attr(DATA, "census_vectors")
+  
+  
+  DATA_VECTOR_DETAIL <-  DATA_VECTOR_DETAIL %>% janitor::clean_names(case = "screaming_snake") %>%
+    left_join(tibble(VARIABLE_NAME = names(VECTORS), VECTOR = VECTORS))
+  
+
+  
+  DATA_VECTOR_DETAIL <- tibble(VARIABLE_NAME = names(CENSUS_COMMON_LABELS),
+                                    DETAIL = CENSUS_COMMON_LABELS) %>%
+    bind_rows(DATA_VECTOR_DETAIL)
+  
+  # Opposite to enframe() , the function deframe() converts a two-column tibble to a named vector or list, using the first column as name and the second column as value.
+  
+  DATA_labels  <- deframe(DATA_VECTOR_DETAIL %>% select(VARIABLE_NAME, DETAIL))
+  
+  return(DATA_labels)
+}
+
+
+CA21_DATA_labels <- create_census_data_label(CA21_DATA, CA21_VECTORS, CENSUS_COMMON_LABELS)
+  
+
+# add label to dictionary, which is similar to decription.
+skimr::skim(CA21_DATA)  # this is for exploring purpose
+# Create labels as a named vector.
+
+CA21_DATA_dict = create_dictionary(CA21_DATA,
+                               # id_var = GEO_UID,
+                               var_labels = CA21_DATA_labels)
+
+CA21_DATA_dict %>% readr::write_csv(here::here("out", "StatsCAN_Census_21_BC_DA_DICT_DIP.csv")   )
+
+
+# ********************************************************************************
+# PULL 2016 DATA
+# ********************************************************************************
+
+CA16_VECTORS_LIST = list_census_vectors('CA16')
+
+CA16_VECTORS_LIST %>% 
+  filter(str_detect(string = details, pattern = "lone"))
+
+CA16_FAMILY_VECTORS_LIST <- find_census_vectors("family", dataset = "CA16", type = "total", query_type = "exact")
+
+CA16_VECTORS = c(
+  'DWELL_TOT'       = 'v_CA16_408',  # Dwellings - Total
+  'DWELL_HOUS'      = 'v_CA16_409',  # Dwellings - Single detached house
+  'DWELL_APT_LRG'   = 'v_CA16_410',  # Dwellings - Apartment 5+ stories
+  'DWELL_APT_SML'   = 'v_CA16_415',  # Dwellings - Apartment < 5 stories
+  'DWELL_MOVE'      = 'v_CA16_417',  # Dwellings - Movable
+  'FAMILIES_TOT' = 'v_CA16_484',  # Number of families
+  'LONE_PARENT_TOT' = 'v_CA16_488',  # Lone Parent - Total
+  'LONE_PARENT_F'   = 'v_CA16_489',  # Lone Parent - Female
+  'LONE_PARENT_M'   = 'v_CA16_490',  # Lone Parent - Male
+  'INC_BT_IND_MED'  = 'v_CA16_2207', # Total Individual Income Before Tax - Median
+  'INC_BT_IND_AVG'  = 'v_CA16_4957', # Total Individual Income Before Tax - Average
+  'INC_BT_FAM_MED'  = 'v_CA16_2447', # Total Family Income Before Tax - Median Median total income of economic families in 2015 ($)
+  'INC_BT_FAM_AVG'  = 'v_CA16_4994', # Total Family Income Before Tax - Average / Average total income of economic families in 2015 ($)
+  'INC_AT_FAM_MED'  = 'v_CA16_2448', # Total Family Income After Tax - Median Median after-tax income of economic families in 2015 ($)
+  'INC_AT_FAM_AVG'  = 'v_CA16_4995', # Total Family Income After Tax - Average / Average after-tax income of economic families in 2015 ($)
+  'INC_BT_HHS_MED'  = 'v_CA16_2397', # Total Household Income Before Tax - Median
+  'INC_BT_HHS_AVG'  = 'v_CA16_4985', # Total Household Income Before Tax - Average
+  'LICO_AT_PREVALENCE' = 'v_CA16_2570', # Prevalence of low income based on the Low-income cut-offs, after tax (LICO-AT) (%)
+  'LIM_AT_PREVALENCE' = 'v_CA16_2540', # Prevalence of low income based on the Low-income measure, after tax (LIM-AT) (%)
+  'OCC_TOT'         = 'v_CA16_5654', # Occupation - Total
+  'OCC_MGMT'        = 'v_CA16_5663', # Occupation - Management
+  'LABOUR_PART_RT'  = 'v_CA16_5612', # Labour Force - Participation Rate
+  'LABOUR_EMPL_RT'  = 'v_CA16_5615', # Labour Force - Employment Rate
+  'LABOUR_UNEM_RT'  = 'v_CA16_5618', # Labour Force - Unemployment Rate
+  'IN_LAB_FORCE_TOT'  = 'v_CA16_5597', # Population aged 15 years and over by Labour force status - Total
+  'IN_LAB_FORCE_YES'  = 'v_CA16_5600', # Population aged 15 years and over by Labour force status - in labour force
+  'IN_LAB_FORCE_NO'  = 'v_CA16_5609', # Population aged 15 years and over by Labour force status - not in labour force
+  'HOME_OWN_TOT'    = 'v_CA16_4836', # Home ownership - Total
+  'HOME_OWN_OWN'    = 'v_CA16_4837', # Home ownership - Owner
+  'HOME_OWN_RENT'   = 'v_CA16_4838', # Home ownership - Renter
+  'HOME_OWN_BAND'   = 'v_CA16_4839', # Home ownership - Band Housing
+  'DWELLING_VALUE_AVG'  = 'v_CA16_4896', # Average value of dwelling
+  'DWELLING_VALUE_MED'  = 'v_CA16_4895', # Median value of dwelling
+  'DWELLING_COST_OWN'   = 'v_CA16_4894', # Average monthly shelter costs for owned dwellings
+  'DWELLING_RENT_AVG'  = 'v_CA16_4901', # Average monthly shelter costs for rented dwellings
+  'DWELLING_RENT_MED'  = 'v_CA16_4900', # Median monthly shelter costs for rented dwellings
+  'SUBSIDIZED_HOUS' = 'v_CA16_4898', # % of tenant households in subsidized housing
+  'HOUSING_SUITABLE_TOT' = 'v_CA16_4859', # Private households by housing suitability - Total
+  'HOUSING_SUITABLE_YES' = 'v_CA16_4860', # Private households by housing suitability - Suitable
+  'HOUSING_SUITABLE_NO' = 'v_CA16_4861', # Private households by housing suitability - Not suitable
+  'REPAIRS_TOT' = 'v_CA16_4870', # Occupied private dwellings by dwelling condition	- Total
+  'REPAIRS_MINOR' = 'v_CA16_4871', # Occupied private dwellings by dwelling condition	- Only regular maintenance or minor repairs needed
+  'REPAIRS_MAJOR' = 'v_CA16_4872' # Occupied private dwellings by dwelling condition	- Major repairs needed
+  
+)
+
+CA16_META_DATA <- create_census_meta_data( CENSUS_NUMBER = "CA16", VECTORS = CA16_VECTORS )
+
+CA16_META_DATA %>% readr::write_csv(here::here("out", "StatsCAN_Census_16_BC_META_DATA_DIP.csv")   )
+
+
+CA16_DATA <- get_census(dataset="CA16",
+                        regions=list(PR="59"),
+                        vectors=
+                          CA16_VECTORS,
+                        level='DA', 
+                        quiet = TRUE, 
+                        geo_format = NA,
+                        use_cache = use_cache,
+                        labels = 'short')
+
+
+CA16_DATA = CA16_DATA %>% 
+  janitor::clean_names(case = "screaming_snake" ) %>% 
+  mutate(REGION_NAME = as.character(REGION_NAME))
+
+
+CA16_DATA %>% 
+  mutate(CENSUS_YEAR = 2016) %>% 
+  select(CENSUS_YEAR,everything())%>%
+  readr::write_csv(here::here("out", "StatsCAN_Census_16_BC_DA_DIP.csv")   )
+
+str(CA16_DATA)
+# tibble [7,617 × 54]
+
+CA16_DATA_labels <- create_census_data_label(CA16_DATA, CA16_VECTORS,CENSUS_COMMON_LABELS)
+
+str(CA16_DATA_labels)
+# 54 
+
+# add label to dictionary, which is similar to description.
+skimr::skim(CA16_DATA)  # this is for exploring purpose
+# Create labels as a named vector.
+
+CA16_DATA_dict = create_dictionary(CA16_DATA,
+                                   # id_var = GEO_UID,
+                                   var_labels = CA16_DATA_labels)
+
+CA16_DATA_dict %>% readr::write_csv(here::here("out", "StatsCAN_Census_16_BC_DA_DICT_DIP.csv")   )
+
+
+# ********************************************************************************
+# PULL 2011 DATA
+# ********************************************************************************
+
+CA11_VECTORS = c(
+
+  
+  'DWELL_TOT'       = 'v_CA11F_199',  # Dwellings - Total
+  'DWELL_HOUS'      = 'v_CA11F_200',  # Dwellings - Single detached house
+  'DWELL_APT_LRG'   = 'v_CA11F_201',  # Dwellings - Apartment 5+ stories
+  'DWELL_APT_SML'   = 'v_CA11F_207',  # Dwellings - Apartment < 5 stories
+  'DWELL_MOVE'      = 'v_CA11F_202',  # Dwellings - Movable
+  
+  'FAMILIES_TOT' = 'v_CA11F_115',  # Total number of census families in private households
+  'LONE_PARENT_TOT' = 'v_CA11F_129', # Lone Parent - Total
+  'LONE_PARENT_F'   = 'v_CA11F_130', # Lone Parent - Female
+  'LONE_PARENT_M'   = 'v_CA11F_134', # Lone Parent - Male
+  'INC_BT_IND_MED'  = 'v_CA11N_2341', # Total Individual Income Before Tax - Median
+  'INC_BT_IND_AVG'  = 'v_CA11N_2344', # Total Individual Income Before Tax - Average
+  'INC_BT_FAM_MED'  = 'v_CA11N_2456', # Total Family Income Before Tax - Median
+  'INC_BT_FAM_AVG'  = 'v_CA11N_2457', # Total Family Income Before Tax - Average
+  'INC_AT_FAM_MED'  = 'v_CA11N_2458', # Total Family Income After Tax - Median
+  'INC_AT_FAM_AVG'  = 'v_CA11N_2459', # Total Family Income After Tax - Average
+  'INC_BT_HHS_MED'  = 'v_CA11N_2562', # Total Household Income Before Tax - Median
+  'INC_BT_HHS_AVG'  = 'v_CA11N_2563', # Total Household Income Before Tax - Average
+  'INC_FAM_TOP' = 'v_CA11N_2515', # Total - Economic family income - In the top half of the distribution
+  'INC_FAM_BOTTOM' = 'v_CA11N_2497', # Total - Economic family income - In the bottom half of the distribution
+  'INC_FAM_DEC_10' = 'v_CA11N_2530', # Total - Economic family income - In the top decile
+  'INC_HHS_GRP_TOT' = 'v_CA11N_2547', # Total - Household after-tax income groups - Total
+  'INC_HHS_100k_125k' = 'v_CA11N_2559', # Total - Household after-tax income groups - $100,000 to $124,999
+  'INC_AT_LONE_PARENT_AVG' = 'v_CA11N_2477', # Average after-tax income of lone-parent economic families
+  'INC_AT_CPL_W_CHILD_AVG' = 'v_CA11N_2471', # Average after-tax income of couple economic families with children
+  'INC_AT_LONE_PARENT_MED' = 'v_CA11N_2476', # Median after-tax income of lone-parent economic families
+  'INC_AT_CPL_W_CHILD_MED' = 'v_CA11N_2470', # Median after-tax income of couple economic families with children
+  'LIM_AT_PREVALENCE' = 'v_CA11N_2606', # Prevalence of low income based on the Low-income measure, after tax (LIM-AT) (%)
+  'OCC_TOT'         = 'v_CA11N_2026', # Occupation - Total
+  'OCC_MGMT'        = 'v_CA11N_2035', # Occupation - Management
+  'LABOUR_PART_RT'  = 'v_CA11N_2002', # Labour Force - Participation Rate
+  'LABOUR_EMPL_RT'  = 'v_CA11N_2005', # Labour Force - Employment Rate
+  'LABOUR_UNEM_RT'  = 'v_CA11N_2008', # Labour Force - Unemployment Rate
+  'IN_LAB_FORCE_TOT'  = 'v_CA11N_1987', # Population aged 15 years and over by Labour force status - Total
+  'IN_LAB_FORCE_YES'  = 'v_CA11N_1990', # Population aged 15 years and over by Labour force status - in labour force
+  'IN_LAB_FORCE_NO'  = 'v_CA11N_1999', # Population aged 15 years and over by Labour force status - not in labour force
+  'HOME_OWN_TOT'    = 'v_CA11N_2252', # Home ownership - Total
+  'HOME_OWN_OWN'    = 'v_CA11N_2253', # Home ownership - Owner
+  'HOME_OWN_RENT'   = 'v_CA11N_2254', # Home ownership - Renter
+  'HOME_OWN_BAND'   = 'v_CA11N_2255', # Home ownership - Band Housing
+  'DWELLING_VALUE_AVG'  = 'v_CA11N_2287', # Average value of dwelling
+  'DWELLING_VALUE_MED'  = 'v_CA11N_2286', # Median value of dwelling
+  'DWELLING_COST_OWN'   = 'v_CA11N_2285', # Average monthly shelter costs for owned dwellings
+  'DWELLING_RENT_AVG'  = 'v_CA11N_2292', # Average monthly shelter costs for rented dwellings
+  'DWELLING_RENT_MED'  = 'v_CA11N_2291', # Median monthly shelter costs for rented dwellings
+  'SUBSIDIZED_HOUS' = 'v_CA11N_2289', # % of tenant households in subsidized housing
+  'HOUSING_SUITABLE_TOT' = 'v_CA11N_2274', # Private households by housing suitability - Total
+  'HOUSING_SUITABLE_YES' = 'v_CA11N_2275', # Private households by housing suitability - Suitable
+  'HOUSING_SUITABLE_NO' = 'v_CA11N_2276', # Private households by housing suitability - Not suitable
+  'REPAIRS_TOT' = 'v_CA11N_2230', # Occupied private dwellings by dwelling condition	- Total
+  'REPAIRS_MINOR' = 'v_CA11N_2231', # Occupied private dwellings by dwelling condition	- Only regular maintenance or minor repairs needed
+  'REPAIRS_MAJOR' = 'v_CA11N_2232' # Occupied private dwellings by dwelling condition	- Major repairs needed
+)
+
+CA11_META_DATA <- create_census_meta_data( CENSUS_NUMBER = "CA11", VECTORS = CA11_VECTORS )
+
+CA11_META_DATA %>% readr::write_csv(here::here("out", "StatsCAN_Census_11_BC_META_DATA_DIP.csv")   )
+
+
+CA11_DATA <- get_census(dataset="CA11",
+                        regions=list(PR="59"),
+                        vectors=
+                          CA11_VECTORS,
+                        level='DA', 
+                        quiet = TRUE, 
+                        geo_format = NA,
+                        use_cache = use_cache,
+                        labels = 'short')
+
+
+CA11_DATA = CA11_DATA %>% 
+  janitor::clean_names(case = "screaming_snake" )%>% 
+  mutate(REGION_NAME = as.character(REGION_NAME))
+  
+
+CA11_DATA %>% 
+  mutate(CENSUS_YEAR = 2011) %>% 
+  select(CENSUS_YEAR,everything()) %>% 
+  readr::write_csv(here::here("out", "StatsCAN_Census_11_BC_DA_DIP.csv")   )
+
+CENSUS_COMMON_LABELS_11 <- c(
+  'GEO_UID'  = "Geographic unique ID",
+  'TYPE' = 'Geographic type: DA or CSD',
+  'REGION_NAME' = 'Geographic name; in 2021 it is DA id, but in other waves of survey; it was region name.',
+  'AREA_SQ_KM' = 'Aear in squared kilometer',
+  
+  'POPULATION' =  "Population",
+  'DWELLINGS' = "Number of dwellings",
+  'HOUSEHOLDS' = 'Number of households',
+  
+  'CSD_UID' = 'CSD_UID',
+  'CD_UID' = 'CD_UID',
+  'CT_UID' = 'CT_UID',
+  'CMA_UID' = 'CMA_UID',
+  'NHS_NON_RETURN_RATE' = 'NHS_NON_RETURN_RATE'
+)
+
+CA11_DATA_labels <- create_census_data_label(CA11_DATA, CA11_VECTORS,CENSUS_COMMON_LABELS_11)
+
+str(CA11_DATA)
+names(CA11_DATA)
+# tibble [7,848 × 63]
+str(CA11_DATA_labels)
+# 63
+names(CA11_DATA_labels)
+
+# add label to dictionary, which is similar to decription.
+skimr::skim(CA11_DATA)  # this is for exploring purpose
+# Create labels as a named vector.
+
+
+CA11_DATA_dict = create_dictionary(CA11_DATA,
+                                   # id_var = GEO_UID,
+                                   var_labels = CA11_DATA_labels)
+
+CA11_DATA_dict %>% readr::write_csv(here::here("out", "StatsCAN_Census_11_BC_DA_DICT_DIP.csv")   )
 
 
 
+# ********************************************************************************
+# PULL 2006 DATA
+# ********************************************************************************
+
+CA06_VECTORS = c(
+  'DWELL_TOT'       = 'v_CA06_119',  # Dwellings - Total
+  'DWELL_HOUS'      = 'v_CA06_120',  # Dwellings - Single detached house
+  'DWELL_APT_LRG'   = 'v_CA06_124',  # Dwellings - Apartment 5+ stories
+  'DWELL_APT_SML'   = 'v_CA06_125',  # Dwellings - Apartment < 5 stories
+  'DWELL_MOVE'      = 'v_CA06_127',  # Dwellings - Movable
+  
+  'FAMILIES_TOT' = 'v_CA06_55',   # Lone Parent - Total
+  'LONE_PARENT_TOT' = 'v_CA06_69',   # Lone Parent - Total
+  'LONE_PARENT_F'   = 'v_CA06_70',   # Lone Parent - Female
+  'LONE_PARENT_M'   = 'v_CA06_74',   # Lone Parent - Male
+  'INC_BT_IND_MED'  = 'v_CA06_1583', # Total Individual Income Before Tax - Median
+  'INC_BT_IND_AVG'  = 'v_CA06_1584', # Total Individual Income Before Tax - Average
+  'INC_BT_FAM_MED'  = 'v_CA06_1741', # Total Family Income Before Tax - Median
+  'INC_BT_FAM_AVG'  = 'v_CA06_1742', # Total Family Income Before Tax - Average
+  'INC_AT_FAM_MED'  = 'v_CA06_1785', # Total Family Income After Tax - Median
+  'INC_AT_FAM_AVG'  = 'v_CA06_1786', # Total Family Income After Tax - Average
+  'INC_BT_HHS_MED'  = 'v_CA06_2000', # Total Household Income Before Tax - Median
+  'INC_BT_HHS_AVG'  = 'v_CA06_2001', # Total Household Income Before Tax - Average
+  'LICO_AT_PREVALENCE' = 'v_CA06_1981', # Prevalence of low income based on the Low-income cut-offs, after tax (LICO-AT) (%)
+  'OCC_TOT'         = 'v_CA06_827', # Occupation - Total
+  'OCC_MGMT'        = 'v_CA06_830', # Occupation - Management
+  'LABOUR_PART_RT'  = 'v_CA06_580', # Labour Force - Participation Rate
+  'LABOUR_EMPL_RT'  = 'v_CA06_581', # Labour Force - Employment Rate
+  'LABOUR_UNEM_RT'  = 'v_CA06_582', # Labour Force - Unemployment Rate
+  'IN_LAB_FORCE_TOT'  = 'v_CA06_575', # Population aged 15 years and over by Labour force status - Total
+  'IN_LAB_FORCE_YES'  = 'v_CA06_576', # Population aged 15 years and over by Labour force status - in labour force
+  'IN_LAB_FORCE_NO'  = 'v_CA06_579', # Population aged 15 years and over by Labour force status - not in labour force
+  'HOME_OWN_TOT'    = 'v_CA06_101', # Home ownership - Total
+  'HOME_OWN_OWN'    = 'v_CA06_102', # Home ownership - Owner
+  'HOME_OWN_RENT'   = 'v_CA06_103', # Home ownership - Renter
+  'HOME_OWN_BAND'   = 'v_CA06_104', # Home ownership - Band Housing
+  'DWELLING_VALUE_AVG'  = 'v_CA06_2054', # Average value of dwelling
+  'DWELLING_COST_OWN'   = 'v_CA06_2055', # Average owner major payments
+  'DWELLING_RENT_AVG'  = 'v_CA06_2050', # Average gross rent
+  'REPAIRS_TOT' = 'v_CA06_105', # Occupied private dwellings by dwelling condition	- Total
+  'REPAIRS_ONLY_REGULAR' = 'v_CA06_106', # Occupied private dwellings by dwelling condition	- Only regular maintenance
+  'REPAIRS_ONLY_MINOR' = 'v_CA06_107', # Occupied private dwellings by dwelling condition	- Only minor repairs needed
+  'REPAIRS_MAJOR' = 'v_CA06_108' # Occupied private dwellings by dwelling condition	- Major repairs needed
+)
+
+CA06_META_DATA <- create_census_meta_data( CENSUS_NUMBER = "CA06", VECTORS = CA06_VECTORS )
+
+CA06_META_DATA %>% readr::write_csv(here::here("out", "StatsCAN_Census_06_BC_META_DATA_DIP.csv")   )
+
+
+CA06_DATA <- get_census(dataset="CA06",
+                        regions=list(PR="59"),
+                        vectors=
+                          CA06_VECTORS,
+                        level='DA', 
+                        quiet = TRUE, 
+                        geo_format = NA,
+                        use_cache = use_cache,
+                        labels = 'short')
+
+
+
+CA06_DATA = CA06_DATA %>% 
+  janitor::clean_names(case = "screaming_snake" ) %>% 
+  mutate(REGION_NAME = as.character(REGION_NAME))
+
+
+CA06_DATA %>% 
+  mutate(CENSUS_YEAR = 2006) %>% 
+  select(CENSUS_YEAR,everything())%>% 
+  readr::write_csv(here::here("out", "StatsCAN_Census_06_BC_DA_DIP.csv")   )
+
+CA06_DATA_labels <- create_census_data_label(CA06_DATA, CA06_VECTORS,CENSUS_COMMON_LABELS)
+
+str(CA06_DATA)
+# tibble [7,848 × 48]
+str(CA06_DATA_labels)
+# 48
+
+# add label to dictionary, which is similar to description.
+skimr::skim(CA06_DATA)  # this is for exploring purpose
+# Create labels as a named vector.
+
+
+
+CA06_DATA_dict = create_dictionary(CA06_DATA,
+                                   # id_var = GEO_UID,
+                                   var_labels = CA06_DATA_labels)
+
+CA06_DATA_dict %>% readr::write_csv(here::here("out", "StatsCAN_Census_06_BC_DA_DICT_DIP.csv")   )
+
+
+# ********************************************************************************
+# PULL 2001 DATA
+# ********************************************************************************
+
+CA01_VECTORS = c(
+  # 'POP'             = 'v_CA01_2',    # Population, 2001
+  'DWELL_TOT'       = 'v_CA01_112',  # Dwellings - Total
+  'DWELL_HOUS'      = 'v_CA01_113',  # Dwellings - Single detached house
+  'DWELL_APT_LRG'   = 'v_CA01_117',  # Dwellings - Apartment 5+ stories
+  'DWELL_APT_SML'   = 'v_CA01_118',  # Dwellings - Apartment < 5 stories
+  'DWELL_MOVE'      = 'v_CA01_120',  # Dwellings - Movable
+  
+  'FAMILIES_TOT' = 'v_CA01_53',   # 
+  'LONE_PARENT_TOT' = 'v_CA01_67',   # Lone Parent - Total
+  'LONE_PARENT_F'   = 'v_CA01_68',   # Lone Parent - Female
+  'LONE_PARENT_M'   = 'v_CA01_72',   # Lone Parent - Male
+  'INC_BT_IND_MED'  = 'v_CA01_1449', # Total Individual Income Before Tax - Median
+  'INC_BT_IND_AVG'  = 'v_CA01_1448', # Total Individual Income Before Tax - Average
+  'INC_BT_FAM_MED'  = 'v_CA01_1508', # Total Family Income Before Tax - Median
+  'INC_BT_FAM_AVG'  = 'v_CA01_1507', # Total Family Income Before Tax - Average
+  # no income after tax family
+  'INC_BT_HHS_MED'  = 'v_CA01_1634', # Total Household Income Before Tax - Median
+  'INC_BT_HHS_AVG'  = 'v_CA01_1633', # Total Household Income Before Tax - Average
+  'LICO_AT_PREVALENCE' = 'v_CA01_1620', # Prevalence of low income based on the Low-income cut-offs, after tax (LICO-AT) (%)
+  'OCC_TOT'         = 'v_CA01_989', # Occupation - Total
+  'OCC_MGMT'        = 'v_CA01_990', # Occupation - Management
+  'LABOUR_PART_RT'  = 'v_CA01_740', # Labour Force - Participation Rate
+  'LABOUR_EMPL_RT'  = 'v_CA01_741', # Labour Force - Employment Rate
+  'LABOUR_UNEM_RT'  = 'v_CA01_742', # Labour Force - Unemployment Rate
+  'IN_LAB_FORCE_TOT'  = 'v_CA01_735', # Population aged 15 years and over by Labour force status - Total
+  'IN_LAB_FORCE_YES'  = 'v_CA01_736', # Population aged 15 years and over by Labour force status - in labour force
+  'IN_LAB_FORCE_NO'  = 'v_CA01_739', # Population aged 15 years and over by Labour force status - not in labour force
+  
+  'HOME_OWN_TOT'    = 'v_CA01_96', # Home ownership - Total  the same as repair_tot
+  'HOME_OWN_OWN'    = 'v_CA01_99', # Home ownership - Owner
+  'HOME_OWN_RENT'   = 'v_CA01_100', # Home ownership - Renter
+  'HOME_OWN_BAND'   = 'v_CA01_101', # Home ownership - Band Housing
+  
+  'DWELLING_VALUE_AVG'  = 'v_CA01_1674', # Average value of dwelling
+  'DWELLING_COST_OWN'   = 'v_CA01_1671', # Average owner major payments
+  'DWELLING_RENT_AVG'  = 'v_CA01_1667', # Average gross rent
+  
+  # 'REPAIRS_TOT' = 'v_CA01_96', # Occupied private dwellings by dwelling condition	- Total
+  'REPAIRS_ONLY_REGULAR' = 'v_CA01_102', # Occupied private dwellings by dwelling condition	- Only regular maintenance
+  'REPAIRS_ONLY_MINOR' = 'v_CA01_103', # Occupied private dwellings by dwelling condition	- Only minor repairs needed
+  'REPAIRS_MAJOR' = 'v_CA01_104' # Occupied private dwellings by dwelling condition	- Major repairs needed
+)
+
+CA01_META_DATA <- create_census_meta_data( CENSUS_NUMBER = "CA01", VECTORS = CA01_VECTORS )
+
+CA01_META_DATA %>% readr::write_csv(here::here("out", "StatsCAN_Census_01_BC_META_DATA_DIP.csv")   )
+
+CA01_DATA <- get_census(dataset="CA01",
+                        regions=list(PR="59"),
+                        vectors=
+                          CA01_VECTORS,
+                        level='DA', 
+                        quiet = TRUE, 
+                        geo_format = NA,
+                        use_cache = use_cache,
+                        labels = 'short')
+
+CA01_DATA <- CA01_DATA %>% 
+  janitor::clean_names(case = 'screaming_snake')%>% 
+  mutate(REGION_NAME = as.character(REGION_NAME))
+
+
+CA01_DATA %>% 
+  mutate(CENSUS_YEAR = 2001) %>% 
+  select(CENSUS_YEAR,everything()) %>% 
+  readr::write_csv(here::here("out", "StatsCAN_Census_01_BC_DA_DIP.csv")   )
+
+CA01_DATA_labels <- create_census_data_label(CA01_DATA, CA01_VECTORS,CENSUS_COMMON_LABELS)
+
+str(CA01_DATA)
+# tibble [7,848 × 45]
+str(CA01_DATA_labels)
+# 45 ?
+
+CA01_DATA = CA01_DATA %>%
+  mutate(REGION_NAME = as.character(REGION_NAME) )
+
+# A simple dictionary printed to console
+create_dictionary(CA01_DATA)
+
+# add label to dictionary, which is similar to description.
+skimr::skim(CA01_DATA)  # this is for exploring purpose
+# Create labels as a named vector.
+
+CA01_DATA_dict = create_dictionary(CA01_DATA,
+                                   # id_var = GEO_UID,
+                                   var_labels = CA01_DATA_labels)
+
+CA01_DATA_dict %>% readr::write_csv(here::here("out", "StatsCAN_Census_01_BC_DA_DICT_DIP.csv")   )
