@@ -12,6 +12,7 @@
 
 # This script is used to download the population estimates for British Columbia from the BC Stats Datacatalogue website
 # The data is downloaded in CSV format and saved to the out folder
+# updated: 2025-02-20 we need the age groups, so redo this step
 
 pacman::p_load(tidyverse, readxl, safepaths,bcdata)
 library(dplyr)
@@ -27,7 +28,7 @@ bcdc_browse("86839277-986a-4a29-9f70-fa9b1166f6cb")
 bc_sub_provincial_population_estimates_and_projections <- bcdc_get_record("86839277-986a-4a29-9f70-fa9b1166f6cb")
 
 bcdc_tidy_resources('86839277-986a-4a29-9f70-fa9b1166f6cb')
-
+# 7 Regional Districts (Census Divisions) is what we need. 
 municipality_population_df <- bcdc_get_data('86839277-986a-4a29-9f70-fa9b1166f6cb', 
                                             resource = '0e15d04d-127c-457a-b999-20800c929927')
 
@@ -45,11 +46,12 @@ municipality_population_df %>%
 
 # The GCS 202406 csv file is provided by Econ team and saved in LAN. Need safe network path to get it.
 # The network path should be set to a location that could be save in the environment variable SAFEPATHS_NETWORK_PATH or a config file.
+# if the safepaths does not work, switch to config file.
 
 stopifnot(Sys.getenv("SAFEPATHS_NETWORK_PATH") != "")
 
 TMF_file  <-  use_network_path("data/raw_data/TMF/GCS_202406.csv")
-
+# TMF_file  <-  file.path(config::get("lan_path"),"2024 SES Index/data/raw_data/TMF/GCS_202406.csv")
 TMF <- read_csv(TMF_file)
 
 
@@ -106,9 +108,10 @@ final_data <- merged_data %>%
 
 # Join the population estimates with the TMF_CSD file
 municipality_population_CSD_df <- municipality_population_df %>% 
-  select(Region, Region.Name, Region.Type,Year,Type,Gender, Total ) %>%
+  # we need the age group, so no select anymore
+  # select(Region, Region.Name, Region.Type,Year,Type,Gender, Total ) %>%
   filter(Type == "Estimate",
-         Gender == "T",
+         # Gender == "T",
          Year>=2000) %>% 
   mutate(YEAR = as.character(Year),
          CDCSD = str_pad(Region, 5, side = "left", pad = "0")) %>%
@@ -117,7 +120,7 @@ municipality_population_CSD_df <- municipality_population_df %>%
     # should use CSD code to join
     by = c("CDCSD" = "CDCSD", "YEAR" = "YEAR")  # Region.Name is not standardized, for example, Langley, District Municipality; Langley, City of
   ) %>% 
-  select(CDCSD , REGION_ID = Region,  REGION_NAME = Region.Name, MUN_NAME = MUNNAME, YEAR,   POPULATION = Total)
+  select(CDCSD , REGION_ID = Region,  REGION_NAME = Region.Name, MUN_NAME = MUNNAME, YEAR,   POPULATION = Total, everything())
 
 # save to out folder
 municipality_population_CSD_df  %>%
