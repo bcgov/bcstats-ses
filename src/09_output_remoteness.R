@@ -58,24 +58,26 @@ options(timeout=600)
 
 ###########################################################################################
 # DA shp file
+# since geodata team added DA id in the dataset, we can skip this step now. Prevously, we have to calculate the DA id using st_join function.
+# we can jump to line 251
 ###########################################################################################
 
 # grab the file from "Statistics Canada", only run once.
 # download.file("https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lda_000b21a_e.zip",
-#               destfile=use_network_path("data/raw_data/remoteness/lda_000a21a_e.zip"))
-# unzip(use_network_path("data/raw_data/remoteness/lda_000a21a_e.zip"),
-#       exdir = use_network_path("data/raw_data/remoteness/lda_000a21a_e"))
+#               destfile=use_network_path("2024 SES Index/data/raw_data/remoteness/lda_000a21a_e.zip"))
+# unzip(use_network_path("2024 SES Index/data/raw_data/remoteness/lda_000a21a_e.zip"),
+#       exdir = use_network_path("2024 SES Index/data/raw_data/remoteness/lda_000a21a_e"))
 # ## READ DISSEMINATION BLOCKS
-file_path <- use_network_path("data/raw_data/remoteness/lda_000a21a_e/lda_000b21a_e.shp")
-file_path = file.path("G:/Operations/Data Science and Analytics/2024 SES Index", "data/raw_data/remoteness/lda_000a21a_e/lda_000b21a_e.shp")
-
-# Load the dissemination area shapefile
-da_shapefile <- st_read(file_path)
-
-
-da_shapefile <- da_shapefile %>% 
-    filter(PRUID == '59') %>% 
-    st_transform(crs=3005)
+# file_path <- use_network_path("2024 SES Index/data/raw_data/remoteness/lda_000a21a_e/lda_000b21a_e.shp")
+# file_path = file.path("G:/Operations/Data Science and Analytics/2024 SES Index", "2024 SES Index/data/raw_data/remoteness/lda_000a21a_e/lda_000b21a_e.shp")
+# 
+# # Load the dissemination area shapefile
+# da_shapefile <- st_read(file_path)
+# 
+# 
+# da_shapefile <- da_shapefile %>% 
+#     filter(PRUID == '59') %>% 
+#     st_transform(crs=3005)
   # glimpse()
 
 
@@ -85,20 +87,20 @@ da_shapefile <- da_shapefile %>%
 
 # grab the file from "Statistics Canada", only run once.
 # download.file("https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lfsa000b21a_e.zip",
-#               destfile=use_network_path("data/raw_data/remoteness/lda_000a21a_e.zip")
+#               destfile=use_network_path("2024 SES Index/data/raw_data/remoteness/lda_000a21a_e.zip")
 #               # destfile= "./out/lfsa000b21a_e.zip"
 #               )
-# unzip(use_network_path("data/raw_data/remoteness/lfsa000b21a_e.zip"),
-#       exdir = use_network_path("data/raw_data/remoteness/"))
+# unzip(use_network_path("2024 SES Index/data/raw_data/remoteness/lfsa000b21a_e.zip"),
+#       exdir = use_network_path("2024 SES Index/data/raw_data/remoteness/"))
 # ## READ DISSEMINATION BLOCKS
-file_path <- use_network_path("data/raw_data/remoteness/lfsa000b21a_e/lfsa000b21a_e.shp")
-# Load the dissemination area shapefile
-fsa_shapefile <- st_read(file_path)
-
-
-fsa_shapefile <- fsa_shapefile %>% 
-  filter(PRUID == '59') %>% 
-  st_transform(crs=3005)
+# file_path <- use_network_path("2024 SES Index/data/raw_data/remoteness/lfsa000b21a_e/lfsa000b21a_e.shp")
+# # Load the dissemination area shapefile
+# fsa_shapefile <- st_read(file_path)
+# 
+# 
+# fsa_shapefile <- fsa_shapefile %>% 
+#   filter(PRUID == '59') %>% 
+#   st_transform(crs=3005)
 # glimpse()
 
 
@@ -109,174 +111,177 @@ fsa_shapefile <- fsa_shapefile %>%
 
 # grab the file from "Statistics Canada", only run once.
 # download.file("https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lcsd000b21a_e.zip",
-#               # destfile=use_network_path("data/raw_data/remoteness/lcsd000b21a_e.zip")lcsd000b21a_e
+#               # destfile=use_network_path("2024 SES Index/data/raw_data/remoteness/lcsd000b21a_e.zip")lcsd000b21a_e
 #               destfile= "./out/lcsd000b21a_e.zip"
 # )
-# unzip(use_network_path("data/raw_data/remoteness/lcsd000b21a_e.zip"),
-#       exdir = use_network_path("data/raw_data/remoteness/"))
+# unzip(use_network_path("2024 SES Index/data/raw_data/remoteness/lcsd000b21a_e.zip"),
+#       exdir = use_network_path("2024 SES Index/data/raw_data/remoteness/"))
 # ## READ DISSEMINATION BLOCKS
-file_path <- use_network_path("data/raw_data/remoteness/lcsd000b21a_e/lcsd000b21a_e.shp")
-# Load the dissemination area shapefile
-csd_shapefile <- st_read(file_path)
-
-
-csd_shapefile <- csd_shapefile %>% 
-  filter(PRUID == '59') %>% 
-  st_transform(crs=3005)
-# glimpse()
+# file_path <- use_network_path("2024 SES Index/data/raw_data/remoteness/lcsd000b21a_e/lcsd000b21a_e.shp")
+# # Load the dissemination area shapefile
+# csd_shapefile <- st_read(file_path)
+# 
+# 
+# csd_shapefile <- csd_shapefile %>% 
+#   filter(PRUID == '59') %>% 
+#   st_transform(crs=3005)
+# # glimpse()
 
 ###########################################################################################
 # Service BC and Hospitals
+# These three files do not have the DA ids, so we have to calculate it using st_join.
 ###########################################################################################
 
-servicebc_file_path = use_network_path("data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_nearest_servicebc_20241212_101844/30_percent_site_Hybrid_geocoder_nearest_servicebc_20241212_101844.csv")
-
-hospital_file_path = use_network_path("data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_nearest_hospitals_20241218_081633/30_percent_site_Hybrid_geocoder_nearest_hospitals_20241218_081633.csv")
-
-school_file_path = use_network_path("data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_nearest_schools_20241225_180826/30_percent_site_Hybrid_geocoder_nearest_schools_20241225_180826.csv")
-
-address_data_path_list = c(
-  servicebc_file_path,
-  hospital_file_path,
-  school_file_path
-)
-
-address_dist_data <- address_data_path_list %>%  
-  read_csv() %>% 
-  bind_rows()
-
-# Convert to an sf object (BC Albers projection: EPSG 3005)
-address_dist_sf <- st_as_sf(address_dist_data, coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
-
-
-
-
-# Efficiency:
-#   
-#   For large datasets, consider spatial indexing using st_join(..., largest = TRUE) to speed up operations.
-
-# Spatial join: append dissemination area IDs to address points
-address_sf_with_da <- st_join(address_dist_sf, da_shapefile, left = TRUE)
-
-
-# View the resulting dataset
-print(address_sf_with_da)
+# servicebc_file_path = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_nearest_servicebc_20241212_101844/30_percent_site_Hybrid_geocoder_nearest_servicebc_20241212_101844.csv")
+# 
+# hospital_file_path = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_nearest_hospitals_20241218_081633/30_percent_site_Hybrid_geocoder_nearest_hospitals_20241218_081633.csv")
+# 
+# school_file_path = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_nearest_schools_20241225_180826/30_percent_site_Hybrid_geocoder_nearest_schools_20241225_180826.csv")
+# 
+# address_data_path_list = c(
+#   servicebc_file_path,
+#   hospital_file_path,
+#   school_file_path
+# )
+# 
+# address_dist_data <- address_data_path_list %>%  
+#   read_csv() %>% 
+#   bind_rows()
+# 
+# # Convert to an sf object (BC Albers projection: EPSG 3005)
+# address_dist_sf <- st_as_sf(address_dist_data, coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
+# 
+# 
+# 
+# 
+# # Efficiency:
+# #   
+# #   For large datasets, consider spatial indexing using st_join(..., largest = TRUE) to speed up operations.
+# 
+# # Spatial join: append dissemination area IDs to address points
+# address_sf_with_da <- st_join(address_dist_sf, da_shapefile, left = TRUE)
+# 
+# 
+# # View the resulting dataset
+# print(address_sf_with_da)
 
 # Save to a new file (optional)
-st_write(address_sf_with_da, 
-         "./out/address_sf_with_da.geojson"
-         # use_network_path("data/raw_data/remoteness/address_servicebc_with_da.geojson")
-         )
-
-address_sf_with_da %>% 
-  st_drop_geometry() %>% 
-  # inner_join(address_dist_data) %>% 
-  write_csv(use_network_path("data/raw_data/remoteness/address_sf_with_da.csv"))
-
-
-if (!exists("address_sf_with_da")) {
-  address_sf_with_da_df <- read_csv( "./out/address_sf_with_da.csv")
-}
-address_sf_with_da_df %>% glimpse()
+# st_write(address_sf_with_da, 
+#          "./out/address_sf_with_da.geojson"
+#          # use_network_path("2024 SES Index/data/raw_data/remoteness/address_servicebc_with_da.geojson")
+#          )
+# 
+# if (!exists("address_sf_with_da")) {
+#   address_sf_with_da <- st_read( use_network_path("2024 SES Index/data/raw_data/remoteness/address_servicebc_with_da.geojson"))
+# }
+# 
+# 
+# # Extract coordinates
+# coords <- st_coordinates(address_sf_with_da)
+# 
+# coords <- coords %>% as.data.frame()%>% setNames(c("SITE_ALBERS_X", "SITE_ALBERS_Y"))
+# # str(coords)
+# 
+# address_sf_with_da %>% 
+#   st_drop_geometry() %>% 
+#   bind_cols(coords) %>%
+#   select(DAUID, DGUID ,  FULL_ADDRESS, SITE_ALBERS_X, SITE_ALBERS_Y,tag, everything(), -PRUID) %>%
+#   # write_csv( "./out/address_sf_with_da.csv")
+#   write_csv(use_network_path("2024 SES Index/data/raw_data/remoteness/address_sf_with_da.csv"))
+# 
+# 
+# if (!exists("address_sf_with_da_df")) {
+#   address_sf_with_da_df <- read_csv( "./out/address_sf_with_da.csv")
+# }
 
 # format(2.021e-304, scientific = FALSE)
+
 ###########################################################################################
-# add brian's new samples
+# add geodata team's new samples with DA already appened. Later on they added unique address id. 
 ###########################################################################################
-get_network_path()
-new_da_servicebc_file_path = use_network_path("data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250207_140020/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250207_140020.csv")
-new_da_servicebc_file_path = file.path("G:/Operations/Data Science and Analytics/2024 SES Index", "data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250207_140020/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250207_140020.csv")
-new_da_servicebc_df <-    read_csv(new_da_servicebc_file_path) 
-new_da_servicebc_df %>% 
-  filter(FULL_ADDRESS == "Abbotsford BC") %>%
-  glimpse()
-new_da_servicebc_sf <- st_as_sf(new_da_servicebc_df , coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
-# Spatial join: append dissemination area IDs to address points
-new_da_servicebc_address_sf_with_da <- st_join(new_da_servicebc_sf, da_shapefile, left = TRUE)
+# this is new data that geodata team created with new sampling 
+# new_da_servicebc_file_path = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250207_140020/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250207_140020.csv")
+# new_da_servicebc_df <-    read_csv(new_da_servicebc_file_path)
+# 
+# new_da_servicebc_df %>% 
+#   count(SITE_ALBERS_X,SITE_ALBERS_Y) %>% 
+#   filter(n>1) %>% 
+#   arrange(-n)
+# # 17,265 more rows, and one has 371 address?
+# 
+# new_da_servicebc_sf <- st_as_sf(new_da_servicebc_df , coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
+# # Spatial join: append dissemination area IDs to address points
+# new_da_servicebc_address_sf_with_da <- st_join(new_da_servicebc_sf, da_shapefile, left = TRUE)
+# 
+# address_plus_new_with_da_df <- dplyr::union(address_sf_with_da_df %>% 
+#                                               mutate(across(
+#                                                 .cols = c(DAUID, DGUID, PRUID),
+#                                                 .fns = as.character
+#                                               ))%>% select(-DGUID), 
+#                                             new_da_servicebc_address_sf_with_da %>% st_drop_geometry() %>% select(-DGUID))
 
-address_plus_new_with_da_df <- dplyr::union(address_sf_with_da_df %>% 
-                                              mutate(across(
-                                                .cols = c(DAUID, DGUID, PRUID),
-                                                .fns = as.character
-                                              ))%>% select(-DGUID), 
-                                            new_da_servicebc_address_sf_with_da %>% st_drop_geometry() %>% select(-DGUID))
-
-address_plus_new_with_da_df %>% 
-  write_csv("out/address_plus_new_with_da.csv")
-
-address_plus_new_with_da_df %>%
-  dplyr::filter(FULL_ADDRESS == "621 Green Rd Quathiaski Cove BC")
-
-address_plus_new_with_da_df %>% 
-  write_csv(use_network_path("data/raw_data/remoteness/address_plus_new_with_da.csv"))
-
-address_plus_new_with_da_df %>% 
-  glimpse()
+# address_plus_new_with_da_df %>% 
+#   write_csv("out/address_plus_new_with_da.csv")
+# 
+# address_plus_new_with_da_df %>%
+#   dplyr::filter(FULL_ADDRESS == "621 Green Rd Quathiaski Cove BC")
+# 
+# address_plus_new_with_da_df %>% 
+#   write_csv(use_network_path("2024 SES Index/data/raw_data/remoteness/address_plus_new_with_da.csv"))
+#             
+            
+# if (!exists("address_plus_new_with_da")) {
+#   address_plus_new_with_da <- read_csv( "./out/address_plus_new_with_da.csv")
+# }
+# 
+# address_plus_new_with_da %>% glimpse()
 # Rows: 2,281,715
 
-address_sf_with_da_df %>% 
-  # filter(tag == "servicebc") %>%
-  # select(FULL_ADDRESS) %>%
-  # anti_join(new_da_servicebc_address_sf_with_da %>% st_drop_geometry() %>% select(FULL_ADDRESS) , by = c("FULL_ADDRESS")) %>%
-  glimpse()
-# new Rows:  431,512
-# full Rows: 1,855,566
+###########################################################################################
+###########################################################################################
+###########################################################################################
+###########################################################################################
+# The following datasets are updated and much better than the previous one since they have the right address and adddress id and DA id.
+# geodata team added another batch and fixed the invalid address. 
+# new_da_servicebc_file_path_1 = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250207_140020_JOINED_2.zip")
+# new_da_servicebc_df1 <-    read_csv(new_da_servicebc_file_path_1) 
+# new_da_servicebc_df1 %>% glimpse() #Rows: 615,570
+# new_da_servicebc_df1 %>% 
+#   filter(FULL_ADDRESS == "5783 Toby St Edgewater BC")
 
-address_sf_with_da_df %>% 
-  filter(tag == "servicebc") %>%
+# geodata team creates another batch for service bc with address id.
+# we are going to use this one.
+new_da_servicebc_file_path_2 = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250212_150617/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250212_150617.csv")
+new_da_servicebc_df2 <-    read_csv(new_da_servicebc_file_path_2)
+new_da_servicebc_df2 %>% glimpse()
+# Rows: 614,459
+# new data for hospital 
+new_da_hospital_file_path = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_hospitals_20250219_100047/30_percent_site_Hybrid_geocoder_DA_nearest_hospitals_20250219_100047.csv")
+
+new_da_hospital_df <-    read_csv(new_da_hospital_file_path)
+new_da_hospital_df %>% glimpse()
+# Rows: 614,459
+
+new_da_servicebc_df2 %>% 
+  # filter(tag == "servicebc") %>%
   select(FULL_ADDRESS) %>%
   count(FULL_ADDRESS) %>%
   filter(n > 1) %>%
   glimpse()
 
-address_sf_with_da_df %>% 
-  filter(tag == "servicebc") %>%
+new_da_servicebc_df2 %>% 
+  filter(FULL_ADDRESS == "1090A Main St Valemount BC")
+
+new_da_hospital_df %>% 
+  # filter(tag == "servicebc") %>%
   select(FULL_ADDRESS) %>%
-  # inner_join(new_da_servicebc_address_sf_with_da %>% st_drop_geometry() %>% select(FULL_ADDRESS) , by = c("FULL_ADDRESS")) %>%
-  glimpse()
-
-
-new_da_servicebc_address_sf_with_da %>% st_drop_geometry() %>% select(FULL_ADDRESS) %>% 
-count(FULL_ADDRESS) %>%
+  count(FULL_ADDRESS) %>%
   filter(n > 1) %>%
   glimpse()
-# a few duplicated rows, but the distance measures are the same.
+new_da_hospital_df %>% 
+  filter(FULL_ADDRESS == "1090A Main St Valemount BC")
+# one duplicated row, but the distance measures are the same.
 
-###########################################################################################
-# add brian's new samples with DA id already
-###########################################################################################
-get_network_path()
-new_da_servicebc_file_path = use_network_path("data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250207_140020/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250207_140020.csv")
-new_da_servicebc_file_path = file.path("G:/Operations/Data Science and Analytics/2024 SES Index", "data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250207_140020/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250207_140020.csv")
-new_da_servicebc_df <-    read_csv(new_da_servicebc_file_path) 
-# find some duplicated rows in terms of FULL_ADDRESS, but the SITE_ALBERS_X, SITE_ALBERS_Y seem to be different, however, the distance measures are the same.
-new_da_servicebc_df %>% 
-  filter(FULL_ADDRESS == "Abbotsford BC") %>%
-  glimpse()
-# 16 rows
-new_da_servicebc_sf <- st_as_sf(new_da_servicebc_df , coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
-# Spatial join: append dissemination area IDs to address points
-new_da_servicebc_address_sf_with_da <- st_join(new_da_servicebc_sf, da_shapefile, left = TRUE)
-
-address_plus_new_with_da_df <- dplyr::union(address_sf_with_da_df %>% 
-                                              mutate(across(
-                                                .cols = c(DAUID, DGUID, PRUID),
-                                                .fns = as.character
-                                              ))%>% select(-DGUID), 
-                                            new_da_servicebc_address_sf_with_da %>% st_drop_geometry() %>% select(-DGUID))
-
-address_plus_new_with_da_df %>% 
-  write_csv("out/address_plus_new_with_da.csv")
-
-if (!exists("address_sf_with_da")) {
-  address_plus_new_with_da_df <- read_csv( "./out/address_plus_new_with_da.csv")
-}
-address_plus_new_with_da_df %>% glimpse()
-# Rows: 2,281,715
-address_plus_new_with_da_df %>% 
-  filter(FULL_ADDRESS == "Abbotsford BC") %>%
-  glimpse()
-# 72 rows
 
 ###########################################################################################
 #   create a DA level summary. 
@@ -296,7 +301,7 @@ avg_dist_drvtime_by_da_service <- address_sf_with_da %>%
   )
 
 avg_dist_drvtime_by_da_service %>% 
-  write_csv(use_network_path("data/raw_data/remoteness/avg_dist_drvtime_by_da_service.csv"))
+  write_csv(use_network_path("2024 SES Index/data/raw_data/remoteness/avg_dist_drvtime_by_da_service.csv"))
 
 
 avg_dist_drvtime_by_da<- address_sf_with_da %>% 
@@ -309,7 +314,7 @@ avg_dist_drvtime_by_da<- address_sf_with_da %>%
   )
 
 avg_dist_drvtime_by_da %>% 
-  write_csv(use_network_path("data/raw_data/remoteness/avg_dist_drvtime_by_da.csv"))
+  write_csv(use_network_path("2024 SES Index/data/raw_data/remoteness/avg_dist_drvtime_by_da.csv"))
 
 
 ###########################################################################################
@@ -317,7 +322,7 @@ avg_dist_drvtime_by_da %>%
 ###########################################################################################
 
 # Get a DA2021 list from TMF.
-TMF_file  <-  use_network_path("data/raw_data/TMF/GCS_202406.csv")
+TMF_file  <-  use_network_path("2024 SES Index/data/raw_data/TMF/GCS_202406.csv")
 
 TMF <- read_csv(TMF_file)
 
@@ -351,7 +356,7 @@ CSD_DA_address_dist_drvtime <- CSD_DA_address_dist_drvtime %>%
   
 st_write(CSD_DA_address_dist_drvtime, 
          "./out/CSD_DA_address_dist_drvtime.geojson"
-         # use_network_path("data/raw_data/remoteness/address_servicebc_with_da.geojson")
+         # use_network_path("2024 SES Index/data/raw_data/remoteness/address_servicebc_with_da.geojson")
 )
 
 # check if there is duplication
