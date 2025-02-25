@@ -107,25 +107,30 @@ final_data <- merged_data %>%
 #################################################################################
 
 # Join the population estimates with the TMF_CSD file
-municipality_population_CSD_df <- municipality_population_df %>% 
+municipality_population_CSD_df <- municipality_population_df %>%
+  janitor::clean_names(case = "screaming_snake" )  %>% 
   # we need the age group, so no select anymore
   # select(Region, Region.Name, Region.Type,Year,Type,Gender, Total ) %>%
-  filter(Type == "Estimate",
+  filter(TYPE == "Estimate",
          # Gender == "T",
-         Year>=2000) %>% 
-  mutate(YEAR = as.character(Year),
-         CDCSD = str_pad(Region, 5, side = "left", pad = "0")) %>%
+         YEAR>=2000) %>% 
+  mutate(YEAR = as.character(YEAR),
+         CDCSD = str_pad(REGION, 5, side = "left", pad = "0")) %>%
   left_join(
     final_data,
     # should use CSD code to join
     by = c("CDCSD" = "CDCSD", "YEAR" = "YEAR")  # Region.Name is not standardized, for example, Langley, District Municipality; Langley, City of
   ) %>% 
-  select(CDCSD , REGION_ID = Region,  REGION_NAME = Region.Name, MUN_NAME = MUNNAME, YEAR,   POPULATION = Total, everything())
+  select(CDCSD ,  REGION_NAME , MUN_NAME = MUNNAME, YEAR, GENDER,  POPULATION = TOTAL, starts_with("X")) %>% 
+  rename_with(.fn = ~ str_replace(string = .x,  
+                          pattern ="X", 
+                          replacement = "AGE_"),
+              .cols = starts_with("X"))
 
 # save to out folder
 municipality_population_CSD_df  %>%
-  janitor::clean_names(case = "screaming_snake" ) %>% 
-  write_csv("out/BC_municipality_CSD_population_estimate.csv")
+  # write_csv("out/BC_municipality_CSD_population_estimate.csv")
+  write_csv(use_network_path("data/Output/BC_municipality_CSD_population_estimate.csv"))
 
 # create a dictionary of the data types
 #################################################################################################
@@ -138,19 +143,21 @@ municipality_population_CSD_df  %>%
 
 municipality_population_CSD_labels = c(
         'CDCSD' = 'Census Subdivision Code',
-        'REGION_ID'= 'Region ID',
         'REGION_NAME'= 'Region Name',
         'MUN_NAME'= 'Census Subdivision Name',
         'YEAR' = 'Year',
-        'POPULATION'= 'Total Population Estimate'
+        'GENDER' = 'Gender',
+        'POPULATION'= 'Total Population Estimate', 
+        
     )
 
 
-municipality_population_CSD_dict <- create_dictionary(municipality_population_CSD_df ,
+municipality_population_CSD_dict <- create_dictionary(municipality_population_CSD_df %>% 
+                                                        select(-starts_with("AGE")),
                                                             id_var = c("CDCSD", "YEAR"),
                                                             var_labels = municipality_population_CSD_labels)
 # 
-file_path <- use_network_path("data/Output/municipality_population_CSD_dict.csv")
+file_path <- use_network_path("data/Output/BC_municipality_CSD_population_estimate_dict.csv")
 write.csv(municipality_population_CSD_dict, file = file_path)
-file_path <- "out/municipality_population_CSD_dict.csv"
+file_path <- "out/BC_municipality_CSD_population_estimate_dict.csv"
 write.csv(municipality_population_CSD_dict, file = file_path)
