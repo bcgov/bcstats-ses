@@ -62,8 +62,8 @@ CA21_VECTORS = c(
   # Household after-tax income groups in 2020 for private households
   
   
-  'INC_BT_HH_MED'  = 'v_CA21_906', # Median total income of household in 2020 ($)
-  'INC_AT_HH_MED'  = 'v_CA21_907', # Median after-tax income of household in 2020 ($)
+  'INC_BT_HHS_MED'  = 'v_CA21_906', # Median total income of household in 2020 ($)
+  'INC_AT_HHS_MED'  = 'v_CA21_907', # Median after-tax income of household in 2020 ($)
   
 
   'INC_BT_IND_MED'  = 'v_CA21_560', # Total Individual Income Before Tax - Median -  Number of total income recipients aged 15 years and over in private households in 2020 - Median total income in 2020 among recipients ($)
