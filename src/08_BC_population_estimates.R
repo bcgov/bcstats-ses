@@ -20,9 +20,10 @@ library(tidyr)
 library(janitor)
 library(datadictionary)
 
-bcdc_search("municipality-population")
+# only need to run once to find the right record id in data catalogue.
+# bcdc_search("municipality-population")
 
-bcdc_browse("86839277-986a-4a29-9f70-fa9b1166f6cb")
+# bcdc_browse("86839277-986a-4a29-9f70-fa9b1166f6cb")
 
 
 bc_sub_provincial_population_estimates_and_projections <- bcdc_get_record("86839277-986a-4a29-9f70-fa9b1166f6cb")
@@ -32,7 +33,7 @@ bcdc_tidy_resources('86839277-986a-4a29-9f70-fa9b1166f6cb')
 municipality_population_df <- bcdc_get_data('86839277-986a-4a29-9f70-fa9b1166f6cb', 
                                             resource = '0e15d04d-127c-457a-b999-20800c929927')
 
-
+# check the length of the regions
 municipality_population_df %>%
   count(Region, Region.Name, Region.Type) %>% 
   glimpse()
@@ -40,8 +41,8 @@ municipality_population_df %>%
 ######################################################################################
 # this file only has municipal population estimates for British Columbia
 # we need the CSD code to join with other datasets
-# CSD code is available in TMF file.
-
+# CSD code is available in the population estimates and also in TMF file.
+# Import TMF file to verify the CSD code in population estimate
 ######################################################################################
 
 # The GCS 202406 csv file is provided by Econ team and saved in LAN. Need safe network path to get it.
@@ -112,7 +113,7 @@ municipality_population_CSD_df <- municipality_population_df %>%
   # we need the age group, so no select anymore
   # select(Region, Region.Name, Region.Type,Year,Type,Gender, Total ) %>%
   filter(TYPE == "Estimate",
-         # Gender == "T",
+         GENDER == "T",
          YEAR>=2000) %>% 
   mutate(YEAR = as.character(YEAR),
          CDCSD = str_pad(REGION, 5, side = "left", pad = "0")) %>%
@@ -120,16 +121,20 @@ municipality_population_CSD_df <- municipality_population_df %>%
     final_data,
     # should use CSD code to join
     by = c("CDCSD" = "CDCSD", "YEAR" = "YEAR")  # Region.Name is not standardized, for example, Langley, District Municipality; Langley, City of
-  ) %>% 
-  select(CDCSD ,  REGION_NAME , MUN_NAME = MUNNAME, YEAR, GENDER,  POPULATION = TOTAL, starts_with("X")) %>% 
+  ) %>%
+  select(CDCSD ,  REGION_NAME , MUN_NAME = MUNNAME, YEAR, POPULATION = TOTAL, starts_with("X")) %>% 
   rename_with(.fn = ~ str_replace(string = .x,  
                           pattern ="X", 
                           replacement = "AGE_"),
               .cols = starts_with("X"))
 
+
+
+
 # save to out folder
 municipality_population_CSD_df  %>%
-  # write_csv("out/BC_municipality_CSD_population_estimate.csv")
+  write_csv("out/BC_municipality_CSD_population_estimate.csv")
+municipality_population_CSD_df  %>%
   write_csv(use_network_path("data/Output/BC_municipality_CSD_population_estimate.csv"))
 
 # create a dictionary of the data types
@@ -146,9 +151,7 @@ municipality_population_CSD_labels = c(
         'REGION_NAME'= 'Region Name',
         'MUN_NAME'= 'Census Subdivision Name',
         'YEAR' = 'Year',
-        'GENDER' = 'Gender',
-        'POPULATION'= 'Total Population Estimate', 
-        
+        'POPULATION'= 'Total Population Estimate'
     )
 
 
