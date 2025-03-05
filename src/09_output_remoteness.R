@@ -23,16 +23,16 @@
 ###################################################################
 
 
-
-## Set library
-pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow, duckdb, cancensus)
-
-library(rgdal)
+# Load necessary libraries
 library(sf)
+library(ggplot2)
+library(dplyr)
+pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow, duckdb, cancensus)
 library(jsonlite)
-library(lwgeom )
-
-
+library(cowplot) # For aligning multiple plots
+library(patchwork )
+# Load the rlang package for the bang-bang operator
+library(rlang)
 
 ###################################################################
 # # boundary files
@@ -43,8 +43,6 @@ library(lwgeom )
 
 
 ###################################################################
-
-
 
 
 # To retrieve an option
@@ -68,42 +66,15 @@ options(timeout=600)
 # unzip(use_network_path("2024 SES Index/data/raw_data/remoteness/lda_000a21a_e.zip"),
 #       exdir = use_network_path("2024 SES Index/data/raw_data/remoteness/lda_000a21a_e"))
 # ## READ DISSEMINATION BLOCKS
-# file_path <- use_network_path("2024 SES Index/data/raw_data/remoteness/lda_000a21a_e/lda_000b21a_e.shp")
-# file_path = file.path("G:/Operations/Data Science and Analytics/2024 SES Index", "2024 SES Index/data/raw_data/remoteness/lda_000a21a_e/lda_000b21a_e.shp")
+file_path <- use_network_path("2024 SES Index/data/raw_data/remoteness/lda_000a21a_e/lda_000b21a_e.shp")
 # 
 # # Load the dissemination area shapefile
-# da_shapefile <- st_read(file_path)
+da_shapefile <- st_read(file_path)
 # 
 # 
-# da_shapefile <- da_shapefile %>% 
-#     filter(PRUID == '59') %>% 
-#     st_transform(crs=3005)
-  # glimpse()
-
-
-###########################################################################################
-# FSA shp file
-###########################################################################################
-
-# grab the file from "Statistics Canada", only run once.
-# download.file("https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lfsa000b21a_e.zip",
-#               destfile=use_network_path("2024 SES Index/data/raw_data/remoteness/lda_000a21a_e.zip")
-#               # destfile= "./out/lfsa000b21a_e.zip"
-#               )
-# unzip(use_network_path("2024 SES Index/data/raw_data/remoteness/lfsa000b21a_e.zip"),
-#       exdir = use_network_path("2024 SES Index/data/raw_data/remoteness/"))
-# ## READ DISSEMINATION BLOCKS
-# file_path <- use_network_path("2024 SES Index/data/raw_data/remoteness/lfsa000b21a_e/lfsa000b21a_e.shp")
-# # Load the dissemination area shapefile
-# fsa_shapefile <- st_read(file_path)
-# 
-# 
-# fsa_shapefile <- fsa_shapefile %>% 
-#   filter(PRUID == '59') %>% 
-#   st_transform(crs=3005)
-# glimpse()
-
-
+da_shapefile <- da_shapefile %>%
+    filter(PRUID == '59') %>%
+    st_transform(crs=3005)
 ###########################################################################################
 # CSD shp file
 # https://www12.statcan.gc.ca/census-recensement/alternative_alternatif.cfm?l=eng&dispext=zip&teng=lcsd000b21a_e.zip&k=%20%20%20152326&loc=//www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lcsd000b21a_e.zip
@@ -117,125 +88,14 @@ options(timeout=600)
 # unzip(use_network_path("2024 SES Index/data/raw_data/remoteness/lcsd000b21a_e.zip"),
 #       exdir = use_network_path("2024 SES Index/data/raw_data/remoteness/"))
 # ## READ DISSEMINATION BLOCKS
-# file_path <- use_network_path("2024 SES Index/data/raw_data/remoteness/lcsd000b21a_e/lcsd000b21a_e.shp")
-# # Load the dissemination area shapefile
-# csd_shapefile <- st_read(file_path)
-# 
-# 
-# csd_shapefile <- csd_shapefile %>% 
-#   filter(PRUID == '59') %>% 
-#   st_transform(crs=3005)
-# # glimpse()
+file_path <- use_network_path("2024 SES Index/data/raw_data/remoteness/lcsd000b21a_e/lcsd000b21a_e.shp")
+# Load the dissemination area shapefile
+csd_shapefile <- st_read(file_path)
 
-###########################################################################################
-# Service BC and Hospitals
-# These three files do not have the DA ids, so we have to calculate it using st_join.
-###########################################################################################
 
-# servicebc_file_path = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_nearest_servicebc_20241212_101844/30_percent_site_Hybrid_geocoder_nearest_servicebc_20241212_101844.csv")
-# 
-# hospital_file_path = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_nearest_hospitals_20241218_081633/30_percent_site_Hybrid_geocoder_nearest_hospitals_20241218_081633.csv")
-# 
-# school_file_path = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_nearest_schools_20241225_180826/30_percent_site_Hybrid_geocoder_nearest_schools_20241225_180826.csv")
-# 
-# address_data_path_list = c(
-#   servicebc_file_path,
-#   hospital_file_path,
-#   school_file_path
-# )
-# 
-# address_dist_data <- address_data_path_list %>%  
-#   read_csv() %>% 
-#   bind_rows()
-# 
-# # Convert to an sf object (BC Albers projection: EPSG 3005)
-# address_dist_sf <- st_as_sf(address_dist_data, coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
-# 
-# 
-# 
-# 
-# # Efficiency:
-# #   
-# #   For large datasets, consider spatial indexing using st_join(..., largest = TRUE) to speed up operations.
-# 
-# # Spatial join: append dissemination area IDs to address points
-# address_sf_with_da <- st_join(address_dist_sf, da_shapefile, left = TRUE)
-# 
-# 
-# # View the resulting dataset
-# print(address_sf_with_da)
-
-# Save to a new file (optional)
-# st_write(address_sf_with_da, 
-#          "./out/address_sf_with_da.geojson"
-#          # use_network_path("2024 SES Index/data/raw_data/remoteness/address_servicebc_with_da.geojson")
-#          )
-# 
-# if (!exists("address_sf_with_da")) {
-#   address_sf_with_da <- st_read( use_network_path("2024 SES Index/data/raw_data/remoteness/address_servicebc_with_da.geojson"))
-# }
-# 
-# 
-# # Extract coordinates
-# coords <- st_coordinates(address_sf_with_da)
-# 
-# coords <- coords %>% as.data.frame()%>% setNames(c("SITE_ALBERS_X", "SITE_ALBERS_Y"))
-# # str(coords)
-# 
-# address_sf_with_da %>% 
-#   st_drop_geometry() %>% 
-#   bind_cols(coords) %>%
-#   select(DAUID, DGUID ,  FULL_ADDRESS, SITE_ALBERS_X, SITE_ALBERS_Y,tag, everything(), -PRUID) %>%
-#   # write_csv( "./out/address_sf_with_da.csv")
-#   write_csv(use_network_path("2024 SES Index/data/raw_data/remoteness/address_sf_with_da.csv"))
-# 
-# 
-# if (!exists("address_sf_with_da_df")) {
-#   address_sf_with_da_df <- read_csv( "./out/address_sf_with_da.csv")
-# }
-
-# format(2.021e-304, scientific = FALSE)
-
-###########################################################################################
-# add geodata team's new samples with DA already appened. Later on they added unique address id. 
-###########################################################################################
-# this is new data that geodata team created with new sampling 
-# new_da_servicebc_file_path = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250207_140020/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250207_140020.csv")
-# new_da_servicebc_df <-    read_csv(new_da_servicebc_file_path)
-# 
-# new_da_servicebc_df %>% 
-#   count(SITE_ALBERS_X,SITE_ALBERS_Y) %>% 
-#   filter(n>1) %>% 
-#   arrange(-n)
-# # 17,265 more rows, and one has 371 address?
-# 
-# new_da_servicebc_sf <- st_as_sf(new_da_servicebc_df , coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
-# # Spatial join: append dissemination area IDs to address points
-# new_da_servicebc_address_sf_with_da <- st_join(new_da_servicebc_sf, da_shapefile, left = TRUE)
-# 
-# address_plus_new_with_da_df <- dplyr::union(address_sf_with_da_df %>% 
-#                                               mutate(across(
-#                                                 .cols = c(DAUID, DGUID, PRUID),
-#                                                 .fns = as.character
-#                                               ))%>% select(-DGUID), 
-#                                             new_da_servicebc_address_sf_with_da %>% st_drop_geometry() %>% select(-DGUID))
-
-# address_plus_new_with_da_df %>% 
-#   write_csv("out/address_plus_new_with_da.csv")
-# 
-# address_plus_new_with_da_df %>%
-#   dplyr::filter(FULL_ADDRESS == "621 Green Rd Quathiaski Cove BC")
-# 
-# address_plus_new_with_da_df %>% 
-#   write_csv(use_network_path("2024 SES Index/data/raw_data/remoteness/address_plus_new_with_da.csv"))
-#             
-            
-# if (!exists("address_plus_new_with_da")) {
-#   address_plus_new_with_da <- read_csv( "./out/address_plus_new_with_da.csv")
-# }
-# 
-# address_plus_new_with_da %>% glimpse()
-# Rows: 2,281,715
+csd_shapefile <- csd_shapefile %>%
+  filter(PRUID == '59') %>%
+  st_transform(crs=3005)
 
 ###########################################################################################
 ###########################################################################################
@@ -251,37 +111,80 @@ options(timeout=600)
 
 # geodata team creates another batch for service bc with address id.
 # we are going to use this one.
-new_da_servicebc_file_path_2 = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250212_150617/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250212_150617.csv")
+# zik files are just zip files, so read_csv can handle them directly.
+new_da_servicebc_file_path_2 = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250212_150617.zik")
 new_da_servicebc_df2 <-    read_csv(new_da_servicebc_file_path_2)
 new_da_servicebc_df2 %>% glimpse()
 # Rows: 614,459
+
+new_da_servicebc_df2 %>% 
+  filter(tag == 'nan')
+# 2,715 ??
 # new data for hospital 
-new_da_hospital_file_path = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_hospitals_20250219_100047/30_percent_site_Hybrid_geocoder_DA_nearest_hospitals_20250219_100047.csv")
+new_da_hospital_file_path = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_hospitals_20250219_100047.zik")
 
 new_da_hospital_df <-    read_csv(new_da_hospital_file_path)
 new_da_hospital_df %>% glimpse()
 # Rows: 614,459
 
-new_da_servicebc_df2 %>% 
+# new data for school 
+new_da_school_file_path = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_schools_20250222_180651.zik")
+
+new_da_school_df <-    read_csv(new_da_school_file_path)
+new_da_school_df %>% glimpse()
+# Rows: 614,459
+# all have the same numbers of rows, so we can join them together.
+
+
+# check duplication
+
+new_da_school_df %>% 
   # filter(tag == "servicebc") %>%
   select(FULL_ADDRESS) %>%
   count(FULL_ADDRESS) %>%
   filter(n > 1) %>%
   glimpse()
 
+# servicbc/hospital/schools duplicates
+# "1090A Main St Valemount BC"
+# According to getodata team, we can check it using https://geocoder.api.gov.bc.ca/addresses.json?addressString=1090A%20Main%20St%20Valemount%20BC&outputSRS=3005
+# and only keep the id 112681
+
 new_da_servicebc_df2 %>% 
   filter(FULL_ADDRESS == "1090A Main St Valemount BC")
 
-new_da_hospital_df %>% 
-  # filter(tag == "servicebc") %>%
-  select(FULL_ADDRESS) %>%
-  count(FULL_ADDRESS) %>%
-  filter(n > 1) %>%
-  glimpse()
-new_da_hospital_df %>% 
-  filter(FULL_ADDRESS == "1090A Main St Valemount BC")
-# one duplicated row, but the distance measures are the same.
+address_sf_with_da <- new_da_servicebc_df2 %>% 
+  bind_rows(new_da_hospital_df) %>% 
+  bind_rows(new_da_school_df) %>% 
+  janitor::clean_names(case = "screaming_snake") %>%
+  mutate(ADDRESS_ALBERS_X = SITE_ALBERS_X,
+         ADDRESS_ALBERS_Y = SITE_ALBERS_Y) %>% 
+  st_as_sf(coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
 
+
+
+
+# What is the nan in TAG?
+new_da_servicebc_df2 %>% 
+  bind_rows(new_da_hospital_df) %>% 
+  bind_rows(new_da_school_df) %>% 
+  janitor::clean_names(case = "screaming_snake") %>% 
+  count(TAG)
+
+
+new_da_servicebc_df2 %>% 
+  bind_rows(new_da_hospital_df) %>% 
+  bind_rows(new_da_school_df) %>% 
+  janitor::clean_names(case = "screaming_snake") %>% 
+  filter(TAG == "nan")
+
+new_da_servicebc_df2 %>% 
+  bind_rows(new_da_hospital_df) %>% 
+  bind_rows(new_da_school_df) %>% 
+  janitor::clean_names(case = "screaming_snake") %>%
+  rename(ADDRESS_ALBERS_X = SITE_ALBERS_X,
+         ADDRESS_ALBERS_Y = SITE_ALBERS_Y)  %>% 
+  write_csv(use_network_path("2024 SES Index/data/raw_data/remoteness/bc_address_with_da.csv"))
 
 ###########################################################################################
 #   create a DA level summary. 
@@ -293,28 +196,22 @@ new_da_hospital_df %>%
 
 avg_dist_drvtime_by_da_service <- address_sf_with_da %>% 
   st_drop_geometry() %>% 
-  group_by(DAUID, tag) %>% 
+  group_by(DAID , TAG) %>% 
   summarise(
-    AVG_DRV_TIME_SEC = mean(drv_time_sec),
-    AVG_DRV_DIST = mean(drv_dist),
+    AVG_DRV_TIME_SEC = mean(DRV_TIME_SEC ),
+    AVG_DRV_DIST = mean(DRV_DIST ),
     N_ADDRESS = n()
   )
 
 avg_dist_drvtime_by_da_service %>% 
-  write_csv(use_network_path("2024 SES Index/data/raw_data/remoteness/avg_dist_drvtime_by_da_service.csv"))
+  filter(is.na(AVG_DRV_DIST)) %>%
+  count(DAID) %>%
+  glimpse()
+
+avg_dist_drvtime_by_da_service %>% 
+  write_csv(use_network_path("2024 SES Index/data/output/remoteness/avg_dist_drvtime_by_da_service.csv"))
 
 
-avg_dist_drvtime_by_da<- address_sf_with_da %>% 
-  st_drop_geometry() %>% 
-  group_by(DAUID) %>% 
-  summarise(
-    AVG_DRV_TIME_SEC = mean(drv_time_sec),
-    AVG_DRV_DIST = mean(drv_dist),
-    N_ADDRESS = n()
-  )
-
-avg_dist_drvtime_by_da %>% 
-  write_csv(use_network_path("2024 SES Index/data/raw_data/remoteness/avg_dist_drvtime_by_da.csv"))
 
 
 ###########################################################################################
@@ -325,7 +222,6 @@ avg_dist_drvtime_by_da %>%
 TMF_file  <-  use_network_path("2024 SES Index/data/raw_data/TMF/GCS_202406.csv")
 
 TMF <- read_csv(TMF_file)
-
 
 # standardize the DA number, append the prefix BC code 59, so it is easy to join to other tables.
 TMF <- TMF %>% 
@@ -347,21 +243,24 @@ CSD_DA_list <-  TMF %>%
   ungroup()
 
 
-# Save to a new file (optional)
-CSD_DA_address_dist_drvtime <- CSD_DA_list %>% mutate(DAUID = as.character(DA_NUM)) %>% 
-  right_join(address_sf_with_da, by = join_by(DAUID) )
+# Save to a new file this one has all the information but without the geometry column.
+CSD_DA_address_dist_drvtime <- CSD_DA_list %>% 
+  left_join(address_sf_with_da, by = join_by("DA_NUM" == "DAID") )
 
-CSD_DA_address_dist_drvtime <- CSD_DA_address_dist_drvtime %>% 
-  st_as_sf()
-  
-st_write(CSD_DA_address_dist_drvtime, 
-         "./out/CSD_DA_address_dist_drvtime.geojson"
-         # use_network_path("2024 SES Index/data/raw_data/remoteness/address_servicebc_with_da.geojson")
-)
+
+# create a sf object for the facility which will be used for plotting with the geometry column.
+facility_sf = address_sf_with_da %>% 
+  st_drop_geometry() %>%
+  filter(!is.na(COORD_X)) %>%  # remove the rows without coordinates for facilities
+  left_join(CSD_DA_list, by = join_by("DAID" == "DA_NUM") ) %>%
+  count(TAG,MUN_NAME_2021, CSD_2021 , NEAREST_FACILITY, COORD_X ,COORD_Y) %>% 
+  mutate(FACILITY_ALBERS_X = COORD_X,
+         FACILITY_ALBERS_Y = COORD_Y) %>%
+  st_as_sf(coords = c("COORD_X", "COORD_Y"), crs = 3005)
 
 # check if there is duplication
-# CSD_DA_list %>% 
-#   count(DA_NUM) %>% 
+# CSD_DA_list %>%
+#   count(DA_NUM) %>%
 #   filter(n>1)
 # no it is fine.
 
@@ -369,96 +268,28 @@ st_write(CSD_DA_address_dist_drvtime,
 
 
 
-CSD_DA_REMOTENESS = CSD_DA_list %>% 
-  mutate(DAUID = as.character(DA_NUM)) %>% 
-  left_join(avg_dist_drvtime_by_da_service, by = c( "DAUID")) %>% 
-  mutate(DIST_IS_NA = if_else(is.na(AVG_DRV_DIST), 'Distance data is na',"Distance data is available"),
-         ADDRESS_IS_NA = if_else(is.na(N_ADDRESS), 'Address data is na',"Address data is available")
-  )
-
-# how many missing value in DAs. 
-CSD_DA_REMOTENESS_DISTANCE_AVAILABILITY = CSD_DA_REMOTENESS %>% 
-  count(DIST_IS_NA)
-
-CSD_DA_REMOTENESS_ADDRESS_AVAILABILITY = CSD_DA_REMOTENESS %>% 
-  count(ADDRESS_IS_NA)
-
-
 # a CSD level summary
-CSD_REMOTENESS_BY_SERVICE = CSD_DA_REMOTENESS %>% 
-  group_by(CSD_2021,MUN_NAME_2021,tag) %>% 
+CSD_REMOTENESS_BY_SERVICE = CSD_DA_address_dist_drvtime %>% 
+  mutate(CDUID = str_sub(DA_NUM, 1, 4),
+         CSDUID = str_c(CDUID, CSD_2021)) %>% 
+  group_by(CSDUID,MUN_NAME_2021,TAG) %>% 
   summarise(
-    AVG_DRV_TIME_SEC = mean(AVG_DRV_TIME_SEC, na.rm = T),
-    AVG_DRV_DIST = mean(AVG_DRV_DIST, na.rm = T),
-    N_ADDRESS = sum(N_ADDRESS, na.rm = T),
-    N_DA = n()
+    AVG_DRV_TIME_SEC = mean(DRV_TIME_SEC, na.rm = T),
+    AVG_DRV_DIST = mean(DRV_DIST, na.rm = T),
+    N_ADDRESS =  n()
   ) %>% 
   ungroup()
+
+CSD_REMOTENESS_BY_SERVICE %>% 
+  filter(is.na(AVG_DRV_DIST)) %>%
+  count(CSDUID) %>%
+  glimpse()
 
 CSD_REMOTENESS_BY_SERVICE %>% 
   write_csv("./out/CSD_REMOTENESS_BY_SERVICE.csv")
 
 CSD_REMOTENESS_BY_SERVICE %>% 
-  write_csv(use_network_path("data/output/remoteness/CSD_REMOTENESS_BY_SERVICE.csv"))
-
-# a CSD level summary
-CSD_REMOTENESS_ALL_SERVICE = CSD_DA_REMOTENESS %>% 
-  group_by(CSD_2021,MUN_NAME_2021) %>% 
-  summarise(
-    AVG_DRV_TIME_SEC = mean(AVG_DRV_TIME_SEC, na.rm = T),
-    AVG_DRV_DIST = mean(AVG_DRV_DIST, na.rm = T),
-    N_ADDRESS = sum(N_ADDRESS, na.rm = T),
-    N_DA = n()
-  ) %>% 
-  ungroup()
-
-CSD_REMOTENESS_ALL_SERVICE %>% 
-  write_csv("./out/CSD_REMOTENESS.csv")
-
-CSD_REMOTENESS_ALL_SERVICE %>% 
-  write_csv(use_network_path("data/output/remoteness/CSD_REMOTENESS.csv"))
-
-
-###########################################################################################
-# Another approach for CSD level summary
-
-# I used two different way to calculate the CSV average. First, I calculate the DA average, and then use TMF to join DA to CSD, and get the CSD average. I think this approach applies different weight on the address. (1/n)*(1/m), n is the nubmer address in DA, m is the number of DA  in CSD. 
-# 
-# So I downloaded the CSD boundary file and directly calculated the CSD average after join CSD boundary to Brian's address data. 
-#  
-###########################################################################################
-
-# Spatial join: append dissemination area IDs to address points
-csd_sf_address_dist <- st_join(csd_shapefile,address_dist_sf, left = TRUE)
-
-csd_avg_address_dist_by_service = csd_sf_address_dist %>% 
-  st_drop_geometry() %>%
-  group_by(CSDUID,CSDNAME, tag) %>% 
-  summarise(
-    AVG_DRV_TIME_SEC = mean(drv_time_sec, na.rm = T),
-    AVG_DRV_DIST = mean(drv_dist, na.rm = T),
-    N_ADDRESS = n(),
-    N_NA = sum(if_else(is.na(drv_dist), 1, 0))
-  ) %>% 
-  ungroup()
-
-csd_avg_address_dist_by_service %>% 
-  write_csv(use_network_path("data/output/remoteness/csd_avg_address_dist_by_service.csv"))
-
-
-csd_avg_address_dist = csd_sf_address_dist %>% 
-  st_drop_geometry() %>%
-  group_by(CSDUID,CSDNAME) %>% 
-  summarise(
-    AVG_DRV_TIME_SEC = mean(drv_time_sec, na.rm = T),
-    AVG_DRV_DIST = mean(drv_dist, na.rm = T),
-    N_ADDRESS = n(),
-    N_NA = sum(if_else(is.na(drv_dist), 1, 0))
-  ) %>% 
-  ungroup()
-
-csd_avg_address_dist %>% 
-  write_csv(use_network_path("data/output/remoteness/csd_avg_address_dist.csv"))
+  write_csv(use_network_path("2024 SES Index/data/output/remoteness/CSD_REMOTENESS_BY_SERVICE.csv"))
 
 
 
@@ -468,34 +299,51 @@ csd_avg_address_dist %>%
 #   
 #   Plot the results to visually validate that points are correctly joined to their respective dissemination areas:
 
-library(ggplot2)
-ggplot() +
-  geom_sf(data = da_shapefile, fill = "lightblue", color = "gray") +
-  geom_sf(data = address_servicebc_with_da, color = "red", size = 2) +
-  theme_minimal()
 
-# Save the plot
-ggsave("./out/address_servicebc_with_da_map.png",  width = 10, height = 8, dpi = 300)
+address_avg_dist_da_shapefile <- da_shapefile %>% left_join(
+  avg_dist_drvtime_by_da_service %>% mutate(DAUID = as.character(DAID)),
+  join_by("DAUID")
+)
 
 library(ggplot2)
-ggplot() +
-  geom_sf(data = da_shapefile, fill = "lightblue", color = "gray") +
-  geom_sf(data = address_hospital_with_da, color = "red", size = 2) +
-  theme_minimal()
+# add title to the ggplot object
+address_avg_dist_da_servicebc_p <- ggplot(data = address_avg_dist_da_shapefile %>% filter(TAG == "servicebc")) +
+  geom_sf(
+    aes(fill = AVG_DRV_DIST),
+    color = "gray"
+  ) +
+  scale_fill_viridis_c(option = "viridis") +
+  geom_sf(
+    data = address_sf_with_da %>% filter(TAG == "servicebc"),
+    color = "red",
+    size = 2
+  ) +
+  theme_minimal() +
+  labs(title = "Families Addresses Distance to ServiceBC within Dissemination Areas")
 
+print(address_avg_dist_da_servicebc_p)
 # Save the plot
-ggsave("./out/address_hospital_with_da.png", width = 10, height = 8, dpi = 300)
+ggsave( "./out/address_servicebc_dist_with_da_map.png", address_avg_dist_da_servicebc_p, width = 10, height = 8, dpi = 300)
+# the same addresses of families are plotted on the map, and the dissemination areas are shown in light blue.
+# The red points represent the addresses of families that have been successfully joined to their respective dissemination areas.
+# There are some DAs which still missing any addresses/red points.
 
+address_avg_dist_da_shapefile %>% 
+  filter(is.na(AVG_DRV_DIST)) %>%
+  count(TAG)
+  glimpse()
 
+# 810 DAs are missing. The TAG is NA, so they are not joined to any addresses.
+#    TAG   n                       geometry
+# 1  nan 290 MULTIPOLYGON (((594038.4 86...
+# 2 <NA> 520 MULTIPOLYGON (((603200.1 93...
+# 290 rows have nan in TAG
+  # 520 rows are missing in geodata team's file, but in the TMF. 
 ###########################################################################################
 # Validation: color map
 ###########################################################################################
 
 
-# Load necessary libraries
-library(sf)
-library(ggplot2)
-library(dplyr)
 my_map_theme <- theme_minimal() +
   theme(
     plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
@@ -508,13 +356,20 @@ my_map_theme <- theme_minimal() +
 # Create a color map plot using ggplot2
 ################################################################
 
-csd_avg_address_dist_sf = csd_shapefile %>% 
-  # filter(tag == "servicebc") %>% 
-  left_join( csd_avg_address_dist, join_by(CSDUID, CSDNAME) )
 
-ggplot(data = csd_avg_address_dist_sf
+csd_avg_address_dist_sf = csd_shapefile %>% 
+  left_join( CSD_REMOTENESS_BY_SERVICE ,
+             join_by(CSDUID ) )
+  
+  
+  test3 = csd_avg_address_dist_sf %>% 
+    filter(MUN_NAME_2021 %in% c("Vancouver", "Smithers")) %>% 
+    filter(!is.na(AVG_DRV_DIST))
+  
+
+csd_avg_address_dist_sf_servicebc_p <- ggplot(data = csd_avg_address_dist_sf %>% filter(TAG == 'servicebc')
        ) +
-  geom_sf(aes(fill = AVG_DRV_DIST), color = "white") +
+  geom_sf(aes(fill = AVG_DRV_DIST), color = "gray") +
   scale_fill_viridis_c(option = "viridis" ) +
   labs(
     title = "Avg. Distance to the Facility by Region",
@@ -525,34 +380,11 @@ ggplot(data = csd_avg_address_dist_sf
   my_map_theme+
   guides(fill=guide_legend(title="Avg. Distance to the Facilities"))
 
-
-# Save the plot
-ggsave("./out/csd_avg_address_dist_sf.png", width = 10, height = 8, dpi = 300)
-ggsave(use_network_path("data/output/remoteness/csd_avg_address_dist_sf.png"), width = 10, height = 8, dpi = 300)
-################################################################
-# servicebc
-################################################################
-
-csd_avg_address_dist_servicebc_sf = csd_shapefile %>% 
-  left_join( csd_avg_address_dist_by_service  %>%  filter(tag == "servicebc")  , 
-             join_by(CSDUID, CSDNAME) )
-
-ggplot(data = csd_avg_address_dist_servicebc_sf
-) +
-  geom_sf(aes(fill = AVG_DRV_DIST), color = "white") +
-  scale_fill_viridis_c(option = "viridis", name = "Avg. Distance to ServiceBC") +
-  labs(
-    title = "Avg. Distance to ServiceBC by Region",
-    subtitle = "Remoteness measurement in BC",
-    x = "Longitude",
-    y = "Latitude"
-  ) +
-  my_map_theme
-
+print(csd_avg_address_dist_sf_servicebc_p)
 
 # Save the plot
 ggsave("./out/csd_avg_address_dist_servicebc_sf.png", width = 10, height = 8, dpi = 300)
-ggsave(use_network_path("data/output/remoteness/csd_avg_address_dist_servicebc_sf.png"), width = 10, height = 8, dpi = 300)
+ggsave(use_network_path("2024 SES Index/data/output/remoteness/csd_avg_address_dist_servicebc_sf.png"), width = 10, height = 8, dpi = 300)
 
 
 ################################################################
@@ -560,73 +392,119 @@ ggsave(use_network_path("data/output/remoteness/csd_avg_address_dist_servicebc_s
 # we can plot them in the map
 ################################################################
 
-two_csd_avg_address_dist_servicebc_sf = da_shapefile %>% 
-  inner_join( CSD_DA_REMOTENESS  %>%  filter(tag == "servicebc") , 
-             join_by("DAUID") ) %>% 
-  filter(MUN_NAME_2021 %in% c("Smithers", "Vancouver"))
-
-CSD_DA_address_dist_drvtime %>% 
-  filter(MUN_NAME_2021 %in% c( "Vancouver")) 
-  
+CSD_DA_avg_dist_drvtime_by_service_sf <- address_avg_dist_da_shapefile %>% 
+  left_join(CSD_DA_list, by = join_by("DAID" == "DA_NUM") )
 
   
+CSD = "Vancouver"
+facility = "servicebc"
+test4 <-  facility_sf %>% 
+  filter(TAG == service) %>% 
+  filter(MUN_NAME_2021 == CSD) 
+
+
 ########## 
 #  A map plotting function for a CSD region
+# plot DAs in a CSD region with the average distance to the nearest servicebc/schools/hospitals
 ##########  
-# data, sf, ; filter: tag/service, CSD; 
-map_data_fn <- function(df, CSD, service, sf) {
-  df %>%
-    filter(tag == service, MUN_NAME_2021 == CSD) %>%
-    inner_join(sf, join_by("DAUID"))%>% 
-    st_as_sf() 
-}
+# add a bright red dots for the facilities. 
+# 
+# To ensure that the same data values map to the same colors in both maps, 
+# use identical fill scales (same limits, breaks, and palette) in both ggplot objects. 
+# Then, when assemble them with patchwork, set the guides to "collect" so that a single shared legend is used. 
 
-# sf; fill_var; CSD; Service 
-map_plot_fn <- function(sf, fill_var,fill_var_name, CSD, service){
-  sf %>% ggplot() +
-    geom_sf(aes(fill = {{fill_var}}), color = "white")+
-    scale_fill_viridis_c(option = "viridis") +
+min_val<- 0 #range(CSD_DA_avg_dist_drvtime_by_service_sf$AVG_DRV_DIST, na.rm = T)[1]
+max_val <- 12 #range(CSD_DA_avg_dist_drvtime_by_service_sf$AVG_DRV_DIST, na.rm = T)[2] 
+step  <- 1.5
+
+#' Plot a map for a given Census Subdivision (CSD) showing the average distance to a specific facility (e.g., servicebc, schools, hospitals).
+#' 
+#' This function generates a map for a specified Census Subdivision (CSD) that displays the average distance to a given facility (e.g., servicebc, schools, hospitals). The map includes the CSD boundaries, with each area colored based on the average distance to the service. Additionally, the locations of the facilityfacilities are marked with red dots. The map can optionally include labels showing the average distance values.
+#' 
+#' @param CSD Character string specifying the name of the Census Subdivision (CSD) to plot.
+#' @param facility Character string specifying the type of facility to plot (e.g., "servicebc", "schools", "hospitals").
+#' @param fill_var Character string specifying the variable name in the data frame that contains the average distance values.
+#' @param fill_var_name Character string specifying the name of the variable to use in the legend and labels.
+#' @param csd_sf Simple Features object containing the CSD boundaries and average distance data.
+#' @param facility_sf Simple Features object containing the locations of the service facilities.
+#' @param min_val Numeric value specifying the minimum value for the fill scale.
+#' @param max_val Numeric value specifying the maximum value for the fill scale.
+#' @param step Numeric value specifying the step size for the fill scale breaks.
+#' @param label_var Logical value indicating whether to include labels showing the average distance values. Default is FALSE.
+#' 
+#' @return A ggplot object representing the map.
+#' 
+#' @examples
+#' plot_a <- plot_csd_facility_map_fn(CSD = "Vancouver", 
+#'                                    facility = "servicebc", 
+#'                                    fill_var = "AVG_DRV_DIST", 
+#'                                    fill_var_name = "Average distance",
+#'                                    csd_sf = CSD_DA_avg_dist_drvtime_by_service_sf, 
+#'                                    facility_sf = facility_sf,  
+#'                                    min_val = 0, max_val = 12, step = 1.5,
+#'                                    label_var = FALSE)
+#' print(plot_a)
+plot_csd_facility_map_fn <- function(CSD, facility, fill_var,fill_var_name, csd_sf, facility_sf, min_val, max_val, step,  label_var = FALSE){
+  
+  csd_sf <- csd_sf %>% 
+    filter(TAG == facility) %>% 
+    filter(MUN_NAME_2021 == CSD)
+  
+  facility_sf <- facility_sf %>% 
+    filter(TAG == facility) %>% 
+    filter(MUN_NAME_2021 == CSD) 
+  
+  P <- csd_sf %>% 
+    ggplot() +
+    # geom_sf(aes_string(fill = fill_var), color = "white")+ # or use 
+    geom_sf(aes(fill = !!sym(fill_var)))+
+    scale_fill_viridis_c(limits = c(min_val, max_val), breaks = seq(min_val, max_val, by = step))
+  
+  if (label_var) {
+    P <- P + geom_sf_label(aes(label = format(!!sym(fill_var), digits =2)), colour = "black")
+  }
+  
+  P <- P +
     labs(
-      # title = "Avg. Distance to ServiceBC by Region",
-      subtitle = glue::glue("Remoteness measurement in {CSD}"),
+      subtitle = glue::glue("{fill_var_name} to the nearest {facility} in {CSD}"),
       x = "Longitude",
       y = "Latitude"
-    ) +
+    ) + 
     my_map_theme+ 
-    guides(fill=guide_legend(title=glue::glue("Avg. {stringr::str_to_title(fill_var_name)} to the {service}")))
+    guides(fill=guide_legend(title=glue::glue("Avg. {stringr::str_to_title(fill_var_name)} to the {facility}")))
+  
+  P <- P + geom_point(
+    data = facility_sf,aes(geometry = geometry),
+    shape = 23,  
+    color = "red",
+    fill = "red",
+    size = 5,
+    alpha = 0.5,
+    stat = "sf_coordinates"
+  ) 
+  
+  return(P)
 }
 
-map_dot_plot_fn <- function(sf, fill_var,fill_var_name, CSD, service){
-  sf %>% ggplot() +
-    geom_sf(aes(fill = {{fill_var}}), color = "white")+
-    scale_fill_viridis_c(option = "viridis") +
-    labs(
-      # title = "Avg. Distance to ServiceBC by Region",
-      subtitle = glue::glue("Remoteness measurement in {CSD}"),
-      x = "Longitude",
-      y = "Latitude"
-    ) +
-    my_map_theme+ 
-    guides(fill=guide_legend(title=glue::glue("Avg. {stringr::str_to_title(fill_var_name)} to the {service}")))
-}
+plot_a = plot_csd_facility_map_fn(CSD = "Vancouver", 
+                     facility = "servicebc", 
+                     fill_var = "AVG_DRV_DIST", fill_var_name = "Average distance",
+                     csd_sf =CSD_DA_avg_dist_drvtime_by_service_sf, facility_sf ,  
+                     min_val, max_val, step,
+                     label_var = FALSE )
+
+print(plot_a)
+plot_b = plot_csd_facility_map_fn(CSD = "Smithers",
+                     facility = "servicebc", 
+                     fill_var = "AVG_DRV_DIST", fill_var_name = "Average distance",
+                     csd_sf =CSD_DA_avg_dist_drvtime_by_service_sf, facility_sf ,  
+                     min_val, max_val, step,
+                     label_var = T )
+
+print(plot_b)
 
 
 
-
-library(cowplot) # For aligning multiple plots
-library(patchwork )
-plot_a = map_data_fn(df = CSD_DA_REMOTENESS, CSD = "Vancouver", service = "servicebc", sf = da_shapefile) %>% 
-  map_plot_fn(sf =., fill_var = AVG_DRV_DIST, fill_var_name = "Distance", CSD = "Vancouver", service = "ServiceBC")
-
-
-plot_b = map_data_fn(df = CSD_DA_REMOTENESS, CSD = "Smithers", service = "servicebc", sf = da_shapefile) %>% 
-  map_plot_fn(sf =., fill_var = AVG_DRV_DIST, fill_var_name = "Distance", CSD = "Smithers", service = "ServiceBC")
-  
-  
-
-
-
-# Combine the two plots side by side
 # Combine the two plots using patchwork and add a shared title
 combined_plot <- (plot_a + plot_b +
                     plot_layout(ncol = 2, guides = "collect") &
@@ -638,100 +516,178 @@ combined_plot <- (plot_a + plot_b +
     )
   )
 
-
-# combined_plot <- plot_a + plot_b +
-#   plot_layout(ncol = 2, guides = "collect") &
-#   theme(legend.position = "bottom") # Align legends at the bottom
-# 
-
-
-
 # Display the combined plot
 print(combined_plot)
 
-
-
 # Save the combined plot
-ggsave(use_network_path("data/output/remoteness/two_csd_avg_address_dist_servicebc_sf_by_da.png"),
+ggsave(use_network_path("2024 SES Index/data/output/remoteness/two_csd_avg_address_dist_servicebc_sf_by_da.png"),
        plot = combined_plot,
        width = 14, height = 7, dpi = 300)
 
-################################################################
-# Hospital
-################################################################
 
-csd_avg_address_dist_hospitals_sf = csd_shapefile %>% 
-  left_join( csd_avg_address_dist_by_service  %>%  filter(tag == "hospitals")  , 
-             join_by(CSDUID, CSDNAME) )
-
-csd_avg_address_dist_hospitals_sf %>% 
-  filter(AVG_DRV_DIST > 400)
-  summary()
+################################################################
+# create a function for the map plot
+#' Compare Two CSDs in a Map
+#'
+#' This function compares two Census Subdivisions (CSDs) by plotting their remoteness measurement on a map. It generates two separate plots for each CSD, displaying the average distance to a specified service (e.g., Service BC office), and combines them into a single plot with a shared title.
+#'
+#' @param CSD1 The name of the first Census Subdivision to compare.
+#' @param CSD2 The name of the second Census Subdivision to compare.
+#' @param facility The name of the facility to measure remoteness from (e.g., "servicebc").
+#' @param fill_var The variable name in the csd_sf data frame that represents the remoteness measurement (e.g., "AVG_DRV_DIST").
+#' @param fill_var_name A descriptive name for the fill_var variable to use in the plot legend.
+#' @param csd_sf A simple features data frame containing the Census Subdivision boundaries and remoteness measurement data.
+#' @param facility_sf A simple features data frame containing the facility locations.
+#' @param label_var1 A logical indicating whether to label the first CSD plot with facility names.
+#' @param label_var2 A logical indicating whether to label the second CSD plot with facility names.
+#'
+#' @return This function returns a combined plot of the two CSDs, displaying their remoteness measurement, and saves the plot to a file.
+#' @export
+compare_two_csd_in_map <- function(CSD1 = "Vancouver",
+                                   CSD2 = "Smithers",
+                                   facility = "servicebc",
+                                   fill_var = "AVG_DRV_DIST",
+                                   fill_var_name = "Average distance",
+                                   csd_sf = CSD_DA_avg_dist_drvtime_by_service_sf,
+                                   facility_sf = facility_sf ,
+                                   label_var1 = F ,
+                                   label_var2 = T) {
+  color_range  <- csd_sf %>% 
+    filter(MUN_NAME_2021 %in% c(CSD1, CSD2)) %>% 
+    filter(!is.na(!!sym(fill_var))) %>% 
+    filter(TAG %in% c(service)) %>% 
+    pull(!!sym(fill_var)) %>% 
+    range()
   
-  # Stikine Region
-
-plot_csd_remoteness <-  function(data, remoteness_metric, remoteness_metric_name,service_name){
-  ggplot(data 
+  min_val<- floor(color_range[1]) #
+  
+  max_val <- ceiling(color_range[2]) #
+  step  <- (max_val - min_val)/(12-1)
+  
+  plot_a = plot_csd_facility_map_fn(
+    CSD = CSD1,
+    facility ,
+    fill_var ,
+    fill_var_name ,
+    csd_sf ,
+    facility_sf  ,
+    min_val, max_val, step,
+    label_var = FALSE
+  )
+  
+  print(plot_a)
+  plot_b = plot_csd_facility_map_fn(
+    CSD = CSD2,
+    facility ,
+    fill_var ,
+    fill_var_name ,
+    csd_sf ,
+    facility_sf  ,
+    min_val, max_val, step,
+    label_var = T
+  )
+  
+  print(plot_b)
+  
+  # Combine the two plots using patchwork and add a shared title
+  combined_plot <- (
+    plot_a + plot_b +
+      plot_layout(ncol = 2, guides = "collect") &
+      theme(legend.position = "bottom")
   ) +
-    geom_sf(aes(fill = {{remoteness_metric}}), color = "white") +
-    scale_fill_viridis_c(option = "viridis", name = glue::glue("Avg. {remoteness_metric_name} to {service_name}")) +
-    labs(
-      title = glue::glue("Avg. {remoteness_metric_name} to {service_name} by Region"),
-      subtitle = "Remoteness measurement in BC",
-      x = "Longitude",
-      y = "Latitude"
-    ) +
-    my_map_theme
+    plot_annotation(
+      title = glue::glue("Remoteness measurement: {CSD1} vs {CSD2}"),
+      theme = theme(plot.title = element_text(
+        size = 16,
+        face = "bold",
+        hjust = 0.5
+      ))
+    )
+  
+  # Display the combined plot
+  print(combined_plot)
+  
+  # Save the combined plot
+  ggsave(
+    use_network_path(
+      glue::glue(
+        "2024 SES Index/data/output/remoteness/two_csd_{CSD1}_{CSD2}_avg_address_dist_{facility}_by_da.png"
+      )
+    ),
+    plot = combined_plot,
+    width = 14,
+    height = 7,
+    dpi = 300
+  )
 }
 
-ggplot(data = csd_avg_address_dist_hospitals_sf
-) +
-  geom_sf(aes(fill = AVG_DRV_DIST), color = "white") +
-  scale_fill_viridis_c(option = "viridis", name = "Avg. Distance to Hospitals") +
-  labs(
-    title = "Avg. Distance to Hospitals by Region",
-    subtitle = "Remoteness measurement in BC",
-    x = "Longitude",
-    y = "Latitude"
-  ) +
-  my_map_theme
+
+compare_two_csd_in_map(
+  CSD1 = "Vancouver",
+  CSD2 = "Smithers",
+  facility = "servicebc",
+  fill_var = "AVG_DRV_DIST",
+  fill_var_name = "Average distance",
+  csd_sf = CSD_DA_avg_dist_drvtime_by_service_sf,
+  facility_sf ,
+  label_var1 = F ,
+  label_var2 = T
+)
 
 
-# Save the plot
-ggsave("./out/csd_avg_address_dist_hospitals_sf.png", width = 10, height = 8, dpi = 300)
-ggsave(use_network_path("data/output/remoteness/csd_avg_address_dist_hospitals_sf.png"), width = 10, height = 8, dpi = 300)
+compare_two_csd_in_map(
+  CSD1 = "Vancouver",
+  CSD2 = "Smithers",
+  facility = "servicebc",
+  fill_var = "AVG_DRV_TIME_SEC",
+  fill_var_name = "Average drive time in second",
+  csd_sf = CSD_DA_avg_dist_drvtime_by_service_sf,
+  facility_sf ,
+  label_var1 = F ,
+  label_var2 = T
+)
 
 
-################################################################
-# School
-################################################################
-
-csd_avg_address_dist_schools_sf = csd_shapefile %>% 
-  left_join( csd_avg_address_dist_by_service  %>%  filter(tag == "schools")  , 
-             join_by(CSDUID, CSDNAME) )
-
-
-csd_avg_address_dist_schools_sf %>% 
-  filter(AVG_DRV_DIST > 100)
-# North Tacla Lake
-summary()
-
-ggplot(data = csd_avg_address_dist_schools_sf %>% mutate(AVG_DRV_DIST = if_else( AVG_DRV_DIST < 100, AVG_DRV_DIST, 100))
-) +
-  geom_sf(aes(fill = AVG_DRV_DIST), color = "white") +
-  scale_fill_viridis_c(option = "viridis", name = "Avg. Distance to Schools") +
-  labs(
-    title = "Avg. Distance to Schools by Region",
-    subtitle = "Remoteness measurement in BC",
-    x = "Longitude",
-    y = "Latitude"
-  ) +
-  my_map_theme
+compare_two_csd_in_map(
+  CSD1 = "Vancouver",
+  CSD2 = "Smithers",
+  facility = "hospitals",
+  fill_var = "AVG_DRV_DIST",
+  fill_var_name = "Average distance",
+  csd_sf = CSD_DA_avg_dist_drvtime_by_service_sf,
+  facility_sf ,
+  label_var1 = F ,
+  label_var2 = T
+)
 
 
-# Save the plot
-ggsave("./out/csd_avg_address_dist_schools_sf.png", width = 10, height = 8, dpi = 300)
-ggsave(use_network_path("data/output/remoteness/csd_avg_address_dist_schools_sf.png"), width = 10, height = 8, dpi = 300)
+compare_two_csd_in_map(
+  CSD1 = "Vancouver",
+  CSD2 = "Smithers",
+  facility = "schools",
+  fill_var = "AVG_DRV_DIST",
+  fill_var_name = "Average distance",
+  csd_sf = CSD_DA_avg_dist_drvtime_by_service_sf,
+  facility_sf ,
+  label_var1 = F ,
+  label_var2 = T
+)
+
+
+compare_two_csd_in_map(
+  CSD1 = "Vancouver",
+  CSD2 = "Fernie",
+  facility = "servicebc",
+  fill_var = "AVG_DRV_DIST",
+  fill_var_name = "Average distance",
+  csd_sf = CSD_DA_avg_dist_drvtime_by_service_sf,
+  facility_sf ,
+  label_var1 = F ,
+  label_var2 = T
+)
+
+
+
 
 ################################################################
 ################################################################
