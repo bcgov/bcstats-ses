@@ -14,6 +14,11 @@
 # This script reads distance and drive time data from home address to nearest facilities(Service BC office, school, and hospital) data from geo-location service team in BC Data Service. 
 # Geodata team has updated the data with DA id and randomly sampled addresses within DA strata in 2025-02-11. 
 # We need to keep the coordinates columns when we drop the geometry column, or we need to add the coordinates columns back after we drop the geometry column from original data.
+# Geodata team has added the DA id in the dataset, so we can skip the step of calculating the DA id using st_join function.
+# We will create a DA level summary table: average drive time and distance, and number of address.
+# We will create a CSD level summary table: average drive time and distance, and number of address.
+# Geodata fixed those addresses that does not have valid coordinates or are not connected to the road network. 
+# Exclude those addresses from the analysis and resample the addresses.
 ###################################################################
 
 # Load necessary libraries
@@ -26,8 +31,8 @@ library(cowplot) # For aligning multiple plots
 library(patchwork)
 # Load the rlang package for the bang-bang operator
 library(rlang)
-source("utils.R") # get the functions for plotting maps
-
+source("./src/utils.R") # get the functions for plotting maps
+  
 ###################################################################
 # # boundary files
 # https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21
@@ -131,6 +136,11 @@ new_da_school_df %>%
   count(FULL_ADDRESS) %>%
   filter(n > 1) %>%
   glimpse()
+
+# replacement of those addresses that missed coordinates or are not connected to road network
+replacement_file_path = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_schools_20250222_180651.zik")
+
+
 
 # servicbc/hospital/schools duplicates
 # "1090A Main St Valemount BC"
