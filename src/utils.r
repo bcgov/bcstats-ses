@@ -35,12 +35,12 @@ plot_csd_facility_map_fn <- function(
   # Filter CSD data for the specified CSD and facility
   csd_data <- csd_sf %>%
     filter(MUN_NAME_2021 == csd) %>%
-    filter(TAG == facility)
+    filter(TAG_2 == facility)
   
   # Filter facility data for the specified CSD and facility
   facility_data <- facility_sf %>%
     filter(MUN_NAME_2021 == csd) %>%
-    filter(TAG == facility)
+    filter(TAG_2 == facility)
   
   # Create the map plot
   plot <- csd_data %>%
@@ -116,8 +116,8 @@ compare_two_csd_in_map <- function(
   # two CSDs maps should share the same color scale
   
   color_range <- csd_sf %>%
-    filter(MUN_NAME_2021 == c(CSD1, CSC2)) %>%
-    filter(TAG %in% c(facility)) %>% 
+    filter(MUN_NAME_2021 == c(CSD1, CSD2)) %>%
+    filter(TAG_2 %in% c(facility)) %>% 
     filter(!is.na(!!sym(fill_var))) %>%
     pull(!!sym(fill_var)) %>%
     range()
@@ -127,26 +127,29 @@ compare_two_csd_in_map <- function(
   step <- (max_val - min_val) / (12 - 1)
   
   
-  # Define a helper function to generate a single CSD plot
-  plot_csd <- function(CSD, label_var, min_val, max_val, step) {
-    
-    plot_csd_facility_map_fn(
-      CSD = CSD,
-      facility = facility,
-      fill_var = fill_var,
-      fill_var_name = fill_var_name,
-      csd_sf = csd_sf,
-      facility_sf = facility_sf,
-      min_val = min_val,
-      max_val = max_val,
-      step = step,
-      label_var = label_var
-    )
-  }
   
   # Generate plots for both CSDs
-  plot_a <- plot_csd(CSD1, label_var1)
-  plot_b <- plot_csd(CSD2, label_var2)
+  plot_a <- plot_csd_facility_map_fn(CSD1, 
+                                     facility,
+                                     fill_var,
+                                     fill_var_name,
+                                     csd_sf,
+                                     facility_sf,
+                                     min_val,
+                                     max_val,
+                                     step,
+                                     label_var1)
+  
+  plot_b <- plot_csd_facility_map_fn(CSD2, 
+                                     facility,
+                                     fill_var,
+                                     fill_var_name,
+                                     csd_sf,
+                                     facility_sf,
+                                     min_val,
+                                     max_val,
+                                     step,
+                                     label_var2)
   
   # Combine the two plots using patchwork and add a shared title
   combined_plot <- (plot_a + plot_b +
