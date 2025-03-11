@@ -32,7 +32,6 @@ library(patchwork)
 # Load the rlang package for the bang-bang operator
 library(rlang)
 source("./src/utils.R") # get the functions for plotting maps
-  
 ###################################################################
 # # boundary files
 # https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21
@@ -137,52 +136,54 @@ new_da_school_df %>%
   filter(n > 1) %>%
   glimpse()
 
+# Previously, there were 2000 invalid rows in each dataset, no coordinates, no DA id, and no address id.
+# geodata team fixed them.
 # replacement of those addresses that missed coordinates or are not connected to road network
-replacement_file_path = use_network_path("2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_schools_20250222_180651.zik")
-
+replacement_file_path = use_network_path("2024 SES Index/data/raw_data/remoteness/proximity_analysis_route_salvaging")
+replacement_files <- list.files(replacement_file_path, full.names = T, recursive =T) # fs::dir_ls
+replacement_df <-    map_df(replacement_files, read_csv)
+replacement_df %>% glimpse()
+# 8,021 rows
 
 
 # servicbc/hospital/schools duplicates
 # "1090A Main St Valemount BC"
 # According to getodata team, we can check it using https://geocoder.api.gov.bc.ca/addresses.json?addressString=1090A%20Main%20St%20Valemount%20BC&outputSRS=3005
-# and only keep the id 112681
+# and only keep the id 112681, exclude the other one 112684.
 
-new_da_servicebc_df2 %>% 
+
+new_da_school_df %>% 
   filter(FULL_ADDRESS == "1090A Main St Valemount BC")
 
 address_sf_with_da <- new_da_servicebc_df2 %>% 
   bind_rows(new_da_hospital_df) %>% 
   bind_rows(new_da_school_df) %>% 
+  bind_rows(replacement_df) %>%
   janitor::clean_names(case = "screaming_snake") %>%
+  filter(!FID == 112684) %>% # remove duplicated rows
+  filter(TAG!='nan') %>% # remove the rows without coordinates for facilities
   mutate(ADDRESS_ALBERS_X = SITE_ALBERS_X,
          ADDRESS_ALBERS_Y = SITE_ALBERS_Y) %>% 
   st_as_sf(coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
-
+# 1841998 features and 13 fields
 
 # What is the nan in TAG?
-new_da_servicebc_df2 %>% 
-  bind_rows(new_da_hospital_df) %>% 
-  bind_rows(new_da_school_df) %>% 
-  janitor::clean_names(case = "screaming_snake") %>% 
+address_sf_with_da %>% 
   count(TAG)
 
-
-new_da_servicebc_df2 %>% 
-  bind_rows(new_da_hospital_df) %>% 
-  bind_rows(new_da_school_df) %>% 
-  janitor::clean_names(case = "screaming_snake") %>% 
-  filter(TAG == "nan")
-
+address_sf_with_da <- address_sf_with_da %>% 
+  mutate(TAG_2 = case_when(
+    TAG == "servicebc_v2" ~ "servicebc",
+    TAG == "hospitals_v2" ~ "hospitals",
+    TAG == "schools_v2" ~ "schools",
+    TRUE ~ TAG
+  ))
 
 # Save the data to csv file
 # This file will be used in the next step for calculating the drive time and distance to the nearest facility
 # for each address.
-new_da_servicebc_df2 %>% 
-  bind_rows(new_da_hospital_df) %>% 
-  bind_rows(new_da_school_df) %>% 
-  janitor::clean_names(case = "screaming_snake") %>%
-  rename(ADDRESS_ALBERS_X = SITE_ALBERS_X,
-         ADDRESS_ALBERS_Y = SITE_ALBERS_Y)  %>% 
+address_sf_with_da %>% 
+  st_drop_geometry() %>% 
   write_csv(use_network_path("2024 SES Index/data/raw_data/remoteness/bc_address_with_da.csv"))
 
 
@@ -196,26 +197,28 @@ new_da_servicebc_df2 %>%
 
 avg_dist_drvtime_by_da_service <- address_sf_with_da %>% 
   st_drop_geometry() %>% 
-  group_by(DAID , TAG) %>% 
+  group_by(DAID , TAG_2) %>% 
   summarise(
     AVG_DRV_TIME_SEC = mean(DRV_TIME_SEC ),
     AVG_DRV_DIST = mean(DRV_DIST ),
-    N_ADDRESS = n()
+    N_ADDRESS = n_distinct(FID)
   )
 
 avg_dist_drvtime_by_da_service %>% 
   filter(is.na(AVG_DRV_DIST)) %>%
-  count(DAID) %>%
+  # count(DAID) %>%
   glimpse()
+# No row missing distance value, 
 
 avg_dist_drvtime_by_da_service %>% 
-  write_csv(use_network_path("2024 SES Index/data/output/remoteness/avg_dist_drvtime_by_da_service.csv"))
+  write_csv(use_network_path("2024 SES Index/data/output/remoteness/avg_dist_drvtime_by_da_facility.csv"))
 
 
 
 
 ###########################################################################################
 #  To get how many DAs are missing. And create a CSD level summary. 
+# This is for econ team, and not for index project.
 ###########################################################################################
 
 # Get a DA2021 list from TMF.
@@ -236,7 +239,9 @@ TMF <-
 
 CSD_DA_list <-  TMF %>% 
   filter(ACTIVE =="Y") %>% 
-  group_by(MUN_NAME_2021, CSD_2021, DA_2021, DA_NUM) %>% 
+  mutate(CDUID = str_sub(DA_NUM, 1, 4),
+         CSDUID = str_c(CDUID, CSD_2021)) %>%
+  group_by(CDUID, CSDUID, MUN_NAME_2021, CSD_2021, DA_2021, DA_NUM) %>% 
   summarise(
     N_POSTALCODE = n()
   ) %>% 
@@ -245,18 +250,10 @@ CSD_DA_list <-  TMF %>%
 
 # Save to a new file this one has all the information but without the geometry column.
 CSD_DA_address_dist_drvtime <- CSD_DA_list %>% 
-  left_join(address_sf_with_da, by = join_by("DA_NUM" == "DAID") )
+  inner_join(address_sf_with_da, by = join_by("DA_NUM" == "DAID") )
+# should inner join, otherwise some CSDs have missed distance values.
 
 
-# create a sf object for the facility which will be used for plotting with the geometry column.
-facility_sf = address_sf_with_da %>% 
-  st_drop_geometry() %>%
-  filter(!is.na(COORD_X)) %>%  # remove the rows without coordinates for facilities
-  left_join(CSD_DA_list, by = join_by("DAID" == "DA_NUM") ) %>%
-  count(TAG,MUN_NAME_2021, CSD_2021 , NEAREST_FACILITY, COORD_X ,COORD_Y) %>% 
-  mutate(FACILITY_ALBERS_X = COORD_X,
-         FACILITY_ALBERS_Y = COORD_Y) %>%
-  st_as_sf(coords = c("COORD_X", "COORD_Y"), crs = 3005)
 
 # check if there is duplication
 # CSD_DA_list %>%
@@ -268,28 +265,28 @@ facility_sf = address_sf_with_da %>%
 
 
 
-# a CSD level summary
-CSD_REMOTENESS_BY_SERVICE = CSD_DA_address_dist_drvtime %>% 
-  mutate(CDUID = str_sub(DA_NUM, 1, 4),
-         CSDUID = str_c(CDUID, CSD_2021)) %>% 
-  group_by(CSDUID,MUN_NAME_2021,TAG) %>% 
+# a CSD level summary table: average drive time and distance, and number of address.
+CSD_REMOTENESS_BY_FACILITY = CSD_DA_address_dist_drvtime %>% 
+  group_by(CDUID, CSDUID,MUN_NAME_2021,TAG_2) %>% 
   summarise(
     AVG_DRV_TIME_SEC = mean(DRV_TIME_SEC, na.rm = T),
     AVG_DRV_DIST = mean(DRV_DIST, na.rm = T),
-    N_ADDRESS =  n()
+    N_ADDRESS =  n_distinct(FID),
+    N_DA =  n_distinct(DA_NUM)
   ) %>% 
   ungroup()
 
-CSD_REMOTENESS_BY_SERVICE %>% 
-  filter(is.na(AVG_DRV_DIST)) %>%
+CSD_REMOTENESS_BY_FACILITY %>% 
+  filter(is.na(AVG_DRV_DIST)) %>% glimpse()
   count(CSDUID) %>%
   glimpse()
+# No CSDs are missing at least one distance value.
 
-CSD_REMOTENESS_BY_SERVICE %>% 
-  write_csv("./out/CSD_REMOTENESS_BY_SERVICE.csv")
+CSD_REMOTENESS_BY_FACILITY %>% 
+write_csv("./out/CSD_REMOTENESS_BY_FACILITY.csv")
 
-CSD_REMOTENESS_BY_SERVICE %>% 
-  write_csv(use_network_path("2024 SES Index/data/output/remoteness/CSD_REMOTENESS_BY_SERVICE.csv"))
+CSD_REMOTENESS_BY_FACILITY %>% 
+  write_csv(use_network_path("2024 SES Index/data/output/remoteness/CSD_REMOTENESS_BY_FACILITY.csv"))
 
 
 
@@ -299,24 +296,58 @@ CSD_REMOTENESS_BY_SERVICE %>%
 #   
 #   Plot the results to visually validate that points are correctly joined to their respective dissemination areas:
 
+# create a sf object for the facility which will be used for plotting with the geometry column.
+facility_sf = address_sf_with_da %>% 
+  st_drop_geometry() %>%
+  filter(!is.na(COORD_X)) %>%  # remove the rows without coordinates for facilities
+  left_join(CSD_DA_list, by = join_by("DAID" == "DA_NUM") ) %>%
+  count(TAG_2,CDUID, CSDUID,MUN_NAME_2021, CSD_2021 , NEAREST_FACILITY, COORD_X ,COORD_Y) %>% 
+  mutate(FACILITY_ALBERS_X = COORD_X,
+         FACILITY_ALBERS_Y = COORD_Y) %>%
+  st_as_sf(coords = c("COORD_X", "COORD_Y"), crs = 3005)
 
-address_avg_dist_da_shapefile <- da_shapefile %>% left_join(
+# da level average distance with da sf object, append the average distance and drive time to the DA shapefile
+address_avg_dist_da_shapefile <- da_shapefile %>% 
+  left_join(
   avg_dist_drvtime_by_da_service %>% mutate(DAUID = as.character(DAID)),
   join_by("DAUID")
-)
+) 
+# 22500 features and 9 fields
 
-library(ggplot2)
+# CSD information plus da level average distance with da sf object, append the average distance and drive time to the DA shapefile
+CSD_DA_avg_dist_drvtime_by_service_sf <- address_avg_dist_da_shapefile %>% 
+  left_join(
+            CSD_DA_list,
+            by = join_by("DAID" == "DA_NUM")
+  )
+# 22500 features and 15 fields
+
+
+# There are some DAs which still missing any addresses/red points.
+
+address_avg_dist_da_shapefile %>% 
+  filter(is.na(AVG_DRV_DIST)) %>%
+  # count(TAG_2)
+  glimpse()
+
+# 522 DAs are missing. The TAG is NA, so they are not joined to any addresses.
+# TAG_2   n                       geometry
+# 1  <NA> 522 MULTIPOLYGON (((603198.1 93...
+# 522 rows are missing at least one distance measure in geodata team's file, but in the da_shapefile. 
+
 # add title to the ggplot object
-address_avg_dist_da_servicebc_p <- ggplot(data = address_avg_dist_da_shapefile %>% filter(TAG == "servicebc")) +
+address_avg_dist_da_servicebc_p <- ggplot(data = address_avg_dist_da_shapefile %>% filter(TAG_2 == "servicebc")) +
   geom_sf(
     aes(fill = AVG_DRV_DIST),
     color = "gray"
   ) +
   scale_fill_viridis_c(option = "viridis") +
   geom_sf(
-    data = address_sf_with_da %>% filter(TAG == "servicebc"),
+    data = address_sf_with_da %>% filter(TAG_2 == "servicebc"),
     color = "red",
-    size = 2
+    size = 1,
+    fill = "red",
+    alpha = 0.5
   ) +
   theme_minimal() +
   labs(title = "Families Addresses Distance to ServiceBC within Dissemination Areas")
@@ -326,19 +357,7 @@ print(address_avg_dist_da_servicebc_p)
 ggsave( "./out/address_servicebc_dist_with_da_map.png", address_avg_dist_da_servicebc_p, width = 10, height = 8, dpi = 300)
 # the same addresses of families are plotted on the map, and the dissemination areas are shown in light blue.
 # The red points represent the addresses of families that have been successfully joined to their respective dissemination areas.
-# There are some DAs which still missing any addresses/red points.
 
-address_avg_dist_da_shapefile %>% 
-  filter(is.na(AVG_DRV_DIST)) %>%
-  count(TAG)
-  glimpse()
-
-# 810 DAs are missing. The TAG is NA, so they are not joined to any addresses.
-#    TAG   n                       geometry
-# 1  nan 290 MULTIPOLYGON (((594038.4 86...
-# 2 <NA> 520 MULTIPOLYGON (((603200.1 93...
-# 290 rows have nan in TAG
-  # 520 rows are missing in geodata team's file, but in the TMF. 
 ###########################################################################################
 # Validation: color map
 ###########################################################################################
@@ -353,7 +372,7 @@ my_map_theme <- theme_minimal() +
   )
 
 ################################################################
-# Create a color map plot using ggplot2
+# Create a color map plot using ggplot2 to visualize the average distance to the nearest facility by dissemination area.
 ################################################################
 
 
@@ -361,7 +380,7 @@ csd_avg_address_dist_sf = csd_shapefile %>%
   left_join( CSD_REMOTENESS_BY_SERVICE ,
              join_by(CSDUID ) )
   
-csd_avg_address_dist_sf_servicebc_p <- ggplot(data = csd_avg_address_dist_sf %>% filter(TAG == 'servicebc')
+csd_avg_address_dist_sf_servicebc_p <- ggplot(data = csd_avg_address_dist_sf %>% filter(TAG_2 == 'servicebc')
        ) +
   geom_sf(aes(fill = AVG_DRV_DIST), color = "gray") +
   scale_fill_viridis_c(option = "viridis" ) +
@@ -456,21 +475,5 @@ compare_two_csd_in_map(
 )
 
 
-
-
-################################################################
-################################################################
-# Handle Missing Matches:
-#   
-#   Check for NA values in the dissemination area ID column (address_with_da$DA_ID) to identify points that do not fall within any dissemination area.
-# Use st_is_within_distance() with a small tolerance to match points near boundaries if required.
-
-unmatched <- address_with_da %>% filter(is.na(DA_ID))
-
-# 3. Handle Edge Cases (Optional)
-# If there are unmatched points (NA values in the dissemination area ID column), you can inspect and handle them separately. For instance, use st_is_within_distance() to include points near boundaries:
-#   r
-# Find points near boundaries
-near_boundary <- st_is_within_distance(address_sf, da_shapefile, dist = 1)  # Adjust distance as needed
 
 
