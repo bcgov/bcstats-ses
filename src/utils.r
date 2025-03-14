@@ -26,6 +26,7 @@ my_map_theme <- theme_minimal() +
 #'
 plot_bc_address_map <- function(
   data,
+  address_sf = address_sf_with_da,
   fill_var = "AVG_DRV_DIST",
   fill_var_name = "Average Drive Distance",
   facility_name = "servicebc",
@@ -40,7 +41,7 @@ plot_bc_address_map <- function(
     ) +
     scale_fill_viridis_c(option = "viridis") +
     geom_sf(
-      data = address_sf_with_da %>% filter(TAG_2 == facility_name),
+      data = address_sf %>% filter(TAG_2 == facility_name),
       color = "red",
       size = 1,
       fill = "red",
@@ -202,7 +203,7 @@ plot_csd_facility_map_fn <- function(
   plot <- plot +
     labs(
       subtitle = glue::glue(
-        "{fill_var_name} to the nearest {facility} in {csd}"
+        "{fill_var_name} to {facility}"
       ),
       x = "Longitude",
       y = "Latitude"

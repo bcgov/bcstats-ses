@@ -79,19 +79,19 @@ download.file(geouid_url, destfile = "./out/2021_98260004.zip")
 
 unzip("./out/2021_98260004.zip", exdir = "./out/2021_98260004")
 
-dauid_file_path = "./out/2021_98260004/2021_98260004.csv"
+daid_file_path = "./out/2021_98260004/2021_98260004.csv"
 
 # read csv all columns as strings instead of numbers
-dauid_df = read_csv(dauid_file_path, col_types = cols(.default = "c"))
-dauid_df %>% glimpse()
-bc_dauid_df <- dauid_df %>%
+daid_df = read_csv(daid_file_path, col_types = cols(.default = "c"))
+daid_df %>% glimpse()
+bc_daid_df <- daid_df %>%
   filter(PRDGUID_PRIDUGD == '2021A000259') # BC
 
-bc_dauid_df %>%
+bc_daid_df %>%
   count(PRDGUID_PRIDUGD, CDDGUID_DRIDUGD, CSDDGUID_SDRIDUGD) %>%
   glimpse()
 # 751 CSDs in BC
-bc_csd_dauid_df <- bc_dauid_df %>%
+bc_csd_daid_df <- bc_daid_df %>%
   count(PRDGUID_PRIDUGD, CDDGUID_DRIDUGD, CSDDGUID_SDRIDUGD, DADGUID_ADIDUGD)
 # 7848 DAs in BC
 ###########################################################################################
@@ -109,17 +109,17 @@ bc_csd_sgc_2021_df <- bc_sgc_2021_df %>%
   filter(`Hierarchical structure` == "Census subdivision")
 # 751 CSDs in BC
 
-bc_csdid_name_dauid_2021_df <- bc_csd_dauid_df %>%
+bc_csdid_name_daid_2021_df <- bc_csd_daid_df %>%
   select(CSDDGUID_SDRIDUGD, DADGUID_ADIDUGD) %>%
   mutate(
-    CSD_UID = str_sub(CSDDGUID_SDRIDUGD, 10, 16),
-    DA_UID = str_sub(DADGUID_ADIDUGD, 10, 17)
+    CSDID = str_sub(CSDDGUID_SDRIDUGD, 10, 16),
+    DAID = str_sub(DADGUID_ADIDUGD, 10, 17)
   ) %>%
   select(-CSDDGUID_SDRIDUGD, -DADGUID_ADIDUGD) %>%
   left_join(
     bc_csd_sgc_2021_df %>%
-      select(CSD_UID = Code, MUN_NAME_2021 = `Class title`),
-    by = join_by(CSD_UID)
+      select(CSDID = Code, MUN_NAME_2021 = `Class title`),
+    by = join_by(CSDID)
   )
 
 ###########################################################################################
@@ -257,19 +257,11 @@ address_sf_with_da <- new_da_servicebc_df2 %>%
   st_as_sf(coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
 # 1841998 features and 13 fields
 
-# What is the nan in TAG?
-# address_sf_with_da %>%
-#   st_drop_geometry() %>%
-#   count(TAG)
-
 address_sf_with_da <- address_sf_with_da %>%
   mutate(
     TAG_2 = str_remove_all(TAG, "_v2")
   )
 
-# address_sf_with_da %>%
-#   st_drop_geometry() %>%
-#   count(TAG_2)
 
 # Save the data to csv file
 # This file will be used in the next step for calculating the drive time and distance to the nearest facility
@@ -315,13 +307,13 @@ avg_dist_drvtime_by_da_service %>%
 ###########################################################################################
 #
 # # Save to a new file this one has all the information but without the geometry column.
-# bc_csdid_name_dauid_2021_df %>%
-#   count(CSD_UID) %>% glimpse()
+# bc_csdid_name_DAID_2021_df %>%
+#   count(CSDID) %>% glimpse()
 # 751 CSDs
-CSD_DA_address_dist_drvtime <- bc_csdid_name_dauid_2021_df %>%
+CSD_DA_address_dist_drvtime <- bc_csdid_name_daid_2021_df %>%
   left_join(
     address_sf_with_da %>% mutate(DAID = as.character(DAID)),
-    by = join_by("DA_UID" == "DAID")
+    by = join_by("DAID" == "DAID")
   )
 # should not inner join, otherwise some CSDs will be dropped.
 # 1,842,520 × 17
@@ -332,22 +324,28 @@ CSD_DA_address_dist_drvtime <- bc_csdid_name_dauid_2021_df %>%
 # corresondingly, there are CSDs missing in the distance dataset.
 # 751 CSDs in BC from statscan
 
+CSD_DA_address_dist_drvtime %>%
+  filter(is.na(FID)) %>%
+  # count(CSDID) %>%
+  glimpse()
+# 522 DAs are missing in the distance dataset, but in the DA file from statscan.
+
 # why TAG_2 is NA?
 # # a CSD level summary table: average drive time and distance, and number of address.
 CSD_REMOTENESS_BY_FACILITY = CSD_DA_address_dist_drvtime %>%
-  group_by(CSD_UID, MUN_NAME_2021, TAG_2) %>%
+  group_by(CSDID, MUN_NAME_2021, TAG_2) %>%
   summarise(
     AVG_DRV_TIME_SEC = mean(DRV_TIME_SEC, na.rm = T),
     AVG_DRV_DIST = mean(DRV_DIST, na.rm = T),
-    N_ADDRESS = n_distinct(FID),
-    N_DA = n_distinct(DA_UID)
+    N_ADDRESS = n_distinct(FID, na.rm = TRUE),
+    N_DA = n_distinct(DAID, na.rm = TRUE)
   ) %>%
   ungroup()
 # 1,761 × 7
 
 CSD_REMOTENESS_BY_FACILITY %>%
   filter(is.na(AVG_DRV_DIST)) %>%
-  count(CSD_UID) %>%
+  count(CSDID) %>%
   glimpse()
 # 360 CSDs have DAs that are missing at least one distance value.
 #
@@ -363,21 +361,21 @@ CSD_REMOTENESS_BY_FACILITY %>%
 # validation
 # a DA level summary table: average drive time and distance, and number of address.
 DA_REMOTENESS_BY_FACILITY = CSD_DA_address_dist_drvtime %>%
-  group_by(CDUID, CSDUID, MUN_NAME_2021, DA_NUM, N_POSTALCODE, TAG_2) %>%
+  group_by(CSDID, MUN_NAME_2021, DAID, TAG_2) %>%
   summarise(
     AVG_DRV_TIME_SEC = mean(DRV_TIME_SEC, na.rm = T),
     AVG_DRV_DIST = mean(DRV_DIST, na.rm = T),
-    N_ADDRESS = n_distinct(FID),
-    N_DA = n_distinct(DA_NUM)
+    N_ADDRESS = n_distinct(FID, na.rm = TRUE),
+    N_DA = n_distinct(DAID, na.rm = TRUE)
   ) %>%
   ungroup()
 
 DA_REMOTENESS_BY_FACILITY %>%
   # filter(TAG_2 == 'servicebc') %>%
   filter(is.na(AVG_DRV_DIST)) %>% #glimpse()
-  count(DA_NUM) %>%
+  count(DAID) %>%
   glimpse()
-# 118 DAs still missing at least one distance value, but availabel in TMF.
+# 522 DAs still missing at least one distance value, but available in statscan DA  file.
 
 ###########################################################################################
 # Validation:
@@ -390,10 +388,10 @@ facility_sf = address_sf_with_da %>%
   st_drop_geometry() %>%
   mutate(DAID = as.character(DAID)) %>%
   # filter(!is.na(COORD_X)) %>% # remove the rows without coordinates for facilities
-  left_join(bc_csdid_name_dauid_2021_df, by = join_by("DAID" == "DA_UID")) %>%
+  left_join(bc_csdid_name_daid_2021_df, by = join_by("DAID" == "DAID")) %>%
   count(
     TAG_2,
-    CSD_UID,
+    CSDID,
     MUN_NAME_2021,
     NEAREST_FACILITY,
     COORD_X,
@@ -406,13 +404,14 @@ facility_sf %>% glimpse()
 
 # 7848 unique DAs in the DA shape file
 # 7326 unique DAs are joined to shape file from the distance dataset.
-# da level average distance with da sf object, append the average distance and drive time to the DA shapefile
+
+# da level average distance with da sf object, append the average distance and drive time to the DA polygon shapefile
 
 CSD_DA_avg_dist_drvtime_by_service_sf <- da_shapefile %>%
-  select(-DGUID) %>%
+  select(-DGUID, -PRUID) %>%
   left_join(
-    bc_csdid_name_dauid_2021_df,
-    by = join_by("DAUID" == "DA_UID")
+    bc_csdid_name_daid_2021_df,
+    by = join_by("DAUID" == "DAID")
   ) %>%
   left_join(
     avg_dist_drvtime_by_da_service %>% mutate(DAID = as.character(DAID)),
@@ -435,7 +434,8 @@ CSD_DA_avg_dist_drvtime_by_service_sf %>%
 # add title to the ggplot object
 
 plot_bc_address_map(
-  data = address_avg_dist_da_shapefile,
+  data = CSD_DA_avg_dist_drvtime_by_service_sf,
+  address_sf = address_sf_with_da,
   fill_var = "AVG_DRV_DIST",
   fill_var_name = "Average Drive Distance",
   facility_name = "servicebc"
@@ -445,14 +445,17 @@ plot_bc_address_map(
 # The red points represent the addresses of families that have been successfully joined to their respective dissemination areas.
 
 plot_bc_address_map(
-  data = address_avg_dist_da_shapefile,
+  data = CSD_DA_avg_dist_drvtime_by_service_sf,
+  address_sf = address_sf_with_da,
   fill_var = "AVG_DRV_TIME_SEC",
   fill_var_name = "Average Drive Time (seconds)",
-  facility_name = "hospitals"
+  facility_name = "hospitals",
+  save_png = T
 )
 
 plot_bc_address_map(
-  data = address_avg_dist_da_shapefile,
+  data = CSD_DA_avg_dist_drvtime_by_service_sf,
+  address_sf = address_sf_with_da,
   fill_var = "AVG_DRV_TIME_SEC",
   fill_var_name = "Average Drive Time (seconds)",
   facility_name = "schools"
@@ -463,7 +466,7 @@ plot_bc_address_map(
 ################################################################
 
 csd_avg_address_dist_sf = csd_shapefile %>%
-  left_join(CSD_REMOTENESS_BY_FACILITY, join_by("CSDUID" == "CSD_UID"))
+  left_join(CSD_REMOTENESS_BY_FACILITY, join_by("CSDUID" == "CSDID"))
 
 # the color in the CSD show the level of the remoteness
 plot_csd_avg_map_fn(
@@ -479,6 +482,14 @@ plot_csd_avg_map_fn(
   fill_var = "AVG_DRV_DIST",
   fill_var_name = "Average Drive Distance",
   facility_name = "schools",
+  save_png = T
+)
+
+plot_csd_avg_map_fn(
+  csd_avg_address_dist_sf,
+  fill_var = "AVG_DRV_DIST",
+  fill_var_name = "Average Drive Distance",
+  facility_name = "hospitals",
   save_png = T
 )
 
