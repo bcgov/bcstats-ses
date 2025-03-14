@@ -124,7 +124,7 @@ bc_csdid_name_daid_2021_df <- bc_csd_daid_df %>%
 
 ###########################################################################################
 # DA shp file
-# since geodata team added DA id in the dataset, we can skip this step now. Prevously, we have to calculate the DA id using st_join function.
+# since geodata team added DA id in the dataset, we can skip this step now. Previously, we have to calculate the DA id using st_join function.
 ###########################################################################################
 
 # grab the file from "Statistics Canada", only run once.
