@@ -1,4 +1,8 @@
+test.R
 scratch/
 address_sampling/
 test.R
-
+refactored_compare_two_csd_in_map.R
+refactored_plot_csd_facility_map_fn.R
+refactored_09_output_remoteness.R
+*.log

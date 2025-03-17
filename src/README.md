@@ -26,7 +26,7 @@ Collect data from StatsCan and other statistical agencies and convert to clean C
  * It requires a lookup table to link policing jurisdictions and regions in BC. 
 4. [BC population projection](https://bcstats.shinyapps.io/popApp/)
 5. [BC Wild fire data](https://www2.gov.bc.ca/gov/content/safety/wildfire-status/about-bcws/wildfire-statistics/wildfire-averages)
-
+6. [BC Remoteness Index](https://www150.statcan.gc.ca/n1/pub/17-26-0001/172600012020001-eng.htm)
 All data are stored on the LAN. BC Stats data may be slightly different from the public-available data.  
 
 To access those data, you need to have a secure connection to the LAN. The `safepaths` package is used to access the data.The safe paths network paths are stored in the `.Renviron` file or a config file.
