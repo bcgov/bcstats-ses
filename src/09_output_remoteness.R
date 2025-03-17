@@ -102,25 +102,38 @@ bc_csd_daid_df <- bc_daid_df %>%
 
 # get the csd file from statscan
 SGC_2021_url = "https://www.statcan.gc.ca/en/statistical-programs/document/sgc-cgt-2021-structure-eng.csv"
+
+download.file(SGC_2021_url, destfile = "./out/sgc-cgt-2021-structure-eng.csv")
+
+
 sgc_2021_df = read_csv(SGC_2021_url, col_types = cols(.default = "c"))
 bc_sgc_2021_df = sgc_2021_df %>%
   filter(str_sub(Code, 1, 2) == "59")
 bc_csd_sgc_2021_df <- bc_sgc_2021_df %>%
-  filter(`Hierarchical structure` == "Census subdivision")
+  filter(`Hierarchical structure` %in% c("Census subdivision"))
 # 751 CSDs in BC
 
+bc_sgc_2021_df %>%
+  filter(`Hierarchical structure` %in% c("Census division")) %>%
+  write_csv(("./out/bc_cdid_name_2021.csv"))
+
 bc_csdid_name_daid_2021_df <- bc_csd_daid_df %>%
-  select(CSDDGUID_SDRIDUGD, DADGUID_ADIDUGD) %>%
+  select(CDDGUID_DRIDUGD, CSDDGUID_SDRIDUGD, DADGUID_ADIDUGD) %>%
   mutate(
+    CDID = str_sub(CDDGUID_DRIDUGD, 10, 13),
     CSDID = str_sub(CSDDGUID_SDRIDUGD, 10, 16),
     DAID = str_sub(DADGUID_ADIDUGD, 10, 17)
   ) %>%
-  select(-CSDDGUID_SDRIDUGD, -DADGUID_ADIDUGD) %>%
+  select(-CDDGUID_DRIDUGD, -CSDDGUID_SDRIDUGD, -DADGUID_ADIDUGD) %>%
   left_join(
     bc_csd_sgc_2021_df %>%
       select(CSDID = Code, MUN_NAME_2021 = `Class title`),
     by = join_by(CSDID)
   )
+
+bc_csdid_name_daid_2021_df %>%
+  write_csv(("./out/bc_csdid_name_daid_2021.csv"))
+# write_csv(use_network_path("2024 SES Index/data/raw_data/remoteness/bc_csdid_name_daid_2021.csv"))
 
 ###########################################################################################
 # DA shp file
@@ -324,6 +337,9 @@ CSD_DA_address_dist_drvtime <- bc_csdid_name_daid_2021_df %>%
 # corresondingly, there are CSDs missing in the distance dataset.
 # 751 CSDs in BC from statscan
 
+# CSD_DA_address_dist_drvtime %>%
+#   count(CSDID) %>% glimpse()
+
 CSD_DA_address_dist_drvtime %>%
   filter(is.na(FID)) %>%
   # count(CSDID) %>%
@@ -335,20 +351,51 @@ CSD_DA_address_dist_drvtime %>%
 CSD_REMOTENESS_BY_FACILITY = CSD_DA_address_dist_drvtime %>%
   group_by(CSDID, MUN_NAME_2021, TAG_2) %>%
   summarise(
-    AVG_DRV_TIME_SEC = mean(DRV_TIME_SEC, na.rm = T),
-    AVG_DRV_DIST = mean(DRV_DIST, na.rm = T),
-    N_ADDRESS = n_distinct(FID, na.rm = TRUE),
-    N_DA = n_distinct(DAID, na.rm = TRUE)
+    AVG_DRV_TIME_SEC = mean(DRV_TIME_SEC, na.rm = T), # data from geodata team
+    AVG_DRV_DIST = mean(DRV_DIST, na.rm = T), # data from geodata team
+    N_ADDRESS = n_distinct(FID, na.rm = TRUE), # data from statscan
+    N_DA = n_distinct(DAID, na.rm = TRUE) # data from statscan
   ) %>%
   ungroup()
+
 # 1,761 × 7
 
+# TAG_2 is NA, just mean that some DAs in that CSD do not have any address in the distance dataset.
+
+# CSD_REMOTENESS_BY_FACILITY %>%
+#   count(CSDID) %>% glimpse()
+# 751 CSDs
+# we should have 751 CSDs, but we have only 467 CSDs have all three facilities.
+
 CSD_REMOTENESS_BY_FACILITY %>%
-  filter(is.na(AVG_DRV_DIST)) %>%
+  # filter(!is.na(AVG_DRV_DIST)) %>%
   count(CSDID) %>%
+  filter(n >= 3)
+# 467 CSDs have all three facilities,
+# 751-467 = 284 CSDs missing.
+
+CSD_REMOTENESS_BY_FACILITY %>%
+  count(CSDID) %>%
+  filter(n < 3) %>%
+  arrange(desc(n)) %>%
   glimpse()
-# 360 CSDs have DAs that are missing at least one distance value.
-#
+# 284 CSDs do not have any address in the distance dataset.
+
+CSD_REMOTENESS_BY_FACILITY %>%
+  count(CSDID) %>%
+  filter(n < 3) %>%
+  left_join(
+    CSD_REMOTENESS_BY_FACILITY
+  ) %>%
+  glimpse()
+# Those CSDs do not have any address in the distance dataset, so they do not have any distance measure.
+# Those CSDs are relatively small, only have a few DAs, so they are not in the distance dataset.
+# one sample
+
+CSD_REMOTENESS_BY_FACILITY %>%
+  filter(CSDID == "5901805") %>%
+  glimpse()
+# 5901805 is a small CSD, only have 1 DAs, so it is not in the distance dataset.
 
 CSD_REMOTENESS_BY_FACILITY %>%
   write_csv("./out/CSD_REMOTENESS_BY_FACILITY.csv")
