@@ -405,24 +405,6 @@ CSD_REMOTENESS_BY_FACILITY %>%
     "2024 SES Index/data/output/remoteness/CSD_REMOTENESS_BY_FACILITY.csv"
   ))
 
-# validation
-# a DA level summary table: average drive time and distance, and number of address.
-DA_REMOTENESS_BY_FACILITY = CSD_DA_address_dist_drvtime %>%
-  group_by(CSDID, MUN_NAME_2021, DAID, TAG_2) %>%
-  summarise(
-    AVG_DRV_TIME_SEC = mean(DRV_TIME_SEC, na.rm = T),
-    AVG_DRV_DIST = mean(DRV_DIST, na.rm = T),
-    N_ADDRESS = n_distinct(FID, na.rm = TRUE),
-    N_DA = n_distinct(DAID, na.rm = TRUE)
-  ) %>%
-  ungroup()
-
-DA_REMOTENESS_BY_FACILITY %>%
-  # filter(TAG_2 == 'servicebc') %>%
-  filter(is.na(AVG_DRV_DIST)) %>% #glimpse()
-  count(DAID) %>%
-  glimpse()
-# 522 DAs still missing at least one distance value, but available in statscan DA  file.
 
 ###########################################################################################
 # Validation:
@@ -485,7 +467,8 @@ plot_bc_address_map(
   address_sf = address_sf_with_da,
   fill_var = "AVG_DRV_DIST",
   fill_var_name = "Average Drive Distance",
-  facility_name = "servicebc"
+  facility_name = "servicebc",
+  save_png = T
 )
 
 # the same addresses of families are plotted on the map, and the dissemination areas are shown in light blue.
@@ -505,7 +488,8 @@ plot_bc_address_map(
   address_sf = address_sf_with_da,
   fill_var = "AVG_DRV_TIME_SEC",
   fill_var_name = "Average Drive Time (seconds)",
-  facility_name = "schools"
+  facility_name = "schools",
+  save_png = T
 )
 
 ################################################################
@@ -558,7 +542,8 @@ compare_two_csd_in_map(
   csd_sf = CSD_DA_avg_dist_drvtime_by_service_sf,
   facility_sf,
   label_var1 = F,
-  label_var2 = T
+  label_var2 = T,
+  save_png = T
 )
 
 
@@ -571,7 +556,8 @@ compare_two_csd_in_map(
   csd_sf = CSD_DA_avg_dist_drvtime_by_service_sf,
   facility_sf,
   label_var1 = F,
-  label_var2 = T
+  label_var2 = T,
+  save_png = T
 )
 
 
@@ -584,7 +570,8 @@ compare_two_csd_in_map(
   csd_sf = CSD_DA_avg_dist_drvtime_by_service_sf,
   facility_sf,
   label_var1 = F,
-  label_var2 = T
+  label_var2 = T,
+  save_png = T
 )
 
 
@@ -597,7 +584,8 @@ compare_two_csd_in_map(
   csd_sf = CSD_DA_avg_dist_drvtime_by_service_sf,
   facility_sf,
   label_var1 = F,
-  label_var2 = T
+  label_var2 = T,
+  save_png = T
 )
 
 
@@ -610,5 +598,6 @@ compare_two_csd_in_map(
   csd_sf = CSD_DA_avg_dist_drvtime_by_service_sf,
   facility_sf,
   label_var1 = F,
-  label_var2 = T
+  label_var2 = T,
+  save_png = T
 )
