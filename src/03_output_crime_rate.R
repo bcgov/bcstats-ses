@@ -245,13 +245,10 @@ bc_da_crime_stats_year_weighted_by_pop = bc_da_crime_stats_year %>%
   summarise(VALUE = weighted.mean(VALUE, w = POP_CNT))
 # since the data has ',' in the cells, we use write.csv2
 bc_da_crime_stats_year_weighted_by_pop %>%
-  write.csv2(here::here("out/BC_DA_Crime_Rate_DIP.csv"))
+  write_csv2(here::here("out/BC_DA_Crime_Rate_DIP.csv"))
 # write.csv2(use_network_path(
 #   "2024 SES Index/data/output/BC_DA_Crime_Rate_DIP.csv"
 # ))
-# bc_da_crime_stats_year_weighted_by_pc = bc_da_crime_stats_year %>%
-#   group_by(REF_DATE,VIOLATIONS,STATISTICS,DA_2021) %>%
-#   summarise(VALUE = weighted.mean(VALUE, w = PC_CNT))
 
 # later, we may calculate the moving average of the crime rate instead of using the observed rate.
 
