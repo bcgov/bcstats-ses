@@ -73,11 +73,17 @@ connection <- cansim::get_cansim_sqlite(
 )
 # ignore the warning, the cache does not have the date right. It is retrieved in July 30th 2024, so it is updated.
 #
-connection %>% glimpse()
+connection %>%
+  glimpse()
+
 
 violations_list = connection %>%
-  count(Violations) %>%
-  collect()
+  count(Violations, `Classification Code for Vilations`) %>%
+  collect() %>%
+  mutate(Violation_id = gsub(".*\\[(\\d+)\\].*", "\\1", Violations)) %>%
+  janitor::clean_names(case = "screaming_snake") # clean the names. We prefer all uppercase
+
+
 # # 314 types of crime
 # we should choose the most important ones.
 
@@ -103,10 +109,11 @@ violations_list = connection %>%
 # I cannot get the Juvenile crime and illicit drug death yet.
 violations_selected_list = violations_list %>%
   filter(str_detect(
-    str_to_lower(Violations),
-    pattern = "all criminal code violations \\(excluding traffic\\)|total violent criminal code violations|homicide|attempted murder|assault|breaking|entering|youth criminal justice act|total drug violation"
+    str_to_lower(VIOLATIONS),
+    pattern = "	
+all violations|all criminal code violations \\(excluding traffic\\)|total violent criminal code violations|homicide|attempted murder|assault|breaking|entering|youth criminal justice act|total drug violation"
   )) %>%
-  pull(Violations)
+  select(VIOLATIONS, VIOLATION_ID)
 
 
 # str(VIOLATIONS_selected_list)
@@ -114,6 +121,10 @@ violations_selected_list = violations_list %>%
 # 1. Total, all Criminal Code VIOLATIONS (excluding traffic) [50]
 # 2. Total violent Criminal Code VIOLATIONS [100]
 # 3. Homicide [110]
+
+violations_selected_list = violations_list %>%
+  filter(VIOLATION_ID %in% c(50, 100, 110))
+
 
 crime_GEO_list = connection %>%
   count(GEO) %>%
@@ -131,12 +142,12 @@ bc_crime_stats <- connection %>%
     # GEO=="British Columbia",
     # str_starts( GEOUID, "59"),
     REF_DATE >= "2000", # focus on most recent years
-    Violations %in% violations_selected_list, #c("Assault, level 1 [1430]"   ,"Assault, level 2, weapon or bodily harm [1420]"   ) ,  #  ,
+    Violations %in% violations_selected_list$VIOLATIONS, #c("Assault, level 1 [1430]"   ,"Assault, level 2, weapon or bodily harm [1420]"   ) ,  #  ,
     Statistics %in%
       c("Rate per 100,000 population", "Percentage change in rate")
   ) %>%
   # filter(REF_DATE  > lubridate::today() - lubridate::years(11))%>%
-  cansim::collect_and_normalize()
+  cansim::collect_and_normalize() # it will create many other supporting variables
 
 bc_crime_stats <- bc_crime_stats %>%
   janitor::clean_names(case = "screaming_snake") # clean the names. We prefer all uppercase
@@ -206,7 +217,15 @@ DA_RESP_lookup_with_year = bc_crime_stats %>%
 bc_da_crime_stats_year = DA_RESP_lookup_with_year %>%
   left_join(
     bc_crime_stats %>%
-      select(REF_DATE, GEO_UID, GEO, VIOLATIONS, STATISTICS, VALUE),
+      select(
+        REF_DATE,
+        GEO_UID,
+        GEO,
+        VIOLATIONS,
+        CLASSIFICATION_CODE_FOR_VIOLATIONS,
+        STATISTICS,
+        VALUE
+      ),
     by = join_by("REF_DATE", "VIOLATIONS", "STATISTICS", "RESP" == "GEO_UID")
   )
 
@@ -216,14 +235,20 @@ bc_da_crime_stats_year = DA_RESP_lookup_with_year %>%
 # bc_da_crime_stats_year %>% names %>% paste(collapse = ",")
 
 bc_da_crime_stats_year_weighted_by_pop = bc_da_crime_stats_year %>%
-  group_by(REF_DATE, VIOLATIONS, STATISTICS, DA_NUM) %>% # now only group by DA and year without RESP
+  group_by(
+    REF_DATE,
+    VIOLATIONS,
+    CLASSIFICATION_CODE_FOR_VIOLATIONS,
+    STATISTICS,
+    DA_NUM
+  ) %>% # now only group by DA and year without RESP
   summarise(VALUE = weighted.mean(VALUE, w = POP_CNT))
 # since the data has ',' in the cells, we use write.csv2
 bc_da_crime_stats_year_weighted_by_pop %>%
-  # write.csv2(here::here("out/BC_DA_Crime_Rate_DIP.csv"))
-  write.csv2(use_network_path(
-    "2024 SES Index/data/output/BC_DA_Crime_Rate_DIP.csv"
-  ))
+  write.csv2(here::here("out/BC_DA_Crime_Rate_DIP.csv"))
+# write.csv2(use_network_path(
+#   "2024 SES Index/data/output/BC_DA_Crime_Rate_DIP.csv"
+# ))
 # bc_da_crime_stats_year_weighted_by_pc = bc_da_crime_stats_year %>%
 #   group_by(REF_DATE,VIOLATIONS,STATISTICS,DA_2021) %>%
 #   summarise(VALUE = weighted.mean(VALUE, w = PC_CNT))
@@ -237,6 +262,7 @@ bc_da_crime_stats_year_weighted_by_pop %>%
 crime_rate_dict_labels = c(
   "REF_DATE" = "The year of the observation (in '%Y' format): from 2000 to 2023",
   "VIOLATIONS" = "Violation type and classification, such as violent criminal code violations|homicide|attempted murder|assault|breaking|entering|",
+  "CLASSIFICATION_CODE_FOR_VIOLATIONS" = "The classification code for the violation",
   "STATISTICS" = "The statistic being measured, including Rate per 100,000 population, Percentage change in rate",
   "DA_NUM" = "Dessemination area id in 2021 Canadian Census",
   "VALUE" = "VALUE: Rate per 100,000 population or Percentage change in rate"
@@ -247,7 +273,7 @@ crime_rate_dict = create_dictionary(
   var_labels = crime_rate_dict_labels
 )
 # write the dictionary to DIP, since the data has ',' in the cells, we use write.csv2
-write.csv2(crime_rate_dict, here::here("out/Crime_Rate_Dict_DIP.csv"))
+write_csv2(crime_rate_dict, here::here("out/Crime_Rate_Dict_DIP.csv"))
 write.csv2(
   crime_rate_dict,
   use_network_path("2024 SES Index/data/output/Crime_Rate_Dict_DIP.csv")
