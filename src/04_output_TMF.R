@@ -1,12 +1,24 @@
 # this file is used for outputting data for importing to DIP
 
-pacman::p_load(cancensus,geojsonsf, tidyverse,config,bcmaps, bcdata, janitor,cansim,safepaths, arrow, duckdb)
+pacman::p_load(
+  cancensus,
+  geojsonsf,
+  tidyverse,
+  config,
+  bcmaps,
+  bcdata,
+  janitor,
+  cansim,
+  safepaths,
+  arrow,
+  duckdb
+)
 library(dplyr)
 library(datadictionary)
 library(readr)
 library(readxl)
 ######################################################################################
-# 
+#
 # Translation Master File: a table with different levels of geography to link the data
 # https://www2.gov.bc.ca/assets/gov/health/forms/5512datadictionary.pdf
 # TRANSLATION MASTER FILE – GEOCODES: DATA DICTIONARY
@@ -26,28 +38,28 @@ library(readxl)
 # a CSD on the TMF is dependent upon whether or not there is a postal code geocoded to that area. A large number of
 # the RDEA’s and the vast majority of IRs are not represented on the TMF
 
-# Census Subdivision (CSD) CSDs are municipalities (as determined by provincial legislation) or areas treated as municipal equivalents 
-# 
+# Census Subdivision (CSD) CSDs are municipalities (as determined by provincial legislation) or areas treated as municipal equivalents
+#
 ######################################################################################
 
 # The GCS 202406 csv file is provided by Econ team and saved in LAN. Need safe network path to get it.
 stopifnot(Sys.getenv("SAFEPATHS_NETWORK_PATH") != "")
 
-TMF_file  <-  use_network_path("data/raw_data/TMF/GCS_202406.csv")
+TMF_file <- use_network_path("2024 SES Index/data/raw_data/TMF/GCS_202406.csv")
 
 TMF <- read_csv(TMF_file)
 
 
 # standardize the DA number, append the prefix BC code 59, so it is easy to join to other tables.
-TMF <- TMF %>% 
+TMF <- TMF %>%
   mutate(DA_NUM = as.numeric(str_c("59", CD_2021, DA_2021, sep = "")))
 
 # TMF_names = TMF %>% names() %>% paste(collapse = ",")
 
 # clean the names, one name is not upper-cased. We prefer all uppercase
-TMF <- 
-  TMF %>% 
-  janitor::clean_names(case = "screaming_snake" ) 
+TMF <-
+  TMF %>%
+  janitor::clean_names(case = "screaming_snake")
 
 # 1. BC Translation_Master_File
 TMF %>% readr::write_csv(here::here("out", "Translation_Master_File_DIP.csv"))
@@ -60,14 +72,14 @@ TMF %>% readr::write_csv(here::here("out", "Translation_Master_File_DIP.csv"))
 TMF <- TMF %>%
   mutate(across(
     .cols = c(
-      PROV, SOURCE, ACTIVE # leave other ids as number since there are too many items/elements in those factors.
+      PROV,
+      SOURCE,
+      ACTIVE # leave other ids as number since there are too many items/elements in those factors.
     ),
     .fns = as.factor
   ))
 
-TMF_dict = create_dictionary(TMF,
-                  id_var = "POSTALCODE",
-                  var_labels = NULL)
+TMF_dict = create_dictionary(TMF, id_var = "POSTALCODE", var_labels = NULL)
 
 # f2 <- "https://www2.gov.bc.ca/assets/gov/health/forms/5512datadictionary.pdf"
 # a better data dictionary in Geocoding Self-Service (GCS) User Guide Prepared by BC Stats March 2020, not online, provided by Econ team
@@ -75,7 +87,7 @@ TMF_dict = create_dictionary(TMF,
 
 # manually create a item field in this detail dataframe to join the TMF_dict dataframe
 
-TMF_dict_detail <- read_csv( use_network_path("docs/TMF_data_dict.csv"))
+TMF_dict_detail <- read_csv(use_network_path("docs/TMF_data_dict.csv"))
 View(TMF_dict_detail)
 
 
@@ -105,8 +117,10 @@ create_item <- function(x) {
     "Pre-2018 Local Health Area" ~ "LHA_PRE_2018",
     "Micro Health Area" ~ "MHA",
     "Ministry of Children & Families Region (MCFD)" ~ "MCFD",
-    "Ministry of Children & Families Service Delivery Area (MCFD_SDA)" ~ "MCFD_SDA",
-    "Ministry of Children & Families Local Service Area (MCFD_LSA)" ~ "MCFD_LSA",
+    "Ministry of Children & Families Service Delivery Area (MCFD_SDA)" ~
+      "MCFD_SDA",
+    "Ministry of Children & Families Local Service Area (MCFD_LSA)" ~
+      "MCFD_LSA",
     "College Region" ~ "CR",
     "School District (SD)" ~ "SD",
     "School District Trustee Electoral Area (TEA)" ~ "TEA",
@@ -118,7 +132,7 @@ create_item <- function(x) {
     "Community Name" ~ "COMM_NAME",
     "Modified Census Subdivision Name" ~ "Modified_MUN_NAME",
     "Modified Full Census Subdivision" ~ "CDCSD",
-    .default = NA_character_  # Default case if no match
+    .default = NA_character_ # Default case if no match
   )
 }
 
@@ -127,27 +141,26 @@ TMF_dict_detail <- TMF_dict_detail %>%
   mutate(item_short = create_item(`Field Name`))
 
 stopifnot(sum(is.na(TMF_dict_detail$item_short)) == 0)
-  
-# for the datadictionary created from datadictionary function, we also need to create a shorten item name since some items have year as sufix such as CD_2021. 
-TMF_dict <- TMF_dict %>% 
-  mutate( item_short = str_remove(item, "_\\d{4}$")) 
-  
 
-# TMF_dict's summary for numerica number does not mean a lot since it is a fact table, and all dimension tables are in another lookup.xlsx excel file. 
+# for the datadictionary created from datadictionary function, we also need to create a shorten item name since some items have year as sufix such as CD_2021.
+TMF_dict <- TMF_dict %>%
+  mutate(item_short = str_remove(item, "_\\d{4}$"))
+
+
+# TMF_dict's summary for numerica number does not mean a lot since it is a fact table, and all dimension tables are in another lookup.xlsx excel file.
 # so we could simplify the TMF_dict
 # or it does not matter, we can add value label later using our dimension table
-TMF_dict <- TMF_dict %>% 
-  left_join(TMF_dict_detail, join_by( item_short))
+TMF_dict <- TMF_dict %>%
+  left_join(TMF_dict_detail, join_by(item_short))
 
 
-TMF_dict %>% readr::write_csv(here::here("out", "Translation_Master_File_Dict_DIP.csv"))
+TMF_dict %>%
+  readr::write_csv(here::here("out", "Translation_Master_File_Dict_DIP.csv"))
 
 
 #################################################################################################
 # Save the dimension table aka lookup tables separately
 #################################################################################################
-
-
 
 # Path to the Excel file
 file_path <- use_network_path("data/raw_data/TMF/GCS_Lookup_Table.xlsx")
@@ -162,14 +175,13 @@ sheet_names <- excel_sheets(file_path)
 for (sheet in sheet_names) {
   # Read the sheet
   data <- read_excel(file_path, sheet = sheet)
-  
+
   # Create the CSV file name with the prefix
   csv_file_name <- here::here("out", paste0(prefix, sheet, ".csv"))
-  
+
   # Save the sheet as a CSV file
   write.csv(data, csv_file_name, row.names = FALSE)
-  
+
   # Print message for confirmation
   message(paste("Saved:", csv_file_name))
 }
-
