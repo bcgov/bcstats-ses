@@ -78,7 +78,7 @@ connection %>%
 
 
 violations_list = connection %>%
-  count(Violations, `Classification Code for Vilations`) %>%
+  count(Violations) %>%
   collect() %>%
   mutate(Violation_id = gsub(".*\\[(\\d+)\\].*", "\\1", Violations)) %>%
   janitor::clean_names(case = "screaming_snake") # clean the names. We prefer all uppercase
@@ -86,35 +86,6 @@ violations_list = connection %>%
 
 # # 314 types of crime
 # we should choose the most important ones.
-
-# BC stats previous SES project:
-# The BC stats "Definition and Data Sources, BC Socio-Economic Indices and Profiles" provide a list of potential variables for our project.
-
-# 1. The Crime Rate is the number of offences per 1,000 population (per 1,000 population 12-17 for juvenile crime rates). Data are 3-year averages.
-# 2. Serious violent crime rate is based on reporting within the crime categories of homicide, attempted murder, sexual and non-sexual assault (level 2 and 3: resulting in bodily harm, wounding, disfiguring, maiming or endangering the life of someone) as well as robbery and abduction. Data are 3-year averages.
-# 3. Breaking & Entering is the only property crime included in the "Serious Property" crime rate. Serious Property Crimes exclude Motor Vehicle Theft (shown separately) and minor crimes such as bicycle theft and pick pocketing. Data are 3-year averages.
-# 4. Total Serious Crime rate is the total of the serious violent crime rate and the serious property crime rates. Data are 3-year averages.
-# 5. The Number of Serious Crime Offences per Police Officer is the total number of serious offences defined above divided by the police strength. Data are 3-year averages.
-# 6. Change in Crime rate is the % change in the serious crime rate average for the latest 3 years over the serious crime rate for the previous 3 years. Data represent changes in 3-year averages.
-# 7. Since a high percent of Motor Vehicle Thefts remain unsolved, generalizing about the characteristics of offenders is difficult. Data are 3-year averages.
-# 8. Drug offence rates include possession and trafficking/importing/cultivation of illegal drugs excluding cannabis. Variations in the rates between regions may reflect differing police enforcement of drug possession between jurisdictions as well as differing levels on non-cannabis drug use. Total rates are based on number of offences (charges for juveniles) and are reported per 100,000 population. Data are 3-year averages.
-# 9. Illicit Drug Deaths are unintentional (accidental) deaths due to illicit drugs based on the permanent residence of the victim. Data are 3-year averages. The deaths are based on the following International Classification of Disease( ICD-10 )codes for illicit drug deaths:
-#
-#   D521, D590, D592, D611, D642, E032, E064, E231, E242, E273, F55, F551, G210, G211, G240,
-# G251, G254, G256, G444, G620, G720, H263, I427, I952, J702, J703, J704, L105, L233, L244, L251, L270, L271, L432, L560, L561, L640, M022, M102, M320, M804, M814, M835, M871, N140, N141, N142, O355, P040, P041, P044, P584, P961, P962, R781, R782, R783, R784, R785, R786, R825.
-#
-# http://apps.who.int/classifications/icd10/browse/2010/en
-#
-# 10.Juvenile crime rates. See crime rate definitions above. Note that juvenile rates are based on charges as it is only when a charge is laid that the age of the suspect is determined.
-# I cannot get the Juvenile crime and illicit drug death yet.
-violations_selected_list = violations_list %>%
-  filter(str_detect(
-    str_to_lower(VIOLATIONS),
-    pattern = "	
-all violations|all criminal code violations \\(excluding traffic\\)|total violent criminal code violations|homicide|attempted murder|assault|breaking|entering|youth criminal justice act|total drug violation"
-  )) %>%
-  select(VIOLATIONS, VIOLATION_ID)
-
 
 # str(VIOLATIONS_selected_list)
 # Econ team's idea: only keep three types of crimes
