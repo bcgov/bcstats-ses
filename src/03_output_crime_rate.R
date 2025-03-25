@@ -60,7 +60,7 @@ cansim_id <- "35-10-0184-01"
 # this only needs to run once:
 fs::file_copy(
   use_network_path("data/cansim_cache/35100184-eng.sqlite"),
-  "./data/"
+  "./data/35100184-eng.sqlite"
 )
 options(cansim.cache_path = "./data")
 
