@@ -529,3 +529,110 @@ if (any(df$total_digits > 18)) {
 }
 
 print(df)
+
+
+# Install ggplot2 if you haven't already
+# install.packages("ggplot2")
+
+# Load the library
+library(ggplot2)
+library(patchwork) # Optional: For arranging multiple plots easily
+
+# --- Create Sample Data ---
+# Let's simulate an SES index for 1000 individuals.
+# We'll make it roughly normally distributed around 50, with a standard deviation of 15,
+# but bounded between 0 and 100, and perhaps slightly skewed.
+set.seed(123) # for reproducibility
+raw_ses <- rnorm(1000, mean = 55, sd = 20)
+ses_index <- pmax(0, pmin(100, raw_ses)) # Bound between 0 and 100
+# Add some skewness for realism (e.g., more people at lower/middle end)
+ses_index <- 100 * (ses_index / 100)^1.5
+ses_data <- data.frame(ses_index = ses_index)
+
+# --- Visualization Examples ---
+
+# 1. Histogram
+# Adjust 'binwidth' or 'bins' to see how it changes the look
+p_hist <- ggplot(ses_data, aes(x = ses_index)) +
+  geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
+  labs(
+    title = "Histogram of Socio-Economic Status (SES) Index",
+    x = "SES Index Score",
+    y = "Frequency"
+  ) +
+  theme_minimal()
+
+print(p_hist)
+
+# 2. Density Plot
+p_dens <- ggplot(ses_data, aes(x = ses_index)) +
+  geom_density(fill = "lightcoral", alpha = 0.6) +
+  labs(
+    title = "Density Plot of Socio-Economic Status (SES) Index",
+    x = "SES Index Score",
+    y = "Density"
+  ) +
+  theme_minimal()
+
+print(p_dens)
+
+# 3. Histogram with Density Overlay (Often very informative)
+p_hist_dens <- ggplot(ses_data, aes(x = ses_index)) +
+  geom_histogram(
+    aes(y = ..density..),
+    binwidth = 5,
+    fill = "skyblue",
+    color = "black",
+    alpha = 0.7
+  ) + # Note: y = ..density..
+  geom_density(color = "red", linewidth = 1) +
+  labs(
+    title = "Histogram and Density Plot of SES Index",
+    x = "SES Index Score",
+    y = "Density"
+  ) +
+  theme_minimal()
+
+print(p_hist_dens)
+
+# 4. Box Plot
+# More useful when comparing groups, but shows summary for one group too
+p_box <- ggplot(ses_data, aes(y = ses_index)) + # Map to y for a vertical boxplot
+  geom_boxplot(fill = "lightgreen", width = 0.3) +
+  labs(
+    title = "Box Plot of Socio-Economic Status (SES) Index",
+    x = "", # No x-axis category label needed for single box
+    y = "SES Index Score"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank(), # Hide x-axis text
+    axis.ticks.x = element_blank()
+  ) # Hide x-axis ticks
+
+print(p_box)
+
+# 5. Violin Plot
+# Also more useful for comparisons, but good for single group shape + summary
+p_violin <- ggplot(ses_data, aes(y = ses_index, x = 1)) + # Dummy x=1 for single plot
+  geom_violin(
+    fill = "orchid",
+    alpha = 0.7,
+    draw_quantiles = c(0.25, 0.5, 0.75)
+  ) + # draw quantiles
+  # Optionally overlay a boxplot
+  # geom_boxplot(width = 0.1, fill="white", outlier.shape = NA) +
+  labs(
+    title = "Violin Plot of Socio-Economic Status (SES) Index",
+    x = "",
+    y = "SES Index Score"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+print(p_violin)
+
+# --- Optional: Combine plots for comparison (using patchwork) ---
+# combined_plots <- (p_hist + p_dens) / (p_box + p_violin) +
+#   plot_annotation(title = 'Comparing Different Visualizations of SES Index Distribution')
+# print(combined_plots)
