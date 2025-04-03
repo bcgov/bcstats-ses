@@ -470,3 +470,62 @@ result <- pharmanet %>%
   arrange(year, is_pc)
 
 print(result)
+
+
+library(dplyr)
+library(stringr)
+
+# Example data (replace with your actual data)
+value_string <- "-4,05000000000000e+00"
+df <- data.frame(VALUE = value_string)
+
+# dplyr workflow
+df <- df %>%
+  mutate(
+    VALUE = str_replace(VALUE, ",", "."), # Replace comma with period
+    VALUE = as.numeric(VALUE), # Convert to numeric
+    VALUE = round(VALUE, 3)
+  ) # Round to 3 decimal places
+
+# Check for NA's
+if (any(is.na(df$VALUE))) {
+  print(
+    "NA values were generated during as.numeric conversion. Review original data"
+  )
+}
+
+# Check the results
+print(df)
+print(class(df$VALUE))
+
+#Example with a dataframe.
+value_vector = c(
+  "-4,05000000000000e+00",
+  "123.456",
+  "5,67e+01",
+  "test",
+  "9,93334000000000e+03",
+  "NA"
+)
+df2 = data.frame(VALUE = value_vector)
+
+df2 = df2 %>%
+  mutate(
+    VALUE = str_replace(VALUE, ",", "."),
+    VALUE = as.numeric(VALUE),
+    VALUE = round(VALUE, 3)
+  ) %>%
+  filter(!is.na(VALUE))
+
+print(df2)
+print(class(df2$VALUE))
+
+#Example of checking the total number of digits.
+df = df %>%
+  mutate(total_digits = nchar(str_remove_all(as.character(VALUE), "[.-]")))
+
+if (any(df$total_digits > 18)) {
+  print("Warning: Number of total digits exceeds 18.")
+}
+
+print(df)
