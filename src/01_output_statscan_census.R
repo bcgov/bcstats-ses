@@ -87,6 +87,9 @@ CA21_VECTORS = c(
   # 'INC_BT_IND_MED_19'  = 'v_CA21_818', # Total Individual Income Before Tax - Median -Number of total income recipients aged 15 years and over in private households in 2020 - Median total income in 2019 among recipients ($)
   'INC_BT_IND_AVG' = 'v_CA21_605', # Average total income in 2020 among recipients ($) - Total Individual Income Before Tax - Average ? Number of total income recipients aged 15 years and over in private households in 2020 Average total income in 2020 among recipients ($) - 35%
 
+  'INC_AT_LONE_PARENT_MED' = 'v_CA21_978', # Median after-tax income of lone-parent economic families : Income statistics for one-parent economic families in private households: Median after-tax income of one-parent economic families in 2020 ($)
+  'INC_AT_CPL_W_CHILD_MED' = 'v_CA21_974', # Median after-tax income of couple economic families with children: in 21 couple-only and couple-with-children: Median after-tax income of couple-with-children economic families in 2020 ($) Done
+
   # 25% Data
   # Income
   # Economic family income
@@ -144,6 +147,46 @@ CA21_VECTORS = c(
 
   'OCC_TOT' = 'v_CA21_6561', # Occupation - Total
   'OCC_MGMT' = 'v_CA21_6570', # Occupation - Management
+  'OCC_BUS_FIN_AD' = 'v_CA21_6573', # Occupation - Business, Finance and Admin
+  'OCC_NAT_APP_SCI' = 'v_CA21_6576', # Occupation - Natural and Applied Sciences
+  'OCC_HLTH' = 'v_CA21_6579', # Occupation - Health
+  'OCC_SOCI_SERV' = 'v_CA21_6582', # Occupation - Education, Law and Social, Community and Government
+  'OCC_ART_CUL_REC' = 'v_CA21_6585', # Occupation - Arts, Culture, Recreation, Sport
+  'OCC_SALE_SERV' = 'v_CA21_6588', # Occupation - Sales and Service
+  'OCC_TRADES' = 'v_CA21_6591', # Occupation - Trades, Transport and Equipment Operators
+  'OCC_NAT_RSRC' = 'v_CA21_6594', # Occupation - Natural Resources, Agriculture / Production
+  'OCC_MAN_UTIL' = 'v_CA21_6597', # Occupation - Manufacturing and Utilities Done
+
+  # 25% Data
+  # Education
+  # Total - Highest certificate, diploma or degree for the population aged 15 years and over in private households
+  # No certificate, diploma or degree
+  # Total - Highest certificate, diploma or degree for the population aged 25 to 64 years in private households
+  # No certificate, diploma or degree
+  # High (secondary) school diploma or equivalency certificate
+  # Postsecondary certificate, diploma or degree
+  # Postsecondary certificate or diploma below bachelor level
+  # Apprenticeship or trades certificate or diploma
+  # College, CEGEP or other non-university certificate or diploma
+  # University certificate or diploma below bachelor level
+  # Bachelor's degree or higher
+  # Bachelor's degree
+  # University certificate or diploma above bachelor level
+  # Degree in medicine, dentistry, veterinary medicine or optometry
+  # Master's degree
+  # Earned doctorate
+
+  'EDUC_TOT' = 'v_CA21_5817', # Education for population aged 25 - 64 - Total
+  'EDUC_NONE' = 'v_CA21_5820', # Education for population aged 25 - 64 - No certificate, diploma or degree
+  'EDUC_HIGHSCH' = 'v_CA21_5871', # Education for population aged 25 - 64 - Secondary (high) school diploma or equivalency certificate
+  'EDUC_POSTSEC' = 'v_CA21_5874', # Education for population aged 25 - 64 - Postsecondary certificate, diploma or degree
+  'EDUC_COLLEGE' = 'v_CA21_5889', # Education for population aged 25 - 64 - College, CEGEP or other non-university certificate or diploma
+  'EDUC_BACHELOR' = 'v_CA21_5898', # Education for population aged 25 - 64 - Bachelor's degree
+  'EDUC_TRADES' = 'v_CA21_5880', # Education for population aged 25 - 64 - Apprenticeship or trades certificate or diploma
+  'EDUC_CRT_ABV_BACH' = 'v_CA21_5901', # Education for population aged 25 - 64 - University certificate or diploma above bachelor level
+  'EDUC_MEDICAL' = 'v_CA21_5904', # Education for population aged 25 - 64 - Degree in medicine, dentistry, veterinary medicine or optometry
+  'EDUC_MASTERS' = 'v_CA21_5907', # Education for population aged 25 - 64 - Master's degree
+  'EDUC_PHD' = 'v_CA21_5910', # Education for population aged 25 - 64 - Earned doctorate Done
 
   ###########################################################################################################################################
   # labor market
@@ -218,7 +261,25 @@ CA21_VECTORS = c(
   # NOS .
   'HOUSING_SUITABLE_TOT' = 'v_CA21_4260', # Private households by housing suitability - Total
   'HOUSING_SUITABLE_YES' = 'v_CA21_4261', # Private households by housing suitability - Suitable
-  'HOUSING_SUITABLE_NO' = 'v_CA21_4262' # Private households by housing suitability - Not suitable Done
+  'HOUSING_SUITABLE_NO' = 'v_CA21_4262', # Private households by housing suitability - Not suitable Done
+
+  # 25% Data
+  # Commute
+  # Total - Time leaving for work for the employed labour force aged 15 years and over with a usual place of work or no fixed workplace address
+  # Between 5 a.m. and 5:59 a.m.
+  # Between 6 a.m. and 6:59 a.m.
+  # Between 7 a.m. and 7:59 a.m.
+  # Between 8 a.m. and 8:59 a.m.
+  # Between 9 a.m. and 11:59 a.m.
+  # Between 12 p.m. and 4:59 a.m.
+
+  'GO_TO_WORK_TOT' = 'v_CA21_7674', # Total - Time leaving for work for the employed labour force aged 15 years and over in private households with a usual place of work or no fixed workplace address
+  'GO_TO_WORK_5AM_6AM' = 'v_CA21_7677', # Between 5 a.m. and 5:59 a.m.
+  'GO_TO_WORK_6AM_7AM' = 'v_CA21_7680', # Between 6 a.m. and 6:59 a.m.
+  'GO_TO_WORK_7AM_8AM' = 'v_CA21_7683', # Between 7 a.m. and 7:59 a.m.
+  'GO_TO_WORK_8AM_9AM' = 'v_CA21_7686', # Between 8 a.m. and 8:59 a.m.
+  'GO_TO_WORK_9AM_12PM' = 'v_CA21_7689', # Between 9 a.m. and 11:59 a.m.
+  'GO_TO_WORK_12PM_4AM' = 'v_CA21_7692' # Between 12 p.m. and 4:59 a.m.
 )
 
 
@@ -374,6 +435,26 @@ CA16_VECTORS = c(
   'LIM_AT_PREVALENCE' = 'v_CA16_2540', # Prevalence of low income based on the Low-income measure, after tax (LIM-AT) (%)
   'OCC_TOT' = 'v_CA16_5654', # Occupation - Total
   'OCC_MGMT' = 'v_CA16_5663', # Occupation - Management
+  'OCC_BUS_FIN_AD' = 'v_CA16_5666', # Occupation - Business, Finance and Admin
+  'OCC_NAT_APP_SCI' = 'v_CA16_5669', # Occupation - Natural and Applied Sciences
+  'OCC_HLTH' = 'v_CA16_5672', # Occupation - Health
+  'OCC_SOCI_SERV' = 'v_CA16_5675', # Occupation - Education, Law and Social, Community and Government
+  'OCC_ART_CUL_REC' = 'v_CA16_5678', # Occupation - Arts, Culture, Recreation, Sport
+  'OCC_SALE_SERV' = 'v_CA16_5681', # Occupation - Sales and Service
+  'OCC_TRADES' = 'v_CA16_5684', # Occupation - Trades, Transport and Equipment Operators
+  'OCC_NAT_RSRC' = 'v_CA16_5687', # Occupation - Natural Resources, Agriculture / Production
+  'OCC_MAN_UTIL' = 'v_CA16_5690', # Occupation - Manufacturing and Utilities
+  'EDUC_TOT' = 'v_CA16_5096', # Education for population aged 25 - 64 - Total
+  'EDUC_NONE' = 'v_CA16_5099', # Education for population aged 25 - 64 - No certificate, diploma or degree
+  'EDUC_HIGHSCH' = 'v_CA16_5102', # Education for population aged 25 - 64 - Secondary (high) school diploma or equivalency certificate
+  'EDUC_POSTSEC' = 'v_CA16_5105', # Education for population aged 25 - 64 - Postsecondary certificate, diploma or degree
+  'EDUC_COLLEGE' = 'v_CA16_5117', # Education for population aged 25 - 64 - College, CEGEP or other non-university certificate or diploma
+  'EDUC_BACHELOR' = 'v_CA16_5126', # Education for population aged 25 - 64 - Bachelor's degree
+  'EDUC_TRADES' = 'v_CA16_5108', # Education for population aged 25 - 64 - Apprenticeship or trades certificate or diploma
+  'EDUC_CRT_ABV_BACH' = 'v_CA16_5129', # Education for population aged 25 - 64 - University certificate or diploma above bachelor level
+  'EDUC_MEDICAL' = 'v_CA16_5132', # Education for population aged 25 - 64 - Degree in medicine, dentistry, veterinary medicine or optometry
+  'EDUC_MASTERS' = 'v_CA16_5135', # Education for population aged 25 - 64 - Master's degree
+  'EDUC_PHD' = 'v_CA16_5138', # Education for population aged 25 - 64 - Earned doctorate
   'LABOUR_PART_RT' = 'v_CA16_5612', # Labour Force - Participation Rate
   'LABOUR_EMPL_RT' = 'v_CA16_5615', # Labour Force - Employment Rate
   'LABOUR_UNEM_RT' = 'v_CA16_5618', # Labour Force - Unemployment Rate
@@ -395,13 +476,21 @@ CA16_VECTORS = c(
   'HOUSING_SUITABLE_NO' = 'v_CA16_4861', # Private households by housing suitability - Not suitable
   'REPAIRS_TOT' = 'v_CA16_4870', # Occupied private dwellings by dwelling condition	- Total
   'REPAIRS_MINOR' = 'v_CA16_4871', # Occupied private dwellings by dwelling condition	- Only regular maintenance or minor repairs needed
-  'REPAIRS_MAJOR' = 'v_CA16_4872' # Occupied private dwellings by dwelling condition	- Major repairs needed
+  'REPAIRS_MAJOR' = 'v_CA16_4872', # Occupied private dwellings by dwelling condition	- Major repairs needed
+  'GO_TO_WORK_TOT' = 'v_CA16_5831', # Total - Time leaving for work for the employed labour force aged 15 years and over in private households with a usual place of work or no fixed workplace address
+  'GO_TO_WORK_5AM_6AM' = 'v_CA16_5834', # Between 5 a.m. and 5:59 a.m.
+  'GO_TO_WORK_6AM_7AM' = 'v_CA16_5837', # Between 6 a.m. and 6:59 a.m.
+  'GO_TO_WORK_7AM_8AM' = 'v_CA16_5840', # Between 7 a.m. and 7:59 a.m.
+  'GO_TO_WORK_8AM_9AM' = 'v_CA16_5843', # Between 8 a.m. and 8:59 a.m.
+  'GO_TO_WORK_9AM_12PM' = 'v_CA16_5846', # Between 9 a.m. and 11:59 a.m.
+  'GO_TO_WORK_12PM_4AM' = 'v_CA16_5849' # Between 12 p.m. and 4:59 a.m.
 )
 
 CA16_META_DATA <- create_census_meta_data(
   CENSUS_NUMBER = "CA16",
   VECTORS = CA16_VECTORS
 )
+
 
 CA16_META_DATA %>%
   readr::write_csv(here::here("out", "StatsCAN_Census_16_BC_META_DATA_DIP.csv"))
@@ -490,6 +579,23 @@ CA11_VECTORS = c(
   'LIM_AT_PREVALENCE' = 'v_CA11N_2606', # Prevalence of low income based on the Low-income measure, after tax (LIM-AT) (%)
   'OCC_TOT' = 'v_CA11N_2026', # Occupation - Total
   'OCC_MGMT' = 'v_CA11N_2035', # Occupation - Management
+  'OCC_BUS_FIN_AD' = 'v_CA11N_2038', # Occupation - Business, Finance and Admin
+  'OCC_NAT_APP_SCI' = 'v_CA11N_2041', # Occupation - Natural and Applied Sciences
+  'OCC_HLTH' = 'v_CA11N_2044', # Occupation - Health
+  'OCC_SOCI_SERV' = 'v_CA11N_2047', # Occupation - Education, Law and Social, Community and Government
+  'OCC_ART_CUL_REC' = 'v_CA11N_2050', # Occupation - Arts, Culture, Recreation, Sport
+  'OCC_SALE_SERV' = 'v_CA11N_2053', # Occupation - Sales and Service
+  'OCC_TRADES' = 'v_CA11N_2056', # Occupation - Trades, Transport and Equipment Operators
+  'OCC_NAT_RSRC' = 'v_CA11N_2059', # Occupation - Natural Resources, Agriculture / Production
+  'OCC_MAN_UTIL' = 'v_CA11N_2062', # Occupation - Manufacturing and Utilities
+  'EDUC_TOT' = 'v_CA11N_1801', # Education for population aged 25 - 64 - Total
+  'EDUC_NONE' = 'v_CA11N_1804', # Education for population aged 25 - 64 - No certificate, diploma or degree
+  'EDUC_HIGHSCH' = 'v_CA11N_1807', # Education for population aged 25 - 64 - Secondary (high) school diploma or equivalency certificate
+  'EDUC_POSTSEC' = 'v_CA11N_1810', # Education for population aged 25 - 64 - Postsecondary certificate, diploma or degree
+  'EDUC_COLLEGE' = 'v_CA11N_1816', # Education for population aged 25 - 64 - College, CEGEP or other non-university certificate or diploma
+  'EDUC_BACHELOR' = 'v_CA11N_1825', # Education for population aged 25 - 64 - Bachelor's degree
+  'EDUC_TRADES' = 'v_CA11N_1813', # Education for population aged 25 - 64 - Apprenticeship or trades certificate or diploma
+  'EDUC_CRT_ABV_BACH' = 'v_CA11N_1828', # Education for population aged 25 - 64 - University certificate or diploma above bachelor level
   'LABOUR_PART_RT' = 'v_CA11N_2002', # Labour Force - Participation Rate
   'LABOUR_EMPL_RT' = 'v_CA11N_2005', # Labour Force - Employment Rate
   'LABOUR_UNEM_RT' = 'v_CA11N_2008', # Labour Force - Unemployment Rate
@@ -511,8 +617,13 @@ CA11_VECTORS = c(
   'HOUSING_SUITABLE_NO' = 'v_CA11N_2276', # Private households by housing suitability - Not suitable
   'REPAIRS_TOT' = 'v_CA11N_2230', # Occupied private dwellings by dwelling condition	- Total
   'REPAIRS_MINOR' = 'v_CA11N_2231', # Occupied private dwellings by dwelling condition	- Only regular maintenance or minor repairs needed
-  'REPAIRS_MAJOR' = 'v_CA11N_2232' # Occupied private dwellings by dwelling condition	- Major repairs needed
+  'REPAIRS_MAJOR' = 'v_CA11N_2232', # Occupied private dwellings by dwelling condition	- Major repairs needed
+  'GO_TO_WORK_TOT' = 'v_CA11N_2218', # Total employed population aged 15 years and over by time leaving for work
+  'GO_TO_WORK_5AM_7AM' = 'v_CA11N_2221', # Total employed population aged 15 years and over by time leaving for work - Between 5 and 6:59 a.m.
+  'GO_TO_WORK_7AM_9AM' = 'v_CA11N_2224', # Total employed population aged 15 years and over by time leaving for work - Between 7 and 9:00 a.m.
+  'GO_TO_WORK_AFTER_9AM' = 'v_CA11N_2227' # Total employed population aged 15 years and over by time leaving for work - Anytime after 9:00 a.m.
 )
+
 
 CA11_META_DATA <- create_census_meta_data(
   CENSUS_NUMBER = "CA11",
@@ -615,6 +726,26 @@ CA06_VECTORS = c(
   'LICO_AT_PREVALENCE' = 'v_CA06_1981', # Prevalence of low income based on the Low-income cut-offs, after tax (LICO-AT) (%)
   'OCC_TOT' = 'v_CA06_827', # Occupation - Total
   'OCC_MGMT' = 'v_CA06_830', # Occupation - Management
+  'OCC_BUS_FIN_AD' = 'v_CA06_835', # Occupation - Business, Finance and Admin
+  'OCC_NAT_APP_SCI' = 'v_CA06_842', # Occupation - Natural and Applied Sciences
+  'OCC_HLTH' = 'v_CA06_845', # Occupation - Health
+  'OCC_SOCI_SERV' = 'v_CA06_850', # Occupation - Education, Law and Social, Community and Government
+  'OCC_ART_CUL_REC' = 'v_CA06_854', # Occupation - Arts, Culture, Recreation, Sport
+  'OCC_SALE_SERV' = 'v_CA06_857', # Occupation - Sales and Service
+  'OCC_TRADES' = 'v_CA06_868', # Occupation - Trades, Transport and Equipment Operators
+  'OCC_NAT_RSRC' = 'v_CA06_878', # Occupation - Natural Resources, Agriculture / Production
+  'OCC_MAN_UTIL' = 'v_CA06_882', # Occupation - Manufacturing and Utilities
+  'EDUC_TOT' = 'v_CA06_1248', # Education for population aged 25 - 64 - Total
+  'EDUC_NONE' = 'v_CA06_1249', # Education for population aged 25 - 64 - No certificate, diploma or degree
+  'EDUC_HIGHSCH' = 'v_CA06_1251', # Education for population aged 25 - 64 - Secondary (high) school diploma or equivalency certificate
+  'EDUC_APPRENT' = 'v_CA06_1252', # Total	Apprenticeship or trades certificate or diploma
+  'EDUC_COLLEGE' = 'v_CA06_1253', # Total College, CEGEP or other non-university certificate or diploma
+  'EDUC_UNI' = 'v_CA06_1254', # Total	University certificate, diploma or degree
+  'EDUC_BACHELOR' = 'v_CA06_1257', # Education for population aged 25 - 64 - Bachelor's degree
+  'EDUC_CRT_ABV_BACH' = 'v_CA06_1258', # Education for population aged 25 - 64 - University certificate or diploma above bachelor level
+  'EDUC_MEDICAL' = 'v_CA06_1259', # Education for population aged 25 - 64 - Degree in medicine, dentistry, veterinary medicine or optometry
+  'EDUC_MASTERS' = 'v_CA06_1260', # Education for population aged 25 - 64 - Master's degree
+  'EDUC_PHD' = 'v_CA06_1261', # Education for population aged 25 - 64 - Earned doctorate
   'LABOUR_PART_RT' = 'v_CA06_580', # Labour Force - Participation Rate
   'LABOUR_EMPL_RT' = 'v_CA06_581', # Labour Force - Employment Rate
   'LABOUR_UNEM_RT' = 'v_CA06_582', # Labour Force - Unemployment Rate
@@ -642,6 +773,11 @@ CA06_META_DATA <- create_census_meta_data(
 CA06_META_DATA %>%
   readr::write_csv(here::here("out", "StatsCAN_Census_06_BC_META_DATA_DIP.csv"))
 
+# CA_06_EDUC_POSTSEC_VECTORS = c(
+#   'EDUC_APPRENT' = 'v_CA06_1252', # Total	Apprenticeship or trades certificate or diploma
+#   'EDUC_COLLEGE' = 'v_CA06_1253', # Total College, CEGEP or other non-university certificate or diploma
+#   'EDUC_UNI'     = 'v_CA06_1254'  # Total	University certificate, diploma or degree
+# )
 
 CA06_DATA <- get_census(
   dataset = "CA06",
@@ -654,6 +790,18 @@ CA06_DATA <- get_census(
   labels = 'short'
 )
 
+
+# ----------- fix the EDUC_POSTSEC category -----------
+
+# merge with CA06_DATA
+CA06_DATA <- add_column(
+  CA06_DATA,
+  EDUC_POSTSEC = rowSums(CA06_DATA[, c(
+    'EDUC_APPRENT',
+    'EDUC_COLLEGE',
+    'EDUC_UNI'
+  )])
+)
 
 CA06_DATA = CA06_DATA %>%
   janitor::clean_names(case = "screaming_snake") %>%
@@ -671,10 +819,15 @@ CA06_DATA_labels <- create_census_data_label(
   CENSUS_COMMON_LABELS
 )
 
+CA06_DATA_labels = c(
+  CA06_DATA_labels,
+  "EDUC_POSTSEC" = "Education for population aged 25 - 64 - Postsecondary certificate, diploma or degree"
+)
+
 str(CA06_DATA)
 # tibble [7,848 × 48]
 str(CA06_DATA_labels)
-# 48
+# 69 after we add occupation and education labels
 
 # add label to dictionary, which is similar to description.
 skimr::skim(CA06_DATA) # this is for exploring purpose
@@ -716,6 +869,25 @@ CA01_VECTORS = c(
   'LICO_AT_PREVALENCE' = 'v_CA01_1620', # Prevalence of low income based on the Low-income cut-offs, after tax (LICO-AT) (%)
   'OCC_TOT' = 'v_CA01_989', # Occupation - Total
   'OCC_MGMT' = 'v_CA01_990', # Occupation - Management
+  'OCC_BUS_FIN_AD' = 'v_CA01_995', # Occupation - Business, Finance and Admin
+  'OCC_NAT_APP_SCI' = 'v_CA01_1002', # Occupation - Natural and Applied Sciences
+  'OCC_HLTH' = 'v_CA01_1005', # Occupation - Health
+  'OCC_SOCI_SERV' = 'v_CA01_1010', # Occupation - Education, Law and Social, Community and Government
+  'OCC_ART_CUL_REC' = 'v_CA01_1014', # Occupation - Arts, Culture, Recreation, Sport
+  'OCC_SALE_SERV' = 'v_CA01_1017', # Occupation - Sales and Service
+  'OCC_TRADES' = 'v_CA01_1028', # Occupation - Trades, Transport and Equipment Operators
+  'OCC_NAT_RSRC' = 'v_CA01_1038', # Occupation - Natural Resources, Agriculture / Production
+  'OCC_MAN_UTIL' = 'v_CA01_1042', # Occupation - Manufacturing and Utilities
+  'EDUC_TOT' = 'v_CA01_1384', # Total population 20 years and over by highest level of schooling
+  'EDUC_WO_HS' = 'v_CA01_1387', # High School - Without high school graduation certificate
+  'EDUC_WO_COL_CERT' = 'v_CA01_1391', # College - Without certificate or diploma
+  'EDUC_WO_UNI_DEGREE' = 'v_CA01_1394', # University - Without degree
+  'EDUC_WO_UNI_CERT' = 'v_CA01_1395', # University - Without certificate or diploma
+  'EDUC_HIGHSCH' = 'v_CA01_1388', # High School -With high school graduation certificate
+  'EDUC_COLLEGE' = 'v_CA01_1392', # College - With certificate or diploma
+  'EDUC_BACHELOR' = 'v_CA01_1397', # University - With bachelor's degree or higher
+  'EDUC_UNI_CERT' = 'v_CA01_1396', # University - With certificate or diploma
+  'EDUC_TRADES' = 'v_CA01_1389', # Trades certificate or diploma
   'LABOUR_PART_RT' = 'v_CA01_740', # Labour Force - Participation Rate
   'LABOUR_EMPL_RT' = 'v_CA01_741', # Labour Force - Employment Rate
   'LABOUR_UNEM_RT' = 'v_CA01_742', # Labour Force - Unemployment Rate
@@ -758,6 +930,22 @@ CA01_DATA <- get_census(
 )
 
 CA01_DATA <- CA01_DATA %>%
+  mutate(
+    EDUC_NONE = EDUC_WO_HS +
+      EDUC_WO_COL_CERT +
+      EDUC_WO_UNI_DEGREE +
+      EDUC_WO_UNI_CERT
+  )
+
+CA01_DATA <- CA01_DATA %>%
+  mutate(
+    EDUC_POSTSEC = EDUC_COLLEGE +
+      EDUC_TRADES +
+      EDUC_UNI_CERT +
+      EDUC_BACHELOR
+  )
+
+CA01_DATA <- CA01_DATA %>%
   janitor::clean_names(case = 'screaming_snake') %>%
   mutate(REGION_NAME = as.character(REGION_NAME))
 
@@ -777,6 +965,12 @@ str(CA01_DATA)
 # tibble [7,848 × 45]
 str(CA01_DATA_labels)
 # 45 ?
+
+CA01_DATA_labels <- c(
+  CA01_DATA_labels,
+  "EDUC_NONE" = "Education for population aged 20 years and over - No certificate, diploma or degree",
+  "EDUC_POSTSEC" = "Education for population aged 20 years and over - Postsecondary certificate, diploma or degree"
+)
 
 CA01_DATA = CA01_DATA %>%
   mutate(REGION_NAME = as.character(REGION_NAME))
