@@ -159,28 +159,29 @@ CA21_VECTORS = c(
 
   # 25% Data
   # Education
-  # Total - Highest certificate, diploma or degree for the population aged 15 years and over in private households
-  # No certificate, diploma or degree
+
   # Total - Highest certificate, diploma or degree for the population aged 25 to 64 years in private households
   # No certificate, diploma or degree
   # High (secondary) school diploma or equivalency certificate
   # Postsecondary certificate, diploma or degree
-  # Postsecondary certificate or diploma below bachelor level
-  # Apprenticeship or trades certificate or diploma
-  # College, CEGEP or other non-university certificate or diploma
-  # University certificate or diploma below bachelor level
-  # Bachelor's degree or higher
-  # Bachelor's degree
-  # University certificate or diploma above bachelor level
-  # Degree in medicine, dentistry, veterinary medicine or optometry
-  # Master's degree
-  # Earned doctorate
-
-  'EDUC_TOT' = 'v_CA21_5817', # Education for population aged 25 - 64 - Total
-  'EDUC_NONE' = 'v_CA21_5820', # Education for population aged 25 - 64 - No certificate, diploma or degree
+  #   Postsecondary certificate or diploma below bachelor level
+  #   Apprenticeship or trades certificate or diploma
+  #   College, CEGEP or other non-university certificate or diploma
+  #   University certificate or diploma below bachelor level
+  #   Bachelor's degree or higher
+  #   Bachelor's degree
+  #   University certificate or diploma above bachelor level
+  #   Degree in medicine, dentistry, veterinary medicine or optometry
+  #   Master's degree
+  #   Earned doctorate
+  # from 2021
+  'EDUC_TOT' = 'v_CA21_5865', # Education for population aged 25 - 64 - Total
+  'EDUC_NONE' = 'v_CA21_5868', # Education for population aged 25 - 64 - No certificate, diploma or degree
   'EDUC_HIGHSCH' = 'v_CA21_5871', # Education for population aged 25 - 64 - Secondary (high) school diploma or equivalency certificate
   'EDUC_POSTSEC' = 'v_CA21_5874', # Education for population aged 25 - 64 - Postsecondary certificate, diploma or degree
+  # following are the subsection of the 5874
   'EDUC_COLLEGE' = 'v_CA21_5889', # Education for population aged 25 - 64 - College, CEGEP or other non-university certificate or diploma
+  # following are the subsection of the 5895 Bachelor's degree or higher
   'EDUC_BACHELOR' = 'v_CA21_5898', # Education for population aged 25 - 64 - Bachelor's degree
   'EDUC_TRADES' = 'v_CA21_5880', # Education for population aged 25 - 64 - Apprenticeship or trades certificate or diploma
   'EDUC_CRT_ABV_BACH' = 'v_CA21_5901', # Education for population aged 25 - 64 - University certificate or diploma above bachelor level
