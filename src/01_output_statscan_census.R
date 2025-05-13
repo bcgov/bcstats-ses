@@ -393,6 +393,10 @@ CA21_DATA_labels <- create_census_data_label(
 
 # add label to dictionary, which is similar to decription.
 skimr::skim(CA21_DATA) # this is for exploring purpose
+# lowest complete rate is 0.946
+# Number of rows             7848
+# Number of columns          87
+
 # Create labels as a named vector.
 
 CA21_DATA_dict = create_dictionary(
@@ -542,7 +546,7 @@ CA16_DATA %>%
   readr::write_csv(here::here("out", "StatsCAN_Census_16_BC_DA_DIP.csv"))
 
 str(CA16_DATA)
-# tibble [7,617 × 54]
+# tibble [7,617 × 84]
 
 CA16_DATA_labels <- create_census_data_label(
   CA16_DATA,
@@ -551,7 +555,7 @@ CA16_DATA_labels <- create_census_data_label(
 )
 
 str(CA16_DATA_labels)
-# 54
+# 84
 
 # add label to dictionary, which is similar to description.
 skimr::skim(CA16_DATA) # this is for exploring purpose
@@ -723,10 +727,11 @@ CA11_DATA_labels <- create_census_data_label(
 )
 
 str(CA11_DATA)
+# [7,582 × 88]
 names(CA11_DATA)
-# tibble [7,848 × 63]
+# 88
 str(CA11_DATA_labels)
-# 63
+# 88
 names(CA11_DATA_labels)
 
 # add label to dictionary, which is similar to decription.
@@ -905,9 +910,9 @@ CA06_DATA_labels = c(
 )
 
 str(CA06_DATA)
-# tibble [7,848 × 48]
+# tibble [7,469 × 73]
 str(CA06_DATA_labels)
-# 69 after we add occupation and education labels
+# 73 after we add occupation and education labels
 
 # add label to dictionary, which is similar to description.
 skimr::skim(CA06_DATA) # this is for exploring purpose
@@ -1059,7 +1064,7 @@ CA01_DATA <- CA01_DATA %>%
       EDUC_LESS_THAN_GRADE9
   )
 
-# TODO: check the EDUC_POSTSEC category
+# DONE: check the EDUC_POSTSEC category
 CA01_DATA <- CA01_DATA %>%
   mutate(
     EDUC_POSTSEC = EDUC_TRADES +
@@ -1089,9 +1094,9 @@ CA01_DATA_labels <- create_census_data_label(
 )
 
 str(CA01_DATA)
-# tibble [7,848 × 45]
+# tibble [7,436 × 67]
 str(CA01_DATA_labels)
-# 45 ?
+# 64 ?
 
 CA01_DATA_labels <- c(
   CA01_DATA_labels,
@@ -1108,6 +1113,7 @@ create_dictionary(CA01_DATA)
 
 # add label to dictionary, which is similar to description.
 skimr::skim(CA01_DATA) # this is for exploring purpose
+# lower complete rate than more recent census
 # Create labels as a named vector.
 
 CA01_DATA_dict = create_dictionary(
