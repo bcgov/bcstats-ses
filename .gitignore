@@ -49,3 +49,4 @@ test/
 my_database.duckdb.wal
 bcstats-ses.Rproj
 *.log
+test/
