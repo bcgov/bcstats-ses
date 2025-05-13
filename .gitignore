@@ -45,6 +45,7 @@ renv/
 data/
 out/
 src/scratch/
+test/
 my_database.duckdb.wal
 bcstats-ses.Rproj
 *.log
