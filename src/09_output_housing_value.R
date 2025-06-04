@@ -113,43 +113,50 @@ tryCatch(
 # 380017/2279095 = 0.1667403
 # 16% of the postal_code values are NA, so we will filter them out later
 # Get the addresses and clean postal codes
+
+cat("Retrieving address data...\n")
+bca_addrs_query <- glue_sql(
+  "
+    SELECT FOLIO_ID, STREET_NUMBER, STREET_NAME, 
+           CASE WHEN SUBSTRING(postal_code,4,1) <> '' 
+                THEN postal_code 
+                ELSE CONCAT(SUBSTRING(postal_code,1,3),
+                            SUBSTRING(postal_code,5,3)) 
+           END AS PC
+    FROM {SQL(config$database$database)}.Prod.{SQL(bca_addresses_table)}
+  ",
+  .con = con
+)
+
+
 bca_addrs <- tbl(
   con,
-  sql(sprintf(
-    "
-    SELECT *, 
-        CASE WHEN SUBSTRING(postal_code,4,1) <> '' 
-             THEN postal_code 
-             ELSE CONCAT(SUBSTRING(postal_code,1,3),SUBSTRING(postal_code,5,3)) 
-        END AS PC
-    FROM [%s].[Prod].[%s]
-",
-    config$database$database,
-    bca_addresses_table
-  ))
+  sql(bca_addrs_query)
 ) %>%
   select(FOLIO_ID, STREET_NUMBER, STREET_NAME, PC)
 
 # Create GCS data reference
+
+cat("Retrieving GCS data...\n")
+gcs_query <- glue_sql(
+  "
+    SELECT [POSTALCODE], [CDCSD_2021], [DA_2021], [ACTIVE]
+    FROM [{SQL(config$database$database)}].[Prod].[{SQL(gcs_table)}]
+    WHERE [ACTIVE] = 'Y'
+  ",
+  .con = con
+)
+
+
 gcs_data <- tbl(
   con,
-  sql(sprintf(
-    "
-    SELECT [POSTALCODE], [CDCSD_2021], [DA_2021], [ACTIVE]
-    FROM [%s].[Prod].[%s]
-",
-    config$database$database,
-    gcs_table
-  ))
+  sql(gcs_query)
 ) %>%
   dplyr::filter(ACTIVE == 'Y') %>%
   mutate(DA = paste0(CDCSD_2021, DA_2021)) %>%
   select(POSTALCODE, DA)
 
-# Initialize combined dataframes before the loop
-combined_ave_p <- NULL
-combined_med_p <- NULL
-year_name = "2023"
+
 # ms sql server has an issue with long column: https://www.nickvasile.com/2020/05/13/error-invalid-descriptor-index/; Short story is this is a bug in the Microsoft Driver with varchar(max) columns and they need to be at the end of the select query to work.
 # the new odbc package says it already fixed this issue, but we still got it here for 2023 and 2024 tables.
 
@@ -235,6 +242,10 @@ tbl_long_cols_mssql <- function(con, schema, table) {
 # do we need the JURISDICTION? It causes many problem. We only need the DA.
 # ?????????????????????????????????????????????????????????????????????????????
 
+# Initialize combined dataframes before the loop
+combined_ave_p <- NULL
+combined_med_p <- NULL
+
 # start working on the property value tables
 for (year_name in names(bca_property_values_table)[1]) {
   # Get the table name for this year
@@ -255,16 +266,16 @@ for (year_name in names(bca_property_values_table)[1]) {
     "Prod",
     current_table
   )
-
-  bca_properties %>%
-    dplyr::select(
-      GEN_PROPERTY_SUBCLASS_DESC,
-      FOLIO_ID,
-      GEN_GROSS_IMPROVEMENT_VALUE,
-      GEN_GROSS_LAND_VALUE,
-      JURISDICTION
-    ) %>%
-    glimpse()
+  # or just simply move JURISDICTION to the end of the query
+  # bca_properties %>%
+  #   dplyr::select(
+  #     GEN_PROPERTY_SUBCLASS_DESC,
+  #     FOLIO_ID,
+  #     GEN_GROSS_IMPROVEMENT_VALUE,
+  #     GEN_GROSS_LAND_VALUE,
+  #     JURISDICTION
+  #   ) %>%
+  #   glimpse()
 
   bca_properties <- bca_properties %>%
     mutate(
@@ -287,24 +298,9 @@ for (year_name in names(bca_property_values_table)[1]) {
     left_join(bca_addrs, by = "FOLIO_ID") %>%
     left_join(gcs_data, by = c("PC" = "POSTALCODE"))
 
-  # folio_data <- folio_data %>%
-  #   dplyr::select(
-  #     YR,
-  #     DA,
-  #     GEN_PROPERTY_SUBCLASS_DESC,
-  #     FOLIO_ID,
-  #     POSTALCODE = PC,
-  #     STREET_NUMBER,
-  #     STREET_NAME,
-  #     GEN_GROSS_IMPROVEMENT_VALUE,
-  #     GEN_GROSS_LAND_VALUE,
-  #     TOTAL_VALUE,
-  #     JURISDICTION
-  #   )
-  # folio_data %>% glimpse()
   # Step 3: Calculate average property statistics by DA and jurisdiction
   ave_p <- folio_data %>%
-    group_by(YR, DA, JURISDICTION) %>%
+    group_by(YR, DA) %>%
     summarize(
       N_PROPERTY = n_distinct(FOLIO_ID),
       AVE_IMPROVEMENT_VALUE = mean(GEN_GROSS_IMPROVEMENT_VALUE, na.rm = TRUE),
@@ -313,12 +309,7 @@ for (year_name in names(bca_property_values_table)[1]) {
       MIN_TOTAL_VALUE = min(TOTAL_VALUE, na.rm = TRUE),
       MAX_TOTAL_VALUE = max(TOTAL_VALUE, na.rm = TRUE),
       .groups = "drop"
-    ) %>%
-    select(-JURISDICTION, everything(), JURISDICTION)
-
-  # ave_p %>% show_query() %>% as.character()
-  #
-  # test <- tbl_long_cols_query(con, ave_p %>% show_query() %>% as.character())
+    )
 
   ave_p <- ave_p %>%
     collect()
@@ -330,12 +321,11 @@ for (year_name in names(bca_property_values_table)[1]) {
 
   # Step 4: Calculate median property values
   med_p <- folio_data %>%
-    group_by(YR, DA, JURISDICTION) %>%
+    group_by(YR, DA) %>%
     mutate(
       MEDIAN_TOTAL_VALUE = median(TOTAL_VALUE, na.rm = TRUE)
     ) %>%
-    distinct(YR, DA, MEDIAN_TOTAL_VALUE, JURISDICTION) %>%
-    select(-JURISDICTION, everything(), JURISDICTION) %>%
+    distinct(YR, DA, MEDIAN_TOTAL_VALUE) %>%
     collect()
 
   # Store the year's results in the list
@@ -369,15 +359,6 @@ inc <- income_data %>%
     .groups = "drop"
   )
 
-# Combine data from all years
-combined_ave_p <- bind_rows(lapply(all_years_data, function(year_data) {
-  (year_data$ave_p)
-}))
-
-
-combined_med_p <- bind_rows(lapply(all_years_data, function(year_data) {
-  (year_data$med_p)
-}))
 
 # Collect the income data
 inc_collected <- collect(inc)
@@ -393,12 +374,12 @@ if (
 ) {
   # Final step: Combine all statistics
   final_data <- combined_ave_p %>%
-    left_join(combined_med_p, by = c("DA", "JURISDICTION", "YR")) %>%
-    arrange(YR, DA, JURISDICTION)
+    left_join(combined_med_p, by = c("DA", "YR")) %>%
+    arrange(YR, DA)
 
   final_data_with_income <- final_data %>%
-    left_join(inc, by = "DA") %>%
-    arrange(YR, DA, JURISDICTION)
+    left_join(inc_collected, by = "DA") %>%
+    arrange(YR, DA)
 
   # Count records with and without income data
   income_count <- sum(!is.na(final_data_with_income$AVE_MED_INCOME))
@@ -412,7 +393,7 @@ if (
   current_time <- format(Sys.time(), "%Y%m%d_%H%M%S")
 
   # Make sure output directory exists
-  output_dir <- dirname(config$output$file_path)
+  output_dir <- dirname(config$output$house_file_path)
   if (!dir.exists(output_dir)) {
     dir.create(output_dir, recursive = TRUE)
     cat(glue("Created output directory: {output_dir}\n"))
@@ -422,17 +403,17 @@ if (
   write_csv(
     final_data,
     glue(
-      "{config$output$file_path}/property_values_by_da_all_{current_time}.csv"
+      "{config$output$house_file_path}/property_values_by_da_all_{current_time}.csv"
     )
   )
   write_csv(
     final_data_with_income,
     glue(
-      "{config$output$file_path}/property_values_by_da_with_income_{current_time}.csv"
+      "{config$output$house_file_path}/property_values_by_da_with_income_{current_time}.csv"
     )
   )
 
-  cat(glue("Files saved to {config$output$file_path}\n"))
+  cat(glue("Files saved to {config$output$house_file_path}\n"))
 } else {
   warning("No property data was processed successfully.")
 }
