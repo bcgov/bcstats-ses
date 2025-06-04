@@ -1,0 +1,91 @@
+---
+title: "housing_value_readme"
+output: html_document
+date: "2025-06-03"
+---
+
+This project is created to analyze the housing assessed value dataset. 
+The output of this project will be used for SES project.
+
+## SQL Query Overview
+
+This repository contains two primary SQL queries that analyze housing assessed values in relation to income data:
+
+
+### 01 House Value Income DA.sql
+
+
+This query analyzes residential property values at the Dissemination Area (DA) level. It:
+
+1. Cleans postal codes in BCA address data
+2. Links property values with geographic identifiers (DA)
+3. Filters for only residential properties (single family and strata) with values over $50,000
+4. Calculates average property statistics by DA including:
+   - Property counts
+   - Average improvement values
+   - Average land values
+   - Average total property values
+   - Minimum and maximum property values
+5. Determines median property values using PERCENTILE_CONT
+6. Joins with 2021 median income data
+7. Produces a final dataset showing property value metrics alongside average median income
+
+This query follows also includes:
+
+1. More comprehensive code comments explaining each step
+2. Updated reference to the 2024 geographic classification system
+3. Systematic organization of CTEs (Common Table Expressions) with clear purpose for each:
+   - Address standardization
+   - Property-location linkage
+   - Average value calculations
+   - Median value calculations
+   - Income data integration
+4. Identical output format but with improved query readability and documentation
+
+This query is designed to support the SES (Socioeconomic Status) Index project by providing property value metrics that can be correlated with income data at the DA level.
+
+## R Script Implementation
+
+### 01_house_value_income_da.R
+
+This R script performs the same analysis as the SQL queries but using R's tidyverse ecosystem. The script:
+
+1. **Configuration Management**:
+   - Uses the `config` package to load database connection parameters and table names
+   - Supports different environments through configuration profiles
+
+2. **Data Sources**:
+   - Connects to SQL Server database using parameters from config.yml
+   - Access the following database tables:
+     - `FCT_bca_folio_addresses_202502`: Contains property addresses with postal codes
+     - `FCT_bca_folio_gnrl_property_values_2023`: Contains property valuation data
+     - `FCT_GCS_202309`: Geographic Correspondence System table that links postal codes to dissemination areas
+     - `FCT_FIN_MEDINCOME_6DIG_PC`: Contains income data by postal code
+
+3. **Data Processing**:
+   - Cleans and standardizes postal codes
+   - Filters for residential properties with values over $50,000
+   - Links properties to geographic identifiers (DA)
+   - Uses dbplyr to perform SQL operations in R syntax
+   - Calculates property statistics at the DA level:
+     - Count of properties
+     - Average improvement values
+     - Average land values
+     - Average and median total property values
+     - Minimum and maximum property values
+   - Joins with 2021 median income data by DA
+
+4. **Output**:
+   - Produces a CSV file with timestamp in the filename
+   - Contains all property value metrics alongside average median income by DA
+   - File is saved in the path specified in the configuration file
+   - Final dataset includes DA, jurisdiction, property counts, value metrics, and income data
+
+The R implementation offers several advantages:
+- More maintainable code through tidyverse's consistent syntax
+- Configuration management for different environments
+- Improved data pipeline traceability
+- Direct integration with R-based statistical analysis and visualization tools
+- Automatic timestamping of output files
+
+Both the SQL and R implementations produce equivalent datasets that support the SES Index project by providing property value metrics correlated with income data at the DA level.
