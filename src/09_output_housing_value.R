@@ -8,6 +8,7 @@ library(dbplyr)
 # Load configuration using config package
 # This will automatically look for a file named config.yml in the current and parent directory
 config <- config::get()
+# use this config <- config::get(config = "development" ) to switch to development environment.
 
 # Extract settings from config
 bca_addresses_table <- config$tables$bca_addresses
