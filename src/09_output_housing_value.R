@@ -1,3 +1,46 @@
+# Copyright 2025 Province of British Columbia
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and limitations under the License.
+
+# 1. **Configuration Management**:
+#   - Uses the `config` package to load database connection parameters and table names
+# - Supports different environments through configuration profiles
+#
+# 2. **Data Sources**:
+#   - Connects to SQL Server database using parameters from config.yml
+#   - Access the following database tables:
+#   - `bca_folio_addresses`: Contains property addresses with postal codes
+#   - `bca_property_values`: Contains property valuation data
+#   - `GCS`: Geographic Correspondence System table that links postal codes to dissemination areas
+#   - `FIN_MEDINCOME_6DIG_PC`: Contains income data by postal code
+#
+# 3. **Data Processing**:
+#   - Cleans and standardizes postal codes
+#   - Filters for residential properties with values over $50,000
+#   - Links properties to geographic identifiers (DA)
+#   - Uses dbplyr to perform SQL operations in R syntax
+#   - Calculates property statistics at the DA level:
+#     - Count of properties
+#   - Average improvement values
+#   - Average land values
+#   - Average and median total property values
+#   - Minimum and maximum property values
+#   - Joins with 2021 median income data by DA
+#
+# 4. **Output**:
+#   - Produces a CSV file with timestamp in the filename
+#   - Contains all property value metrics alongside average median income by DA
+#   - File is saved in the path specified in the configuration file
+#   - Final dataset includes DA, jurisdiction, property counts, value metrics, and income data
+
 library(tidyverse)
 library(DBI)
 library(odbc)
