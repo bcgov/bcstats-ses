@@ -297,6 +297,62 @@ for (year_name in names(bca_property_values_table)) {
   #     JURISDICTION
   #   ) %>%
   #   glimpse()
+  # check if GEN_GROSS_IMPROVEMENT_VALUE equals to GEN_NET_IMPROVEMENT_VALUE, and if GEN_GROSS_LAND_VALUE equals to GEN_NET_LAND_VALUE
+
+  # diff_values <- bca_properties %>%
+  #   mutate(
+  #     diff_improvement_value = if_else(
+  #       abs(
+  #         GEN_GROSS_IMPROVEMENT_VALUE - GEN_NET_IMPROVEMENT_VALUE
+  #       ) <
+  #         1e-6,
+  #       0,
+  #       1
+  #     ),
+  #     na_gross_improvement_value = if_else(
+  #       is.na(GEN_GROSS_IMPROVEMENT_VALUE),
+  #       1,
+  #       0
+  #     ),
+  #     na_net_improvement_value = if_else(
+  #       is.na(GEN_NET_IMPROVEMENT_VALUE),
+  #       1,
+  #       0
+  #     ),
+  #     diff_land_value = if_else(
+  #       abs(
+  #         GEN_GROSS_LAND_VALUE - GEN_NET_LAND_VALUE
+  #       ) <
+  #         1e-6,
+  #       0,
+  #       1
+  #     ),
+  #     na_gross_land_value = if_else(
+  #       is.na(GEN_GROSS_LAND_VALUE),
+  #       1,
+  #       0
+  #     ),
+  #     na_net_land_value = if_else(
+  #       is.na(GEN_NET_LAND_VALUE),
+  #       1,
+  #       0
+  #     )
+  #   ) %>%
+  #   summarise(
+  #     across(
+  #       .cols = starts_with("na") | starts_with("diff"),
+  #       .fns = ~ mean(.x, na.rm = T)
+  #     )
+  #   ) %>%
+  #   # filter(!diff_improvement_value | !diff_land_value) %>%
+  #   collect()
+
+  # na_gross_improvement_value	na_net_improvement_value	na_gross_land_value	na_net_land_value	diff_improvement_value	diff_land_value
+  # 0	0.073751	0	0.073751	0.124272	0.075824
+
+  # bca_properties %>%
+  #   filter(is.na(GEN_NET_IMPROVEMENT_VALUE)) %>%
+  #   glimpse()
 
   bca_properties <- bca_properties %>%
     mutate(
@@ -355,24 +411,6 @@ for (year_name in names(bca_property_values_table)) {
   combined_med_p <- bind_rows(combined_med_p, med_p)
 }
 
-# Step 5: Get average median income by DA for 2021 tax year. There are many years of income data from 2016 to 2021. 2021 is the most recent year.
-# Links income data with geographic identifiers
-# Step 5: Get average median income by DA for 2021 tax year
-income_data <- tbl(con, in_schema("Prod", income_table)) %>%
-  filter(tax_year == '2021') %>%
-  select(tax_year, postal_code, median_income)
-
-inc <- income_data %>%
-  left_join(gcs_data, by = c("postal_code" = "POSTALCODE")) %>%
-  group_by(tax_year, DA) %>%
-  summarize(
-    AVE_MED_INCOME = mean(median_income, na.rm = TRUE),
-    .groups = "drop"
-  )
-
-
-# Collect the income data
-inc_collected <- collect(inc)
 
 # Final step: Combine all statistics
 
@@ -388,17 +426,11 @@ if (
     left_join(combined_med_p, by = c("DA", "YR")) %>%
     arrange(YR, DA)
 
-  final_data_with_income <- final_data %>%
-    left_join(inc_collected, by = "DA") %>%
-    arrange(YR, DA)
-
   # Count records with and without income data
-  income_count <- sum(!is.na(final_data_with_income$AVE_MED_INCOME))
   cat(glue("Total records: {nrow(final_data)}\n"))
-  cat(glue("Records with income data: {income_count}\n"))
 
   # View the first few rows of the result
-  print(head(final_data_with_income))
+  print(head(final_data))
 } else {
   warning("No property data was processed successfully.")
 }
@@ -419,12 +451,6 @@ write_csv(
   final_data,
   glue(
     "{config$output$house_file_path}/property_values_by_da_all_{current_time}.csv"
-  )
-)
-write_csv(
-  final_data_with_income,
-  glue(
-    "{config$output$house_file_path}/property_values_by_da_with_income_{current_time}.csv"
   )
 )
 
