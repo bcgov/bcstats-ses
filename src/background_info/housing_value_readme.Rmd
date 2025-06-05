@@ -5,7 +5,7 @@ date: "2025-06-03"
 ---
 
 This project is created to analyze the housing assessed value dataset. 
-The output of this project will be used for SES project.
+The output of this project will be used for the SES project.
 
 ## SQL Query Overview
 
