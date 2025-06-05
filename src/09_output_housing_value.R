@@ -66,8 +66,6 @@ gcs_table <- config$tables$gcs
 income_table <- config$tables$income
 
 # Establish database connection using config values
-
-# Establish database connection using config values
 tryCatch(
   {
     con <- dbConnect(
@@ -150,10 +148,10 @@ tryCatch(
 # This ensures postal codes are in the correct format for joining with geographic data
 # There are many NAs in the postal_code column, so we handle them appropriately
 # use dbplyr to check how many NAs are present
-# dbGetQuery(con, "SELECT COUNT(*) FROM [Population_Labour_Social].[Prod].[%s] WHERE postal_code IS NULL", bca_addresses_table)
+# dbGetQuery(con, "SELECT COUNT(*) FROM [database].[schema].[%s] WHERE postal_code IS NULL", bca_addresses_table)
 # 380017 with NAs in postal_code
 # check out what is the proportion of NAs overall in the table
-# dbGetQuery(con, "SELECT COUNT(*) FROM [Population_Labour_Social].[Prod].[%s]", bca_addresses_table)
+# dbGetQuery(con, "SELECT COUNT(*) FROM [database].[schema].[%s]", bca_addresses_table)
 # 380017/2279095 = 0.1667403
 # 16% of the postal_code values are NA, so we will filter them out later
 # Get the addresses and clean postal codes
@@ -198,8 +196,7 @@ ORDER BY ordinal_position
 
 # 	JURISDICTION and GEN_PROPERTY_CLASS_DESC have length -1 !!!!!!!!!!!!!!!!!!!!!!!!!
 # a column with Length = -1 is very likely causing your "Invalid Descriptor Index" error. In SQL Server, -1 indicates MAX length data types such as:
-#
-#   VARCHAR(MAX)
+# VARCHAR(MAX)
 # NVARCHAR(MAX)
 # VARBINARY(MAX)
 # XML
@@ -259,9 +256,6 @@ tbl_long_cols_mssql <- function(con, schema, table) {
     dplyr::select(dplyr::all_of(cols_sorted))
 }
 
-# ?????????????????????????????????????????????????????????????????????????????
-# do we need the JURISDICTION? It causes many problem. We only need the DA.
-# ?????????????????????????????????????????????????????????????????????????????
 
 # Initialize combined dataframes before the loop
 combined_ave_p <- NULL
@@ -287,72 +281,6 @@ for (year_name in names(bca_property_values_table)) {
     "Prod",
     current_table
   )
-  # or just simply move JURISDICTION to the end of the query
-  # bca_properties %>%
-  #   dplyr::select(
-  #     GEN_PROPERTY_SUBCLASS_DESC,
-  #     FOLIO_ID,
-  #     GEN_GROSS_IMPROVEMENT_VALUE,
-  #     GEN_GROSS_LAND_VALUE,
-  #     JURISDICTION
-  #   ) %>%
-  #   glimpse()
-  # check if GEN_GROSS_IMPROVEMENT_VALUE equals to GEN_NET_IMPROVEMENT_VALUE, and if GEN_GROSS_LAND_VALUE equals to GEN_NET_LAND_VALUE
-
-  # diff_values <- bca_properties %>%
-  #   mutate(
-  #     diff_improvement_value = if_else(
-  #       abs(
-  #         GEN_GROSS_IMPROVEMENT_VALUE - GEN_NET_IMPROVEMENT_VALUE
-  #       ) <
-  #         1e-6,
-  #       0,
-  #       1
-  #     ),
-  #     na_gross_improvement_value = if_else(
-  #       is.na(GEN_GROSS_IMPROVEMENT_VALUE),
-  #       1,
-  #       0
-  #     ),
-  #     na_net_improvement_value = if_else(
-  #       is.na(GEN_NET_IMPROVEMENT_VALUE),
-  #       1,
-  #       0
-  #     ),
-  #     diff_land_value = if_else(
-  #       abs(
-  #         GEN_GROSS_LAND_VALUE - GEN_NET_LAND_VALUE
-  #       ) <
-  #         1e-6,
-  #       0,
-  #       1
-  #     ),
-  #     na_gross_land_value = if_else(
-  #       is.na(GEN_GROSS_LAND_VALUE),
-  #       1,
-  #       0
-  #     ),
-  #     na_net_land_value = if_else(
-  #       is.na(GEN_NET_LAND_VALUE),
-  #       1,
-  #       0
-  #     )
-  #   ) %>%
-  #   summarise(
-  #     across(
-  #       .cols = starts_with("na") | starts_with("diff"),
-  #       .fns = ~ mean(.x, na.rm = T)
-  #     )
-  #   ) %>%
-  #   # filter(!diff_improvement_value | !diff_land_value) %>%
-  #   collect()
-
-  # na_gross_improvement_value	na_net_improvement_value	na_gross_land_value	na_net_land_value	diff_improvement_value	diff_land_value
-  # 0	0.073751	0	0.073751	0.124272	0.075824
-
-  # bca_properties %>%
-  #   filter(is.na(GEN_NET_IMPROVEMENT_VALUE)) %>%
-  #   glimpse()
 
   bca_properties <- bca_properties %>%
     mutate(
@@ -391,15 +319,15 @@ for (year_name in names(bca_property_values_table)) {
   ave_p <- ave_p %>%
     collect()
 
-  # ave_p %>% count(DA) %>% filter(n > 1)
-  # ave_p %>%
-  #   filter(DA == "010120219")
-  # 1063 DAs in 2023 has at least two JURISDICTIONs. It causes another problem.
-
   # Step 4: Calculate median property values: median function is not available in dbplyr with group by and summarise, so we need to use mutate and distinct
   med_p <- folio_data %>%
     group_by(YR, DA) %>%
     mutate(
+      MEDIAN_IMPROVEMENT_VALUE = median(
+        GEN_GROSS_IMPROVEMENT_VALUE,
+        na.rm = TRUE
+      ),
+      MEDIAN_LAND_VALUE = median(GEN_GROSS_LAND_VALUE, na.rm = TRUE),
       MEDIAN_TOTAL_VALUE = median(TOTAL_VALUE, na.rm = TRUE)
     ) %>%
     distinct(YR, DA, MEDIAN_TOTAL_VALUE) %>%
