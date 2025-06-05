@@ -399,35 +399,37 @@ if (
 
   # View the first few rows of the result
   print(head(final_data_with_income))
-
-  # Save the final data to a CSV file with date and time in the filename
-  current_time <- format(Sys.time(), "%Y%m%d_%H%M%S")
-
-  # Make sure output directory exists
-  output_dir <- dirname(config$output$house_file_path)
-  if (!dir.exists(output_dir)) {
-    dir.create(output_dir, recursive = TRUE)
-    cat(glue("Created output directory: {output_dir}\n"))
-  }
-
-  # Save two versions - one with all data, one filtered for records with income data
-  write_csv(
-    final_data,
-    glue(
-      "{config$output$house_file_path}/property_values_by_da_all_{current_time}.csv"
-    )
-  )
-  write_csv(
-    final_data_with_income,
-    glue(
-      "{config$output$house_file_path}/property_values_by_da_with_income_{current_time}.csv"
-    )
-  )
-
-  cat(glue("Files saved to {config$output$house_file_path}\n"))
 } else {
   warning("No property data was processed successfully.")
 }
+
+
+# Save the final data to a CSV file with date and time in the filename
+current_time <- format(Sys.time(), "%Y%m%d_%H%M%S")
+
+# Make sure output directory exists
+output_dir <- dirname(config$output$house_file_path)
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+  cat(glue("Created output directory: {output_dir}\n"))
+}
+
+# Save two versions - one with all data, one filtered for records with income data
+write_csv(
+  final_data,
+  glue(
+    "{config$output$house_file_path}/property_values_by_da_all_{current_time}.csv"
+  )
+)
+write_csv(
+  final_data_with_income,
+  glue(
+    "{config$output$house_file_path}/property_values_by_da_with_income_{current_time}.csv"
+  )
+)
+
+
+cat(glue("Files saved to {config$output$house_file_path}\n"))
 
 # Close database connection
 dbDisconnect(con)
