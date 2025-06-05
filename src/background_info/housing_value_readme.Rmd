@@ -30,7 +30,7 @@ This query analyzes residential property values at the Dissemination Area (DA) l
 6. Joins with 2021 median income data
 7. Produces a final dataset showing property value metrics alongside average median income
 
-This query follows also includes:
+This query also includes:
 
 1. More comprehensive code comments explaining each step
 2. Updated reference to the 2024 geographic classification system
