@@ -159,44 +159,21 @@ tryCatch(
 # Get the addresses and clean postal codes
 
 cat("Retrieving address data...\n")
-bca_addrs_query <- glue_sql(
-  "
-    SELECT FOLIO_ID, STREET_NUMBER, STREET_NAME, 
-           CASE WHEN SUBSTRING(postal_code,4,1) <> '' 
-                THEN postal_code 
-                ELSE CONCAT(SUBSTRING(postal_code,1,3),
-                            SUBSTRING(postal_code,5,3)) 
-           END AS PC
-    FROM {SQL(config$database$database)}.Prod.{SQL(bca_addresses_table)}
-  ",
-  .con = con
-)
-
-
-bca_addrs <- tbl(
-  con,
-  sql(bca_addrs_query)
-) %>%
+bca_addrs <- tbl(con, in_schema("Prod", bca_addresses_table)) %>%
+  mutate(
+    PC = case_when(
+      substr(POSTAL_CODE, 4, 4) != "" ~ POSTAL_CODE,
+      TRUE ~ paste0(substr(POSTAL_CODE, 1, 3), substr(POSTAL_CODE, 5, 7))
+    )
+  ) %>%
   select(FOLIO_ID, STREET_NUMBER, STREET_NAME, PC)
+
 
 # Create GCS data reference
 
 cat("Retrieving GCS data...\n")
-gcs_query <- glue_sql(
-  "
-    SELECT [POSTALCODE], [CDCSD_2021], [DA_2021], [ACTIVE]
-    FROM [{SQL(config$database$database)}].[Prod].[{SQL(gcs_table)}]
-    WHERE [ACTIVE] = 'Y'
-  ",
-  .con = con
-)
-
-
-gcs_data <- tbl(
-  con,
-  sql(gcs_query)
-) %>%
-  dplyr::filter(ACTIVE == 'Y') %>%
+gcs_data <- tbl(con, in_schema("Prod", gcs_table)) %>%
+  filter(ACTIVE == 'Y') %>%
   mutate(DA = paste0(CDCSD_2021, DA_2021)) %>%
   select(POSTALCODE, DA)
 
@@ -291,7 +268,7 @@ combined_ave_p <- NULL
 combined_med_p <- NULL
 
 # start working on the property value tables
-for (year_name in names(bca_property_values_table)[1]) {
+for (year_name in names(bca_property_values_table)) {
   # Get the table name for this year
   current_table <- bca_property_values_table[[year_name]]
 
@@ -363,7 +340,7 @@ for (year_name in names(bca_property_values_table)[1]) {
   #   filter(DA == "010120219")
   # 1063 DAs in 2023 has at least two JURISDICTIONs. It causes another problem.
 
-  # Step 4: Calculate median property values
+  # Step 4: Calculate median property values: median function is not available in dbplyr with group by and summarise, so we need to use mutate and distinct
   med_p <- folio_data %>%
     group_by(YR, DA) %>%
     mutate(
@@ -380,20 +357,10 @@ for (year_name in names(bca_property_values_table)[1]) {
 
 # Step 5: Get average median income by DA for 2021 tax year. There are many years of income data from 2016 to 2021. 2021 is the most recent year.
 # Links income data with geographic identifiers
-income_data <- tbl(
-  con,
-  sql(sprintf(
-    "
-    SELECT [tax_year],
-           [postal_code],
-           [median_income]
-    FROM [%s].[Prod].[%s] 
-    WHERE [tax_year]='2021'
-",
-    config$database$database,
-    income_table
-  ))
-)
+# Step 5: Get average median income by DA for 2021 tax year
+income_data <- tbl(con, in_schema("Prod", income_table)) %>%
+  filter(tax_year == '2021') %>%
+  select(tax_year, postal_code, median_income)
 
 inc <- income_data %>%
   left_join(gcs_data, by = c("postal_code" = "POSTALCODE")) %>%
