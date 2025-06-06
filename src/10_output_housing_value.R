@@ -47,6 +47,7 @@ library(odbc)
 library(lubridate)
 library(glue)
 library(dbplyr)
+library(datadictionary)
 
 # Load configuration using config package
 # This will automatically look for a file named config.yml in the current and parent directory
@@ -393,3 +394,37 @@ cat(glue("Files saved to {config$output$house_file_path}\n"))
 
 # Close database connection
 dbDisconnect(con)
+
+
+#################################################################################################
+# Data dictionary
+#################################################################################################
+housing_value_dict_labels = c(
+  "YR" = "The year of the observation (in '%Y' format)",
+
+  "DA" = "Census Dissemination Area unique ID.",
+
+  "N_PROPERTY" = "The number of the houses/properties in a DA",
+
+  "AVE_IMPROVEMENT_VALUE" = "Average value of structures built on the lots",
+
+  "AVE_LAND_VALUE" = "Average lot value.",
+
+  "AVE_TOTAL_VALUE" = "Average; Total value is the sum of the Land and Improvement Value (total value of land plus structures built on it).",
+  "MIN_TOTAL_VALUE" = "Minimum; Total value is the sum of the Land and Improvement Value (total value of land plus structures built on it).",
+  "MAX_TOTAL_VALUE" = "Maximum; Total value is the sum of the Land and Improvement Value (total value of land plus structures built on it).",
+
+  "MEDIAN_IMPROVEMENT_VALUE" = "Median value of structures built on the lots",
+
+  "MEDIAN_LAND_VALUE" = "Median lot value.",
+
+  "MEDIAN_TOTAL_VALUE" = "Median total value is the sum of the Land and Improvement Value (total value of land plus structures built on it)."
+)
+
+housing_value_dict = create_dictionary(
+  final_data,
+  var_labels = housing_value_dict_labels
+)
+
+# since there are comma "," in the labels so sometimes we use write.csv2 with semicolon ";" as delimiter.
+write.csv(housing_value_dict, here::here("out/Housing_Value_Dict_DIP.csv"))
