@@ -330,7 +330,13 @@ for (year_name in names(bca_property_values_table)) {
       MEDIAN_LAND_VALUE = median(GEN_GROSS_LAND_VALUE, na.rm = TRUE),
       MEDIAN_TOTAL_VALUE = median(TOTAL_VALUE, na.rm = TRUE)
     ) %>%
-    distinct(YR, DA, MEDIAN_TOTAL_VALUE) %>%
+    distinct(
+      YR,
+      DA,
+      MEDIAN_TOTAL_VALUE,
+      MEDIAN_LAND_VALUE,
+      MEDIAN_IMPROVEMENT_VALUE
+    ) %>%
     collect()
 
   # Store the year's results in the list
