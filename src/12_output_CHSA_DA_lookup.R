@@ -68,7 +68,7 @@ Path_conversion <- file.path(
 
 #Loading the conversion table
 
-#Conversion table
+#Conversion table is a table where population team saves estimated population
 
 conversion_table <- readxl::read_xls(file.path(
   Path_conversion,
@@ -80,9 +80,9 @@ conversion_table <- readxl::read_xls(file.path(
   )
 ))
 
-# get population estiamte in DB level.
+# get population estimate in DB level. There are many geographs in this table, but we don't use them.
 conversion_table_db_chsa_pop <- conversion_table %>%
-  select(DBUID = "DISSEMINATION_BLOCK_ID", CHSA, Pop_2021_Adjusted) # we don't use the DA id from this table. Instead, we use the DA id from geo attr table from StatsCAN
+  select(DBUID = "DISSEMINATION_BLOCK_ID", CHSA, Pop_2021_Adjusted) # we don't use the DA id from this table. Instead, we use the DA id from geo attr table from StatsCAN according to Jonathan
 
 
 ######################################################################################################
@@ -106,7 +106,7 @@ gaf_csv_file_name <- "2021_92-151_X.csv"
 
 # gaf_csv_file = file.path(CISR_csv_folder, gaf_csv_file_name)
 
-# Download CISR data
+# Download and process CISR data
 gaf_data <- download_and_process_dataset(
   url = "https://www12.statcan.gc.ca/census-recensement/2021/geo/aip-pia/attribute-attribs/files-fichiers/2021_92-151_X.zip",
   csv_folder = gaf_csv_folder,
@@ -120,7 +120,7 @@ geo_attrs <- gaf_data %>%
     # Rename columns to make them similar to 2016/2011 data
     DBUID = DBUID_IDIDU,
     DAUID = DAUID_ADIDU
-    # PRUID = PRUID_PRIDU,
+    # PRUID = PRUID_PRIDU,# for the future use.
     # PRNAME = PRENAME_PRANOM,
     # CDUID = CDUID_DRIDU,
     # CDNAME = CDNAME_DRNOM,
@@ -248,7 +248,7 @@ if (nrow(da_multiple_chsa) > 0) {
 # To get CHSA01's average x1 value, we have x1_CHSA01 = (0.2*POP_DA01 * x1_DA01 + 0.4*POP_DA_02 *x1_DA02)/(0.2*POP_DA01 + 0.4*POP_DA_02)
 # where (0.2*POP_DA01 + 0.4*POP_DA_02) is the population in CHSA01, 0.2*POP_DA01 is the population in DA01_CHSA01.
 # so we need to get the DA01_CHSA01 population and DA population and CHSA population to get the  population ratio within DA like 0.2 and  population weights within CHSA.
-# we call the new intermediate region as CHSA_DA which are smaller than CHSA and DA but larger than DB.
+# we call the new intermediate region as CHSADA which are smaller than CHSA and DA but larger than DB.
 
 # Now we have a DB level table
 #Creating population adjusted weights to distribute CHSAs
