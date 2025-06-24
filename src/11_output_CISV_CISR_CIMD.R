@@ -64,7 +64,7 @@ readr::write_csv(cisr_data, here::here("out", "cisr_data.csv"))
 # the note.csv from the same zip file provides the meta data/dictionary, but not organized in the way we want.
 
 cisr_note <- read_note(
-  csv_folder,
+  CISR_csv_folder,
   file_name = "cisr_notes-eng.csv",
   filter_pattern = "notes"
 )
