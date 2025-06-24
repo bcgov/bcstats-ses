@@ -152,7 +152,7 @@ chsa_multiple_cdcsd <- gcs_data %>%
 
 if (nrow(chsa_multiple_cdcsd) > 0) {
   cat(glue(
-    "WARNING: {nrow(chsa_multiple_cdcsd)} CHSAs are covering multiple CDSCSs!\n"
+    "WARNING: {nrow(chsa_multiple_cdcsd)} CHSAs are covering multiple CDCDSs!\n"
   ))
   print(chsa_multiple_cdcsd)
 
