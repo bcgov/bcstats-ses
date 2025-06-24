@@ -80,7 +80,7 @@ conversion_table <- readxl::read_xls(file.path(
   )
 ))
 
-# get population estimate in DB level. There are many geographs in this table, but we don't use them.
+# get population estimate in DB level. There are many geography in this table, but we don't use them.
 conversion_table_db_chsa_pop <- conversion_table %>%
   select(DBUID = "DISSEMINATION_BLOCK_ID", CHSA, Pop_2021_Adjusted) # we don't use the DA id from this table. Instead, we use the DA id from geo attr table from StatsCAN according to Jonathan
 
