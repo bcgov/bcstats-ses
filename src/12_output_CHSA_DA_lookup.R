@@ -27,6 +27,34 @@ config <- config::get()
 
 # Extract settings from config
 
+chsa_table <- config$tables$chsa
+
+# Establish database connection using config values
+tryCatch(
+  {
+    con <- dbConnect(
+      odbc(),
+      Driver = config$database$driver,
+      Server = config$database$server,
+      Database = config$database$database,
+      trusted_connection = config$database$trusted_connection
+    )
+    cat("Successfully connected to the database\n")
+  },
+  error = function(e) {
+    stop(glue("Failed to connect to database: {e$message}"))
+  }
+)
+
+# get CHSA data reference
+cat("Retrieving CHSA data...\n")
+chsa_data <- tbl(con, in_schema("Prod", chsa_table)) %>%
+  select(CHSA, CHSA_NAME) %>%
+  collect()
+
+chsa_data %>% glimpse()
+
+
 #Setting paths
 bc_stats_project_lan <- config$file_path$bc_stats_project
 
@@ -118,133 +146,77 @@ geo_attrs <- gaf_data %>%
 
 
 #Joining with the conversion table
-conversion_table <- conversion_table_db_chsa_pop %>%
+conversion_table_db_da_chsa_pop <- conversion_table_db_chsa_pop %>%
   left_join(
     geo_attrs %>%
       mutate(across(c(DBUID, DAUID), .fns = as.character)),
     by = "DBUID"
   )
 
-#Selecting CHSA table
-conv_table_CHSA <- conversion_table %>%
-  select(DBUID, DAUID, CHSA, Pop_2021_Adjusted)
 
-#Changing names to work under the loop.
-names(conv_table_CHSA) <- c("DAs", "CHSA", "Pop_2021_Adjusted")
-
-#Creating population adjusted weights to distribute CHSAs
-conv_table_CHSA <- conv_table_CHSA %>%
-  group_by(DAs) %>%
-  mutate(All_pop = sum(Pop_2021_Adjusted, na.rm = TRUE)) %>%
-  ungroup() %>%
-  group_by(DAs, CHSA) %>%
-  summarise(
-    prorate = sum(Pop_2021_Adjusted, na.rm = TRUE),
-    All_pop = mean(All_pop),
-    .groups = "drop"
-  ) %>%
-  ungroup() %>%
-  group_by(DAs) %>%
-  mutate(count = n()) %>%
-  ungroup() %>%
-  group_by(DAs, CHSA) %>%
-  mutate(
-    prorate = prorate / All_pop,
-    prorate = ifelse(is.finite(prorate), prorate, 1 / count)
-  ) %>%
-  select(-c(All_pop, count)) %>%
-  rename(`Dissemination Area` = DAs) %>%
-  arrange(`Dissemination Area`, CHSA)
-
-write_csv(
-  conv_table_CHSA,
-  file.path(
-    LAN,
-    "Requests",
-    "Ad hoc data requests",
-    "DA to CHSA conversion",
-    "output",
-    "Dissemination Area to CHSAs.csv"
-  )
-)
-
-
-# Create GCS data reference
-
-cat("Retrieving GCS data...\n")
-gcs_data <- tbl_long_cols_mssql(con, "Prod", gcs_table) %>%
-  # tbl(con, in_schema("Prod", gcs_table)) %>%
-  filter(ACTIVE == 'Y') %>%
-  mutate(CD = substr(CDCSD_2021, 1, 2)) %>%
-  mutate(CDCSD_DA = paste0(CDCSD_2021, DA_2021)) %>%
-  mutate(DA = paste0("59", substr(CDCSD_2021, 1, 2), DA_2021)) %>%
-  select(CD, CDCSD_2021, DA_2021, CDCSD_DA, DA, CHSA, MUN_NAME_2021)
-
-gcs_data %>% glimpse()
-
-# get CHSA data reference
-cat("Retrieving CHSA data...\n")
-chsa_data <- tbl(con, in_schema("Prod", chsa_table)) %>%
-  select(CHSA, CHSA_NAME)
-
-chsa_data %>% glimpse()
-
-
-# Join GCS data with CHSA data
-cat("Joining GCS data with CHSA data...\n")
-gcs_chsa_da_data <- gcs_data %>%
-  left_join(chsa_data, by = "CHSA")
-
-nrow_gcs_chsa <- gcs_chsa_da_data %>% count() %>% collect() %>% pull()
-# Check if the join was successful
-if (nrow_gcs_chsa == 0) {
-  stop("Join failed: GCS data and CHSA data do not match.")
-} else {
-  cat(glue("Join successful: {nrow_gcs_chsa} rows returned.\n"))
-}
-
-
-gcs_chsa_da_cnt_data = gcs_chsa_da_data %>%
-  group_by(CDCSD_2021, CHSA, MUN_NAME_2021, CHSA_NAME) %>%
-  summarise(DA_CNT = n_distinct(DA)) %>%
-  select(CDCSD_2021, CHSA, DA_CNT, MUN_NAME_2021, CHSA_NAME) %>% # have to move the character column to the end of the select due to MSSQL issue.
-  collect()
-
-
-# count how many distinct DAs are in the GCS data
-distinct_da_count <- gcs_data %>%
-  distinct(DA) %>%
-  pull(DA) %>%
+# count how many distinct DBUIDs are in the GCS data
+distinct_db_count <- conversion_table_db_da_chsa_pop %>%
+  distinct(DBUID) %>%
+  pull(DBUID) %>%
   length()
 
-cat(glue("Distinct DAs in GCS data: {distinct_da_count}\n"))
+cat(glue("Distinct DBUIDs in GCS data: {distinct_db_count}\n"))
+
+# count how many distinct DAUIDs are in the GCS data
+distinct_da_count <- conversion_table_db_da_chsa_pop %>%
+  distinct(DAUID) %>%
+  pull(DAUID) %>%
+  length()
+
+cat(glue("Distinct DBUIDs in GCS data: {distinct_da_count}\n"))
 
 # count how many distinct CHSAs are in the GCS data
-distinct_chsa_count <- gcs_data %>%
+distinct_chsa_count <- conversion_table_db_da_chsa_pop %>%
   distinct(CHSA) %>%
   pull(CHSA) %>%
   length()
 
 cat(glue("Distinct CHSAs in GCS data: {distinct_chsa_count}\n"))
 
-# count how many distinct DAs are in the GCS data by CHSA
-distinct_da_chsa_count <- gcs_data %>%
-  group_by(CHSA) %>%
-  summarise(DA_CNT = n_distinct(DA)) %>%
-  ungroup()
-
-
-# Check if one DA is covering two CHSAs
-da_multiple_cdcsd <- gcs_data %>%
-  group_by(DA) %>%
-  summarise(CDCSD_CNT = n_distinct(CDCSD_2021)) %>%
-  filter(CDCSD_CNT > 1) %>%
+# Check if one DB is covering two CHSAs
+db_multiple_chsa <- conversion_table_db_da_chsa_pop %>%
+  group_by(DBUID) %>%
+  summarise(CHSA_CNT = n_distinct(CHSA)) %>%
+  filter(CHSA_CNT > 1) %>%
   collect()
-# No, it is safe that da and csd is one to one.
+
+if (nrow(db_multiple_chsa) > 0) {
+  cat(glue(
+    "WARNING: {nrow(db_multiple_chsa)} DBs are covering multiple CHSAs!\n"
+  ))
+  print(db_multiple_chsa)
+} else {
+  cat("No DBs covering multiple CHSAs found.\n")
+}
+
+# good, no DB has covered two CHSAs.
+
+# Check if one DB is covering two DAs
+db_multiple_da <- conversion_table_db_da_chsa_pop %>%
+  group_by(DBUID) %>%
+  summarise(DA_CNT = n_distinct(DAUID)) %>%
+  filter(DA_CNT > 1) %>%
+  collect()
+
+if (nrow(db_multiple_da) > 0) {
+  cat(glue(
+    "WARNING: {nrow(db_multiple_da)} DBs are covering multiple DAs!\n"
+  ))
+  print(db_multiple_da)
+} else {
+  cat("No DBs covering multiple DAs found.\n")
+}
+
+# good, no DB has covered two DAs.
 
 # Check if one DA is covering two CHSAs
-da_multiple_chsa <- gcs_data %>%
-  group_by(DA) %>%
+da_multiple_chsa <- conversion_table_db_da_chsa_pop %>%
+  group_by(DAUID) %>%
   summarise(CHSA_CNT = n_distinct(CHSA)) %>%
   filter(CHSA_CNT > 1) %>%
   collect()
@@ -256,87 +228,153 @@ if (nrow(da_multiple_chsa) > 0) {
   print(da_multiple_chsa)
 
   # If you want to see the details of these DAs with their multiple CHSAs
-  problem_das <- da_multiple_chsa %>% pull(DA)
-  da_chsa_details <- gcs_data %>%
-    filter(DA %in% problem_das) %>%
-    count(DA, CHSA, CDCSD_2021, MUN_NAME_2021) %>%
-    collect()
-
-  print(da_chsa_details)
+  # problem_das <- da_multiple_chsa %>% pull(DAUID)
+  # da_chsa_details <- conversion_table_db_da_chsa_pop %>%
+  #   filter(DAUID %in% problem_das) %>%
+  #   count(DAUID, CHSA) %>%
+  #   collect()
+  #
+  # print(da_chsa_details)
 } else {
   cat("No DAs covering multiple CHSAs found.\n")
 }
 
 
-# Check if one CHSA is covering two CDCSD
-chsa_multiple_cdcsd <- gcs_data %>%
-  group_by(CHSA) %>%
-  summarise(CDCSD_CNT = n_distinct(CDCSD_2021)) %>%
-  filter(CDCSD_CNT > 1) %>%
-  collect()
+# no duplication or overlapping if group by DB
+# so if our base table is DA level, and we want to aggregate DA level table to CHSA level table,
+# we need to split DAs into different CHSAs with population as weights.
+# for example, 20% DA01's population contribute to CHSA01, and 80% DA01's population contribute to CHSA02.
+# and 40% DA01's population contribute to CHSA01 as well.
+# To get CHSA01's average x1 value, we have x1_CHSA01 = (0.2*POP_DA01 * x1_DA01 + 0.4*POP_DA_02 *x1_DA02)/(0.2*POP_DA01 + 0.4*POP_DA_02)
+# where (0.2*POP_DA01 + 0.4*POP_DA_02) is the population in CHSA01, 0.2*POP_DA01 is the population in DA01_CHSA01.
+# so we need to get the DA01_CHSA01 population and DA population and CHSA population to get the  population ratio within DA like 0.2 and  population weights within CHSA.
+# we call the new intermediate region as CHSA_DA which are smaller than CHSA and DA but larger than DB.
 
-if (nrow(chsa_multiple_cdcsd) > 0) {
-  cat(glue(
-    "WARNING: {nrow(chsa_multiple_cdcsd)} CHSAs are covering multiple CDSCSs!\n"
-  ))
-  print(chsa_multiple_cdcsd)
-
-  # If you want to see the details of these DAs with their multiple CHSAs
-  problem_chsas <- chsa_multiple_cdcsd %>% pull(CHSA)
-  chsa_cdcsd_details <- gcs_data %>%
-    filter(CHSA %in% problem_chsas) %>%
-    count(CHSA, CDCSD_2021, MUN_NAME_2021) %>%
-    collect()
-
-  print(chsa_cdcsd_details)
-} else {
-  cat("No CHSAs covering multiple CDCSD found.\n")
-}
-
-
-cat(glue("Distinct DAs in GCS data by CHSA: {nrow(distinct_da_chsa_count)}\n"))
-
-# get all combination of da and chsa and the count of the postal code
-da_chsa_details <- gcs_data %>%
-  count(DA, CHSA, CDCSD_2021, MUN_NAME_2021) %>%
-  left_join(chsa_data, by = "CHSA") %>%
-  collect()
-
-da_chsa_details <- da_chsa_details %>%
-  rename(
-    POSTAL_CODE_CNT = n
+# Now we have a DB level table
+#Creating population adjusted weights to distribute CHSAs
+db_da_chsa_pop_cnt <- conversion_table_db_da_chsa_pop %>%
+  group_by(CHSA, DAUID) %>%
+  mutate(
+    chsada_pop = sum(Pop_2021_Adjusted, na.rm = TRUE),
+    cnt_db_in_chsada = n()
   ) %>%
-  group_by(DA) %>%
-  mutate(CHSA_CNT_BY_DA = n_distinct(CHSA)) %>%
+  ungroup() %>%
+  group_by(DAUID) %>%
+  mutate(
+    da_pop = sum(Pop_2021_Adjusted, na.rm = TRUE),
+    chsada_to_da_pop_ratio = chsada_pop / da_pop,
+    cnt_db_in_da = n() # the same within da
+  ) %>%
   ungroup() %>%
   group_by(CHSA) %>%
-  mutate(DA_CNT_BY_CHSA = n_distinct(DA)) %>%
-  ungroup()
+  mutate(
+    chsa_pop = sum(Pop_2021_Adjusted, na.rm = TRUE),
+    chsada_to_chsa_pop_ratio = chsada_pop / chsa_pop,
+    cnt_db_in_chsa = n() # the same within chsa
+  ) %>%
+  ungroup() %>%
+  # start to get the weights. now the table is still in DB level since we only implement mutate operation not summarise operation.
+  # the weights for our purpose (aggregate da value to chsa value) will be chsada_pop/chsa_pop for da value.
+  # the weights for disaggregate chsa value to da value) will be chsada_pop/da_pop for da value, which is the weight/prorate in Jonathan's original code.
+  count(
+    chsada_pop,
+    cnt_db_in_chsada,
+    DAUID,
+    da_pop,
+    chsada_to_da_pop_ratio,
+    cnt_db_in_da, # all the same within da
+    CHSA,
+    chsa_pop,
+    chsada_to_chsa_pop_ratio,
+    cnt_db_in_chsa, # all the same within chsa
+    sort = T,
+    name = "cnt_db" # should be the same as cnt_db_in_chsada, remove it later
+  ) %>%
+  mutate(
+    chsada_id = row_number(),
+    CHSA = as.character(CHSA)
+  ) %>%
+  left_join(chsa_data)
+db_da_chsa_pop_cnt %>% glimpse()
+# the number of chsada is similar to the number of DA. 8084
+cat(glue::glue("There are {nrow(db_da_chsa_pop_cnt)} CHSADAs found.\n"))
+# original from Jonathan
+# conv_table_CHSA <- conversion_table_db_da_chsa_pop %>%
+#   group_by(DAs) %>%
+#   mutate(All_pop = sum(Pop_2021_Adjusted, na.rm = TRUE)) %>% # All_pop is the DA population
+#   ungroup() %>%
+#   group_by(DAs, CHSA) %>%
+#   summarise(
+#     prorate = sum(Pop_2021_Adjusted, na.rm = TRUE), # since this is within DA/CHSA group, so this is population within overlapped region between DA and CHSA. for example, DA01_CHSA01,and DA02_CHSA01.
+#     All_pop = mean(All_pop), # since this within DA/CHSA group, All_pop again is the DA population. It seems to be the same as the original All_pop
+#     .groups = "drop"
+#   ) %>%
+#   ungroup() %>%
+#   group_by(DAs) %>%
+#   mutate(count = n()) %>%
+#   ungroup() %>%
+#   group_by(DAs, CHSA) %>% # if there is no summary in the mutate statement, it seems not necessary.
+#   mutate(
+#     prorate = prorate / All_pop,
+#     prorate = ifelse(is.finite(prorate), prorate, 1 / count)
+#   ) %>%
+#   select(-c(All_pop, count)) %>%
+#   rename(`Dissemination Area` = DAs) %>%
+#   arrange(`Dissemination Area`, CHSA)
 
-
-da_chsa_details %>%
+db_da_chsa_pop_cnt %>%
   glimpse()
 
-readr::write_csv(da_chsa_details, here::here("out", "da_chsa_details.csv"))
+write_csv(
+  db_da_chsa_pop_cnt %>%
+    select(-cnt_db),
+  here::here("out", "db_da_chsa_pop_cnt.csv")
+)
+
+db_da_chsa_pop_csv_folder = file.path(
+  config::get("lan_path"),
+  "2024 SES Index/data/raw_data/chsa_da_crosswalk/"
+)
+
+write_csv(
+  db_da_chsa_pop_cnt %>%
+    select(-cnt_db),
+  file.path(db_da_chsa_pop_csv_folder, "db_da_chsa_pop_cnt")
+)
+
 
 #################################################################################################
 # Data dictionary
 #################################################################################################
 
 da_chsa_data_dict_labels = c(
-  "DA" = "DAs are small, relatively stable geographic units composed of one or more adjacent dissemination blocks where populations generally range from 400 to 700 people. DAs cover all the territory of Canada and are the smallest standard geographic area for which all census data are disseminated.",
+  "chsada_id" = "The intersection region of CHSA and DA, and the id is created using row number.",
+  "chsada_pop" = "The estimated population within a CHSADA region, and source is BCStats population team",
+  "cnt_db_in_chsada" = "The number of DBs within a CHSADA",
+  "DAUID" = "DAs are small, relatively stable geographic units composed of one or more adjacent dissemination blocks where populations generally range from 400 to 700 people. DAs cover all the territory of Canada and are the smallest standard geographic area for which all census data are disseminated.",
+  "da_pop" = "The estimated population within a DA, and source is BCStats population team",
+  "chsada_to_da_pop_ratio" = "The proportion of estimated population within a chsada over a DA, and source is BCStats population team",
+  "cnt_db_in_da" = "The number of DBs within a DA",
   "CHSA" = "Community Health Service Area (CHSA)",
-  "CDCSD_2021" = "Census Subdivision",
-  "MUN_NAME_2021" = "Census Subdivision Name",
-  "POSTAL_CODE_CNT" = "Number of postal code in a combinationof DA and CHSA",
   "CHSA_NAME" = "Community Health Service Area (CHSA) Name",
-  "CHSA_CNT_BY_DA" = "Number of CHSA within DA.",
-  "DA_CNT_BY_CHSA" = "Number of DA within CHSA."
+  "chsa_pop" = "The estimated population within a CHSA, and source is BCStats population team",
+  "chsada_to_chsa_pop_ratio" = "The proportion of estimated population within a chsada over a CHSA, and source is BCStats population team",
+  "cnt_db_in_chsa " = "The number of DBs within a CHSA"
 )
 
+length(da_chsa_data_dict_labels)
+ncol(
+  db_da_chsa_pop_cnt %>%
+    select(-cnt_db)
+)
 da_chsa_data_dict = create_dictionary(
-  da_chsa_details,
+  db_da_chsa_pop_cnt %>%
+    select(-cnt_db),
   var_labels = da_chsa_data_dict_labels
 )
 
 write_csv(da_chsa_data_dict, here::here("out/da_chsa_data_dict.csv"))
+write_csv(
+  da_chsa_data_dict,
+  file.path(db_da_chsa_pop_csv_folder, "da_chsa_data_dict.csv")
+)
