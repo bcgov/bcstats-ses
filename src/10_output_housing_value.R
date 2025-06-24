@@ -48,6 +48,7 @@ library(lubridate)
 library(glue)
 library(dbplyr)
 library(datadictionary)
+source("./src/utils.R") # get the functions for plotting maps
 
 # Load configuration using config package
 # This will automatically look for a file named config.yml in the current and parent directory
@@ -204,59 +205,6 @@ ORDER BY ordinal_position
 # Deprecated types like TEXT/NTEXT
 #
 # These can store up to 2GB of data, which often causes problems with ODBC drivers.
-
-tbl_long_cols_mssql <- function(con, schema, table) {
-  # Build table name as "schema.table"
-  table_full <- DBI::Id(schema = schema, table = table)
-
-  # Get columns info including data type and character length
-  cols_info <- DBI::dbGetQuery(
-    con,
-    sprintf(
-      "SELECT 
-         COLUMN_NAME as name, 
-         DATA_TYPE as data_type,
-         CHARACTER_MAXIMUM_LENGTH as column_size
-       FROM INFORMATION_SCHEMA.COLUMNS
-       WHERE TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s'",
-      schema,
-      table
-    )
-  )
-
-  # Create a sorting field with 3 priority groups:
-  # 1. Numeric columns (first)
-  # 2. Regular character columns (middle)
-  # 3. MAX length columns (-1) (last)
-  cols_sorted <- cols_info %>%
-    dplyr::mutate(
-      # Group 1: Numeric types (int, decimal, etc.)
-      # Group 2: Normal character columns
-      # Group 3: MAX length columns (-1)
-      priority_group = dplyr::case_when(
-        # Numeric types (these have NULL/NA in column_size)
-        is.na(column_size) ~ 1,
-        # MAX length types
-        column_size == -1 ~ 3,
-        # Regular character types
-        TRUE ~ 2
-      ),
-      # Within each priority group, sort by actual size (or 0 for numeric)
-      sort_size = dplyr::if_else(
-        is.na(column_size),
-        0, # Numeric columns get size 0
-        as.numeric(column_size)
-      )
-    ) %>%
-    # First sort by priority group, then by size within group
-    dplyr::arrange(priority_group, sort_size) %>%
-    dplyr::pull(name)
-
-  # Return the table with columns ordered by our defined logic
-  dplyr::tbl(con, dbplyr::in_schema(schema, table)) %>%
-    dplyr::select(dplyr::all_of(cols_sorted))
-}
-
 
 # Initialize combined dataframes before the loop
 combined_ave_p <- NULL
