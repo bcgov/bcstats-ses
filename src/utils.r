@@ -348,3 +348,164 @@ compare_two_csd_in_map <- function(
     )
   }
 }
+
+
+tbl_long_cols_mssql <- function(con, schema, table) {
+  # Build table name as "schema.table"
+  table_full <- DBI::Id(schema = schema, table = table)
+
+  # Get columns info including data type and character length
+  cols_info <- DBI::dbGetQuery(
+    con,
+    sprintf(
+      "SELECT 
+         COLUMN_NAME as name, 
+         DATA_TYPE as data_type,
+         CHARACTER_MAXIMUM_LENGTH as column_size
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s'",
+      schema,
+      table
+    )
+  )
+
+  # Create a sorting field with 3 priority groups:
+  # 1. Numeric columns (first)
+  # 2. Regular character columns (middle)
+  # 3. MAX length columns (-1) (last)
+  cols_sorted <- cols_info %>%
+    dplyr::mutate(
+      # Group 1: Numeric types (int, decimal, etc.)
+      # Group 2: Normal character columns
+      # Group 3: MAX length columns (-1)
+      priority_group = dplyr::case_when(
+        # Numeric types (these have NULL/NA in column_size)
+        is.na(column_size) ~ 1,
+        # MAX length types
+        column_size == -1 ~ 3,
+        # Regular character types
+        TRUE ~ 2
+      ),
+      # Within each priority group, sort by actual size (or 0 for numeric)
+      sort_size = dplyr::if_else(
+        is.na(column_size),
+        0, # Numeric columns get size 0
+        as.numeric(column_size)
+      )
+    ) %>%
+    # First sort by priority group, then by size within group
+    dplyr::arrange(priority_group, sort_size) %>%
+    dplyr::pull(name)
+
+  # Return the table with columns ordered by our defined logic
+  dplyr::tbl(con, dbplyr::in_schema(schema, table)) %>%
+    dplyr::select(dplyr::all_of(cols_sorted))
+}
+
+
+# Function to download, unzip, and read dataset
+download_and_process_dataset <- function(
+  url,
+  csv_folder,
+  file_name,
+  filter_pattern = "scores"
+) {
+  csv_file <- file.path(csv_folder, file_name)
+
+  if (!file.exists(csv_file)) {
+    message(paste0(
+      file_name,
+      " does not exist. Proceeding to download and process."
+    ))
+
+    # Download the ZIP file
+    temp_zip <- tempfile(fileext = ".zip")
+    download.file(url = url, destfile = temp_zip)
+
+    # Create directory if it doesn't exist
+    if (!dir.exists(csv_folder)) {
+      dir.create(csv_folder, recursive = TRUE)
+    }
+
+    # Unzip the file
+    unzip(temp_zip, exdir = csv_folder)
+
+    # List files in the extracted directory to find the CSV file
+    csv_files <- list.files(
+      path = csv_folder,
+      pattern = "\\.csv$",
+      full.names = TRUE
+    )
+
+    # Filter files that contain the specified pattern
+    csv_files <- csv_files[str_detect(csv_files, filter_pattern)]
+    data_csv_file <- csv_files[str_detect(csv_files, file_name)]
+
+    message(paste0("Data file found: ", paste(data_csv_file, collapse = ", ")))
+
+    # Read the CSV file(s)
+    if (length(data_csv_file) > 0) {
+      # Read the first CSV file (or adapt if there are multiple files)
+      data <- read_csv(data_csv_file) %>%
+        janitor::clean_names(case = "screaming_snake")
+
+      # # Save the processed data
+      # write_csv(data, csv_file)
+
+      # Display first few rows
+      message("Successfully processed data. First few rows:")
+      print(head(data))
+
+      # Return the data
+      return(data)
+    } else {
+      warning("No CSV files found in the extracted directory")
+      return(NULL)
+    }
+
+    # Clean up the temporary zip file
+    unlink(temp_zip)
+  } else {
+    message(paste0(file_name, " already exists. Reading from file."))
+    # If the CSV file already exists, read it directly
+    data <- read_csv(csv_file) %>%
+      janitor::clean_names(case = "screaming_snake")
+    return(data)
+  }
+}
+
+read_note <- function(csv_folder, file_name, filter_pattern = "notes") {
+  # List files in the extracted directory to find the CSV file
+  csv_files <- list.files(
+    path = csv_folder,
+    pattern = "\\.csv$",
+    full.names = TRUE
+  )
+
+  # Filter files that contain the specified pattern
+  note_csv_files <- csv_files[str_detect(csv_files, filter_pattern)]
+
+  note_csv_file <- note_csv_files[str_detect(note_csv_files, file_name)]
+
+  message(paste0("Note file found: ", paste(note_csv_file, collapse = ", ")))
+
+  # Read the CSV file(s)
+  if (length(note_csv_file) > 0) {
+    # Read the first CSV file (or adapt if there are multiple files)
+    note_data <- read_csv(note_csv_file[1]) %>%
+      janitor::clean_names(case = "screaming_snake")
+
+    # # Save the processed data
+    # write_csv(data, csv_file)
+
+    # Display first few rows
+    message("Successfully processed note data. First few rows:")
+    print(head(note_data))
+
+    # Return the data
+    return(note_data)
+  } else {
+    warning("No CSV files found in the directory")
+    return(NULL)
+  }
+}
