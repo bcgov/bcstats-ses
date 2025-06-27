@@ -343,11 +343,14 @@ if (nrow(db_multiple_chsa) > 0) {
 # 4 DBs covered two CHSAs.
 # for those four DB, their population should be shared by tow CHSAs
 # so assume 50% share for each CHSA
+# only for year 2016 to 2018
 
 bc_db_da_chsa_pop <- bc_db_da_chsa_pop |>
   mutate(
     POPULATION = if_else(
-      DBUID %in% (db_multiple_chsa |> distinct(DBUID) |> pull(DBUID)),
+      DBUID %in%
+        (db_multiple_chsa |> distinct(DBUID) |> pull(DBUID)) &
+        (YEAR %in% 2016:2018),
       POPULATION / 2,
       POPULATION
     )
