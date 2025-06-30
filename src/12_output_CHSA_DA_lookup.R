@@ -65,8 +65,8 @@ tbl_long_cols_mssql(con, "Prod", gcs_table) %>%
   # tbl(con, in_schema("Prod", gcs_table)) %>%
   filter(ACTIVE == 'Y') %>%
   colnames() %>%
-  paste0(collapse = ",")
-glimpse()
+  paste0(collapse = ",") |>
+  glimpse()
 
 gcs_data <- tbl_long_cols_mssql(con, "Prod", gcs_table) %>% collect()
 
@@ -240,7 +240,7 @@ db_population_after2016_df <- db_population_df %>%
     YEAR = Year,
     DBUID = ID,
     DAUID = parentID,
-    POPULATION = Pop_2021_Adjusted
+    POPULATION = Population
   ) %>%
   filter(
     YEAR >= 2016
@@ -250,7 +250,7 @@ db_population_after2016_df |> glimpse()
 
 db_population_after2016_df |>
   count(DAUID)
-# 7,848 DAs.
+# 7,848 DAs.which seems right.
 
 # Check if one DB is covering two DAs
 db_multiple_da <- db_population_after2016_df %>%
@@ -306,7 +306,7 @@ distinct_db_count <- bc_db_da_chsa_pop %>%
   pull(DBUID) %>%
   length()
 
-cat(glue("Distinct DBUIDs in GCS data: {distinct_db_count}\n"))
+cat(glue("Distinct DBUIDs in GCS/TMF data: {distinct_db_count}\n"))
 
 # count how many distinct DAUIDs are in the GCS data
 distinct_da_count <- bc_db_da_chsa_pop %>%
@@ -315,7 +315,7 @@ distinct_da_count <- bc_db_da_chsa_pop %>%
   length()
 
 cat(glue("Distinct DBUIDs in GCS data: {distinct_da_count}\n"))
-
+# 8182 which seems more than we ecpected from StatsCAN
 # count how many distinct CHSAs are in the GCS data
 distinct_chsa_count <- bc_db_da_chsa_pop %>%
   distinct(CHSA) %>%
@@ -323,6 +323,7 @@ distinct_chsa_count <- bc_db_da_chsa_pop %>%
   length()
 
 cat(glue("Distinct CHSAs in GCS data: {distinct_chsa_count}\n"))
+# 231
 
 # Check if one DB is covering two CHSAs
 db_multiple_chsa <- bc_db_da_chsa_pop %>%
@@ -398,7 +399,7 @@ if (nrow(da_multiple_chsa) > 0) {
 } else {
   cat("No DAs covering multiple CHSAs found.\n")
 }
-
+# 1770 DAs and YEAR combination are covering multiple CHSAs!
 
 # so if our base table is DA level, and we want to aggregate DA level table to CHSA level table,
 # we need to split DAs into different CHSAs with population as weights.
@@ -498,7 +499,7 @@ db_da_chsa_pop_csv_folder = file.path(
 )
 
 write_csv(
-  db_da_chsa_pop_cnt %>%
+  db_to_da_chsa_pop_cnt %>%
     select(-cnt_db),
   file.path(db_da_chsa_pop_csv_folder, "db_to_da_chsa_pop_cnt.csv")
 )
@@ -525,11 +526,11 @@ da_chsa_data_dict_labels = c(
 
 length(da_chsa_data_dict_labels)
 ncol(
-  db_da_chsa_pop_cnt %>%
+  db_to_da_chsa_pop_cnt %>%
     select(-cnt_db)
 )
 da_chsa_data_dict = create_dictionary(
-  db_da_chsa_pop_cnt %>%
+  db_to_da_chsa_pop_cnt %>%
     select(-cnt_db),
   var_labels = da_chsa_data_dict_labels
 )
