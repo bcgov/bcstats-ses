@@ -31,6 +31,9 @@ Collect data from StatsCan and other statistical agencies and convert to clean C
 8. BC population estimate.
 9. remoteness metric.
 10. BC housing value. 
+11. [CISV, CISR](https://www150.statcan.gc.ca/n1/pub/45-20-0001/452000012025001-eng.htm), and [CIMD from StatsCAN](https://www150.statcan.gc.ca/n1/pub/45-20-0001/452000012023001-eng.htm)
+12. Crosswalk between CHSA and DA. 
+  
 
 All data are stored on the LAN. BC Stats data may be slightly different from the public-available data.  
 
