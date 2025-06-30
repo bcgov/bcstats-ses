@@ -119,7 +119,7 @@ readr::write_csv(cisv_data, here::here("out", "cisv_data.csv"))
 #################################################################################################
 
 cisv_note <- read_note(
-  csv_folder,
+  CISV_csv_folder,
   file_name = "cisv_notes-eng.csv",
   filter_pattern = "notes"
 )
