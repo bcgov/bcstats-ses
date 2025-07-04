@@ -484,8 +484,9 @@ cat(glue::glue("There are {nrow(db_to_da_chsa_pop_cnt)} CHSADAs found.\n"))
 #   rename(`Dissemination Area` = DAs) %>%
 #   arrange(`Dissemination Area`, CHSA)
 
-db_to_da_chsa_pop_cnt %>%
-  glimpse()
+db_to_da_chsa_pop_cnt <- db_to_da_chsa_pop_cnt %>%
+  left_join(chsa_data)
+
 
 write_csv(
   db_to_da_chsa_pop_cnt %>%
@@ -510,7 +511,7 @@ write_csv(
 #################################################################################################
 
 da_chsa_data_dict_labels = c(
-  "chsada_id" = "The intersection region of CHSA and DA, and the id is created using row number.",
+  "YEAR" = "The calendar year",
   "chsada_pop" = "The estimated population within a CHSADA region, and source is BCStats population team",
   "cnt_db_in_chsada" = "The number of DBs within a CHSADA",
   "DAUID" = "DAs are small, relatively stable geographic units composed of one or more adjacent dissemination blocks where populations generally range from 400 to 700 people. DAs cover all the territory of Canada and are the smallest standard geographic area for which all census data are disseminated.",
@@ -518,10 +519,11 @@ da_chsa_data_dict_labels = c(
   "chsada_to_da_pop_ratio" = "The proportion of estimated population within a chsada over a DA, and source is BCStats population team",
   "cnt_db_in_da" = "The number of DBs within a DA",
   "CHSA" = "Community Health Service Area (CHSA)",
-  "CHSA_NAME" = "Community Health Service Area (CHSA) Name",
   "chsa_pop" = "The estimated population within a CHSA, and source is BCStats population team",
   "chsada_to_chsa_pop_ratio" = "The proportion of estimated population within a chsada over a CHSA, and source is BCStats population team",
-  "cnt_db_in_chsa " = "The number of DBs within a CHSA"
+  "cnt_db_in_chsa " = "The number of DBs within a CHSA",
+  "chsada_id" = "The intersection region of CHSA and DA, and the id is created using CHSA id and DA id.",
+  "CHSA_NAME" = "Community Health Service Area (CHSA) Name"
 )
 
 length(da_chsa_data_dict_labels)
