@@ -17,6 +17,7 @@ library(lubridate)
 library(glue)
 library(dbplyr)
 library(datadictionary)
+library(bcdata)
 source("./src/utils.R") # get the functions for plotting maps
 
 province = "British Columbia"
@@ -46,6 +47,11 @@ tryCatch(
   }
 )
 
+#####################################################################
+# CHSA
+# https://catalogue.data.gov.bc.ca/dataset/community-health-service-areas-boundaries
+#####################################################################
+
 # get CHSA data reference
 cat("Retrieving CHSA data...\n")
 chsa_data <- tbl(con, in_schema("Prod", chsa_table)) %>%
@@ -54,9 +60,31 @@ chsa_data <- tbl(con, in_schema("Prod", chsa_table)) %>%
 
 chsa_data %>% glimpse()
 
+bcdata::bcdc_search("CHSA")
+
+# 12: Community Health Service Areas Boundaries (multiple, wms, kml, json, xlsx)
+# ID: 68f2f577-28a7-46b4-bca9-7e9770f2f357
+# Name: community-health-service-areas-boundaries
+
+bcdc_get_record("68f2f577-28a7-46b4-bca9-7e9770f2f357")
+
+bcdc_tidy_resources('68f2f577-28a7-46b4-bca9-7e9770f2f357')
+
+chsa_bd <- bcdc_query_geodata('68f2f577-28a7-46b4-bca9-7e9770f2f357') |>
+  collect()
+
+
+chsa_tbl <- bcdc_get_data(
+  '68f2f577-28a7-46b4-bca9-7e9770f2f357',
+  resource = bcdc_tidy_resources('68f2f577-28a7-46b4-bca9-7e9770f2f357') |>
+    filter(str_detect(name, "Master table")) |>
+    pull(id)
+)
+
 #####################################################################
 # Create GCS data reference, use this table to create a crosswalk of CHSA and DB from 2016 to 2023
 # and then later join the DB population to create weights for crosswolk of CHSA and DA
+#
 #####################################################################
 cat("Retrieving GCS data...\n")
 
