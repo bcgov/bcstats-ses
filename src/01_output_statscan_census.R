@@ -1,4 +1,4 @@
-# Copyright 2024 Province of British Columbia
+# Copyright 2025 Province of British Columbia
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -127,6 +127,8 @@ CA21_VECTORS = c(
   'LICO_AT_PREVALENCE' = 'v_CA21_1085', # Prevalence of low income based on the Low-income cut-offs, after tax (LICO-AT) (%): Share of people in low income (LICO-AT)
   'LIM_AT_PREVALENCE' = 'v_CA21_1040', # Prevalence of low income based on the Low-income measure, after tax (LIM-AT) (%)
 
+  # LICO-AT is a hybrid measure, originally relative in nature but now functioning as an "anchored" indicator of low income. Its thresholds are based on 1992 family expenditure patterns and are updated annually only for inflation using the Consumer Price Index (CPI). Consequently, while mathematically consistent, LICO-AT measures progress against a standard of living that becomes less relevant with each passing year. In contrast, LIM-AT is a purely relative measure, defined as 50% of the contemporary median adjusted household income. It is recalculated annually, ensuring it reflects current societal income distributions and making it the international standard for such comparisons.
+  # LICO-AT answers the question, "Are the poor better off than they were in 1992?" while LIM-AT answers, "Are the poor keeping pace with the middle of society today?"
   ###########################################################################################################################################
   # Occupation from Labour force stats
   # 25% Data
@@ -604,6 +606,9 @@ CA11_VECTORS = c(
   'INC_AT_LONE_PARENT_MED' = 'v_CA11N_2476', # Median after-tax income of lone-parent economic families
   'INC_AT_CPL_W_CHILD_MED' = 'v_CA11N_2470', # Median after-tax income of couple economic families with children
   'LIM_AT_PREVALENCE' = 'v_CA11N_2606', # Prevalence of low income based on the Low-income measure, after tax (LIM-AT) (%)
+  # 'LICO_AT_PREVALENCE' = '', # Not in census table, but in NHS 2011 and only Canada value no BC or DA in CANSIM Frequency: Occasional  Table: 11-10-0195-01 (formerly CANSIM 206-0092)
+  # https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/definition-eng.cfm?ID=fam019
+  # https://www12.statcan.gc.ca/nhs-enm/2011/ref/dict/fam019-eng.cfm
 
   # 'OCC_TOT' = 'v_CA11N_2026', # Occupation - Total
   'OCC_TOT' = 'v_CA11N_2032', # Occupation - All occupations
@@ -771,7 +776,7 @@ CA06_VECTORS = c(
   'INC_AT_FAM_AVG' = 'v_CA06_1786', # Total Family Income After Tax - Average
   'INC_BT_HHS_MED' = 'v_CA06_2000', # Total Household Income Before Tax - Median
   'INC_BT_HHS_AVG' = 'v_CA06_2001', # Total Household Income Before Tax - Average
-  'LICO_AT_PREVALENCE' = 'v_CA06_1981', # Prevalence of low income based on the Low-income cut-offs, after tax (LICO-AT) (%)
+  'LICO_AT_PREVALENCE' = 'v_CA06_1981', # Prevalence of low income after tax in 2005 % / Total persons in private households
 
   # 'OCC_TOT' = 'v_CA06_827', # Occupation - Total # statsCAN change it in 2011 as well, so data in 2006 is different from data in 2011.
   'OCC_TOT' = 'v_CA06_829', # All occupations
@@ -951,7 +956,9 @@ CA01_VECTORS = c(
   # no income after tax family
   'INC_BT_HHS_MED' = 'v_CA01_1634', # Total Household Income Before Tax - Median
   'INC_BT_HHS_AVG' = 'v_CA01_1633', # Total Household Income Before Tax - Average
-  'LICO_AT_PREVALENCE' = 'v_CA01_1620', # Prevalence of low income based on the Low-income cut-offs, after tax (LICO-AT) (%)
+  'LICO_AT_INCIDENCE' = 'v_CA01_1620', # Incidence of low income in 2000 %
+  'LICO_AT_TOTAL' = 'v_CA01_1617', # Total - Population in private households
+  # 'LICO_AT_PREVALENCE' = 'v_CA01_1620', # Prevalence of low income in 2000 %
 
   # Canada Census 2001
   # 20% Sample Data
@@ -1058,6 +1065,7 @@ CA01_DATA <- get_census(
   labels = 'short'
 )
 
+# fix some issues in terms of definition of indicator changes
 CA01_DATA <- CA01_DATA %>%
   mutate(
     EDUC_NONE = EDUC_WO_HS +
@@ -1076,6 +1084,12 @@ CA01_DATA <- CA01_DATA %>%
   mutate(
     REPAIRS_TOT = HOME_OWN_TOT
   )
+
+CA01_DATA <- CA01_DATA %>%
+  mutate(
+    LICO_AT_PREVALENCE = LICO_AT_INCIDENCE / LICO_AT_TOTAL
+  )
+
 
 CA01_DATA <- CA01_DATA %>%
   janitor::clean_names(case = 'screaming_snake') %>%
