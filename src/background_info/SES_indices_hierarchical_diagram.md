@@ -52,7 +52,7 @@ The BC-SEI incorporates variables across four main domains, with the following h
 
 ### Robust model
 
-```{mermaid}
+```mermaid
 graph TD
     A[BC-Total Index - Robust Model] --> B[Economic]
     A --> C[Education]
@@ -129,7 +129,7 @@ graph TD
     class B1,B2,B3,B4,B5,B6,B7,B8,B9,B10,B11,B12,B13,C1,C2,C3,C4,C5,C6,C7,C8,C9,C10,C11,C12,C13,C14,C15,D1,D2,D3,D4,D5,D6,E1,E2,E3,E4,E5,E6,E7 indicatorStyle
 ```
 
-```{mermaid}
+```mermaid
 graph TD
     A[BC-SEI Index - Robust Model] --> B[Economic]
     A --> C[Education]
@@ -198,7 +198,7 @@ graph TD
 
 ### Longitudinal model
 
-```{mermaid}
+```mermaid
 graph TD
     A[BC-Total Index - Longitudinal Model] --> B[Economic]
     A --> C[Education]
@@ -264,7 +264,7 @@ graph TD
     class B1,B2,B3,B4,B5,B6,B7,B8,B9,B10,B11,B12,B13,C1,C2,C3,C4,C5,C6,C7,C8,C9,C10,C11,C12,C13,C14,C15,D1,D2,D3,D4,D5,D6,E1,E2,E3,E4,E5,E6,E7 indicatorStyle
 ```
 
-```{mermaid}
+```mermaid
 graph TD
     A[BC-SEI Index - Longitudinal Model] --> B[Economic]
     A --> C[Education]
