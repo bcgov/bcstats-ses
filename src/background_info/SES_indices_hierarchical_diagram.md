@@ -18,13 +18,13 @@ format: html
 -   [Use Cases](#use-cases)
 -   [References](#references)
 
-## Introduction {#introduction}
+## Introduction
 
 The British Columbia Socio-Economic Index (BC-SEI) is a measure of socio-economic advantage and disadvantage across different geographic areas in British Columbia. Following a similar approach to the Australian Bureau of Statistics' Socio-Economic Indexes for Areas (SEIFA), this index summarizes various social and economic conditions of people and households within defined areas.
 
 The BC-SEI provides a method for determining the level of social and economic wellbeing in each area by incorporating multiple dimensions including income, education, employment, housing, and other factors that influence socio-economic conditions.
 
-## Methodology {#methodology}
+## Methodology
 
 The BC-SEI are constructed using principal components analysis (PCA), a statistical technique that summarizes the information from a set of correlated variables into a smaller number of components. The first principal component, which explains the largest proportion of the total variation in the data, forms the basis of the index.
 
@@ -33,7 +33,7 @@ Data sources include:
 - Tax data 
 - Administrative data from provincial and federal agencies
 
-## Index Construction {#index-construction}
+## Index Construction
 
 The index is constructed through the following steps:
 
@@ -46,11 +46,18 @@ The index is constructed through the following steps:
 5.  Transformation of index scores to a scale with a mean of 1000 and standard deviation of 100
 6. Apply model to other years data.
 
-## Variables {#variables}
+## Variables
 
 The BC-SEI incorporates variables across four main domains, with the following hierarchical structure:
 
-### Robust model
+### Updated model
+
+
+The updated model is only available for 2023 due to many variables are only available for 2023.
+
+
+The BC-Total Index has been created using four sub-indices: ECON, EDUC, HEALTH, and COMMUNITY. 
+
 
 ```mermaid
 graph TD
@@ -129,6 +136,10 @@ graph TD
     class B1,B2,B3,B4,B5,B6,B7,B8,B9,B10,B11,B12,B13,C1,C2,C3,C4,C5,C6,C7,C8,C9,C10,C11,C12,C13,C14,C15,D1,D2,D3,D4,D5,D6,E1,E2,E3,E4,E5,E6,E7 indicatorStyle
 ```
 
+The BC-SEI Index has been created using three sub-indices: ECON, EDUC, and COMMUNITY. 
+
+
+
 ```mermaid
 graph TD
     A[BC-SEI Index - Robust Model] --> B[Economic]
@@ -197,6 +208,11 @@ graph TD
 ```
 
 ### Longitudinal model
+
+The longitudinal model is the version 1 of the BC-SEI index which has been created using data from 2003 to 2023. 
+
+A few variables are available for creating the BC-Total index.
+
 
 ```mermaid
 graph TD
@@ -360,5 +376,5 @@ The BC-SEI can be used for:
 ## References {#references}
 
 -   Statistics Canada (2021). Census of Population.
--   Australian Bureau of Statistics (2018). Socio-Economic Indexes for Areas (SEIFA).
 -   BC Stats (2023). British Columbia Socio-Economic Index Technical Documentation.
+-   Australian Bureau of Statistics (2018). Socio-Economic Indexes for Areas (SEIFA).
