@@ -335,7 +335,7 @@ graph TD
     class B1,B2,B3,B4,B5,B6,B7,B8,B9,B10,B11,B12,B13,C1,C2,C3,C4,C5,C6,C7,C8,C9,C10,C11,C12,C13,C14,C15,D1,D2,D3,D4,D5,D6,E1,E2,E3,E4,E5,E6,E7 indicatorStyle
 ```
 
-## Geographic Areas {#geographic-areas}
+## Geographic Areas 
 
 The BC-SEI is calculated for various geographic levels:
 
@@ -343,7 +343,7 @@ The BC-SEI is calculated for various geographic levels:
 -   Census Subdivisions (municipalities)
 -   Dissemination Areas (small areas composed of one or more neighboring blocks)
 
-## Interpretation {#interpretation}
+## Interpretation 
 
 The BC-SEI is designed so that higher scores indicate relative advantage, while lower scores indicate relative disadvantage. The scores are relative within British Columbia, with:
 
@@ -353,7 +353,7 @@ The BC-SEI is designed so that higher scores indicate relative advantage, while 
 
 The index represents a continuum from most disadvantaged to most advantaged rather than specific categories or thresholds of disadvantage.
 
-## Limitations {#limitations}
+## Limitations 
 
 Key limitations of the BC-SEI include:
 
@@ -363,7 +363,7 @@ Key limitations of the BC-SEI include:
 -   Rural and remote areas may have different patterns of advantage/disadvantage that are not well-captured
 -   The index should be used alongside other measures for comprehensive analysis
 
-## Use Cases {#use-cases}
+## Use Cases 
 
 The BC-SEI can be used for:
 
@@ -373,7 +373,7 @@ The BC-SEI can be used for:
 -   Policy development and evaluation
 -   Comparative analysis across different geographic areas
 
-## References {#references}
+## References 
 
 -   Statistics Canada (2021). Census of Population.
 -   BC Stats (2023). British Columbia Socio-Economic Index Technical Documentation.
