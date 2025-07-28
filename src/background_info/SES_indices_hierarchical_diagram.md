@@ -61,7 +61,7 @@ The BC-Total Index has been created using four sub-indices: ECON, EDUC, HEALTH, 
 
 ```mermaid
 graph TD
-    A[BC-Total Index - Robust Model] --> B[Economic]
+    A[BC-Total Index - Detailed Model] --> B[Economic]
     A --> C[Education]
     A --> D[Health]
     A --> E[Community]
@@ -142,7 +142,7 @@ The BC-SEI Index has been created using three sub-indices: ECON, EDUC, and COMMU
 
 ```mermaid
 graph TD
-    A[BC-SEI Index - Robust Model] --> B[Economic]
+    A[BC-SEI Index - Detailed Model] --> B[Economic]
     A --> C[Education]
     A --> E[Community]
 
