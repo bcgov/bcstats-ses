@@ -138,6 +138,9 @@ for (i in 1:nrow(index_contribution_data_path)) {
       names_to = "INDEX_TYPE",
       values_to = "TOTAL"
     ) %>%
+    mutate(
+      "DEVIATION_CONTRIBUTION_BENCHMARK" = 50
+    ) |>
     pivot_longer(
       cols = starts_with("DEVIATION_CONTRIBUTION_"),
       names_to = "FACTOR",
@@ -183,11 +186,23 @@ index_contribution_data_combined |>
 #################################################################
 # need a better name for those factors. load from a data dictionary
 # Load data dictionary
-data_dictionary <- read_csv(file.path(
+longitudinal_model_input_data_dictionary <- read_csv(file.path(
   bc_ses_project_lan_path,
   "2024 SES Index/exports/2025-07-31-initial-index-results",
   "longitudinal_model_input_data_dictionary_2025-07-21.csv"
 ))
+
+detail_model_input_data_dictionary <- read_csv(file.path(
+  bc_ses_project_lan_path,
+  "2024 SES Index/exports/2025-07-31-initial-index-results",
+  "robust_model_input_data_dictionary_2025-07-21.csv"
+))
+
+data_dictionary <- bind_rows(
+  longitudinal_model_input_data_dictionary,
+  detail_model_input_data_dictionary
+) %>%
+  distinct()
 
 # Join data dictionary to contribution data to get better factor names
 index_contribution_data_combined <- index_contribution_data_combined %>%
@@ -196,6 +211,16 @@ index_contribution_data_combined <- index_contribution_data_combined %>%
       select(`Variable Name`, `Description`) %>%
       rename(FACTOR = `Variable Name`, FACTOR_LABEL = `Description`),
     by = "FACTOR"
+  ) |>
+  mutate(
+    FACTOR_LABEL = case_when(
+      FACTOR == 'BENCHMARK' ~ "BC Benchmark",
+      FACTOR == 'NORMALIZED_HEALTH' ~ "Health",
+      FACTOR == 'NORMALIZED_EDUC' ~ "Education",
+      FACTOR == 'NORMALIZED_ECON' ~ "Economy",
+      FACTOR == 'NORMALIZED_COMMUNITY' ~ "Community",
+      T ~ FACTOR_LABEL
+    )
   )
 
 index_contribution_data_combined <- index_contribution_data_combined %>%
@@ -203,8 +228,8 @@ index_contribution_data_combined <- index_contribution_data_combined %>%
     INDEX_LABEL = case_when(
       INDEX_TYPE == "TOTAL_INDEX_0_100" ~ "Total Index",
       INDEX_TYPE == "SEI_INDEX_0_100" ~ "SEI Index",
-      INDEX_TYPE == "ECONOMY_0_100" ~ "Economy",
-      INDEX_TYPE == "EDUCATION_0_100" ~ "Education",
+      INDEX_TYPE == "ECON_0_100" ~ "Economy",
+      INDEX_TYPE == "EDUC_0_100" ~ "Education",
       INDEX_TYPE == "HEALTH_0_100" ~ "Health",
       INDEX_TYPE == "COMMUNITY_0_100" ~ "Community",
       TRUE ~ INDEX_TYPE
