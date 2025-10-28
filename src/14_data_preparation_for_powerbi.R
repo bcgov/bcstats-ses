@@ -18,13 +18,248 @@ library(glue)
 library(dplyr)
 library(dbplyr)
 library(datadictionary)
+library(bcmaps)
+library(geojsonio)
+library(sf)
+# The package also contains a few handy utility functions:
+##   transform_bc_albers() for transforming any sf object to BC Albers projection
+# bc_area() to get the total area of British Columbia in various units
+# bc_bbox() to get an extend/bounding box for British Columbia
 source("./src/utils.R") # Load configuration using config package
 # This will automatically look for a file named config.yml in the current and parent directory
 config <- config::get()
 
 bc_ses_project_lan_path = config$lan_path
 
+#################################################################
+# get csd map
+# bc_csd_map <- bcmaps::census_subdivision(ask = interactive(), force = FALSE)
 
+# create a indigenous CSD flag
+# •	Exclude indigenous CSD and CHSA,
+# •	Flag indigenous CSD
+# # In Canada, a census subdivision (CSD) with a CSD_Type value of "IRI" represents an Indian reserve / Réserve indienne. If the CSD_Type value is "NL", it stands for Newfoundland and Labrador community (local service district). These designations are used by Statistics Canada to classify different types of census subdivisions within the Canadian geographic hierarchy
+#
+bc_csd_map |>
+  # remove the geometry column
+  st_drop_geometry(-geometry) |>
+  select(
+    CENSUS_SUBDIVISION_ID,
+    CENSUS_SUBDIVISION_NAME,
+    CENSUS_SUBDIVISION_TYPE_CODE,
+    CENSUS_DIVISION_ID,
+    CENSUS_DIVISION_NAME,
+    CENSUS_METRO_AREA_ID,
+    CENSUS_METRO_AREA_NAME,
+    ECONOMIC_REGION_ID,
+    ECONOMIC_REGION_NAME,
+    ING_CSD_FLAG,
+    REGION_NAME
+  ) |>
+  write_csv(
+    file.path(
+      bc_ses_project_lan_path,
+      "2024 SES Index\\data\\other\\StatsCAN_sgc\\bc_csd_lookup.csv"
+    ),
+  )
+bc_csd_map |> plot()
+###########################################################################
+# bcmaps csd map is too simplified. try statscan's shp file or topojson
+bc_csd_map <- st_read(
+  file.path(
+    bc_ses_project_lan_path,
+    "2024 SES Index\\data\\other\\StatsCAN_sgc\\lcsd000b21a_e\\lcsd000b21a_e.shp"
+  ),
+  quiet = TRUE
+) |>
+  filter(PRUID == "59")
+
+bc_csd_map <- bc_csd_map |>
+  mutate(
+    ING_CSD_FLAG = case_when(
+      !CENSUS_SUBDIVISION_TYPE_CODE %in% c("IRI", "NL") ~ "Non-indigenous",
+      TRUE ~ "Indigenous"
+    )
+  ) |>
+  mutate(
+    REGION_NAME = CENSUS_SUBDIVISION_NAME
+  )
+
+bc_csd_map |> glimpse()
+bc_csd_map |>
+  filter(PRUID == "59") |>
+  plot()
+
+#
+# # Transform to WGS84 (EPSG:4326) for web compatibility
+bc_csd_map_wgs84 <- bc_csd_map |>
+  filter(PRUID == "59") |>
+  st_transform(4326) |>
+  # Simplify geometry to reduce file size and improve Power BI performance
+  # st_simplify(dTolerance = 0.001) |>
+  # Ensure valid geometries
+  st_make_valid()
+
+bc_csd_map_wgs84 |> plot()
+#
+# # Save as GeoJSON first for Power BI compatibility
+st_write(
+  bc_csd_map_wgs84,
+  file.path(
+    bc_ses_project_lan_path,
+    "2024 SES Index\\data\\other\\StatsCAN_sgc\\bc_csd.geojson"
+  ),
+  driver = "GeoJSON",
+  delete_dsn = TRUE
+)
+
+# None of them work, so have to upload to mapreshaper.org to do it.
+
+##########################################
+# Load the TopoJSON file
+# https://open.canada.ca/data/en/dataset/68f2f577-28a7-46b4-bca9-7e9770f2f357
+chsa <- geojson_read(
+  file.path(
+    bc_ses_project_lan_path,
+    "2024 SES Index\\data\\other\\StatsCAN_sgc\\chsa_2022_wgs.json"
+  ),
+  what = "sp"
+)
+
+# Convert to sf object
+chsa_sf <- st_as_sf(chsa)
+
+chsa_sf |> glimpse()
+
+# Define Lower Mainland CHSA names
+lower_mainland_chsas <- c(
+  "Downtown Vancouver",
+  "West End",
+  "Fairview",
+  "Downtown Eastside",
+  "Northeast False Creek",
+  "Grandview-Woodland",
+  "Cedar Cottage",
+  "Hastings-Sunrise",
+  "Renfrew-Collingwood",
+  "Shaughnessy/Arbutus Ridge/Kerrisdale",
+  "West Point Grey/Dunbar-Southlands",
+  "University of British Columbia",
+  "Kitsilano",
+  "Kensington",
+  "Mount Pleasant",
+  "South Cambie/Riley Park",
+  "Killarney",
+  "Oakridge/Marpole",
+  "Sunset",
+  "Victoria-Fraserview",
+  "Brentwood/Willingdon/Parkcrest",
+  "Burnaby Mountain/Lougheed",
+  "Garden Village/Cascade/Douglas/Gilpin",
+  "Buckingham/Lakeview/Cariboo/Second Street",
+  "Burnaby Heights/Capital Hill",
+  "Westridge/Sperling/Gov't Road",
+  "Kingsway/Edmonds",
+  "South Slope/Big Bend",
+  "Metrotown/Marlborough/Windsor",
+  "Richmond City Centre",
+  "Blundell",
+  "Broadmoor",
+  "Steveston",
+  "East and West Cambie/Bridgeport",
+  "Thompson/Seafair",
+  "Gilmore/Shellmont/East/Hamilton",
+  "Cloverdale",
+  "Panorama",
+  "East Newton",
+  "Fleetwood",
+  "Guildford",
+  "West Newton",
+  "North Surrey",
+  "Whalley",
+  "South Surrey East",
+  "South Surrey West",
+  "North Delta",
+  "Tsawwassen",
+  "Ladner",
+  "New Westminster - East",
+  "New Westminster - Downtown",
+  "New Westminster - West/Queensborough",
+  "New Westminster - Central",
+  "North Vancouver City - East",
+  "North Vancouver City - West",
+  "North Vancouver DM - Central",
+  "North Vancouver DM - East",
+  "North Vancouver DM - West",
+  "West Vancouver - Lower",
+  "West Vancouver - Upper",
+  "North Coquitlam",
+  "Southwest Coquitlam",
+  "Southeast Coquitlam",
+  "Port Coquitlam",
+  "Port Moody South",
+  "Port Moody North/Anmore/Belcarra",
+  "City of Langley",
+  "Willoughby",
+  "Brookswood/Murrayville",
+  "Aldergrove/Otter",
+  "North Langley Township",
+  "South Langley Township",
+  "Walnut Grove/Fort Langley",
+  "Haney",
+  "Pitt Meadows",
+  "Maple Ridge Rural",
+  "North Mission",
+  "South Mission",
+  "Central Abbotsford",
+  "East Abbotsford",
+  "West Abbotsford",
+  "Abbotsford Rural",
+  "South Chilliwack",
+  "North Chilliwack"
+)
+
+# Filter the CHSAs
+filtered_chsa <- chsa_sf %>%
+  filter(CHSA_Name %in% lower_mainland_chsas)
+
+geojson_data <- geojson_json(filtered_chsa)
+topojson_data <- geo2topo(geojson_data)
+
+writeLines(
+  topojson_data,
+  file.path(
+    bc_ses_project_lan_path,
+    "2024 SES Index\\data\\other\\StatsCAN_sgc\\lower_mainland_chsa.json"
+  )
+)
+#
+#
+# # Save as GeoJSON (Power BI compatible)
+# st_write(
+#   filtered_chsa,
+#   file.path(
+#     bc_ses_project_lan_path,
+#     "2024 SES Index\\data\\other\\StatsCAN_sgc\\lower_mainland_chsa_test.geojson"
+#   ),
+#   driver = "GeoJSON"
+# )
+
+# look up table from CHSA to HA
+
+library(bcdata)
+bcdc_search("community-health-service-areas-boundaries")
+chsa = bcdc_get_record("68f2f577-28a7-46b4-bca9-7e9770f2f357")
+chsa_tidy = bcdc_tidy_resources('68f2f577-28a7-46b4-bca9-7e9770f2f357')
+chsa_tbl = bcdc_get_data(
+  '68f2f577-28a7-46b4-bca9-7e9770f2f357',
+  resource = "874aa151-afe6-400c-876c-aef1ce55102e"
+)
+
+
+chsa_tbl |> glimpse()
+
+#######################
 ##########################################################
 # create a long format table by staking CSD and CHSA level indices
 data_path <- file.path(
@@ -47,7 +282,6 @@ for (i in 1:nrow(index_data_path)) {
   # Read the CSV file
   df <- read_csv(
     file.path(
-      data_path,
       csv_file
     ),
     col_types = cols(
@@ -104,12 +338,50 @@ index_data_combined |>
     names_to = "INDEX_TYPE",
     values_to = "INDEX_VALUE"
   ) |>
+  mutate(
+    INDEX_LABEL = case_when(
+      INDEX_TYPE == "TOTAL_INDEX_0_100" ~ "Total Index",
+      INDEX_TYPE == "SEI_INDEX_0_100" ~ "SEI Index",
+      INDEX_TYPE == "ECON_0_100" ~ "Economy",
+      INDEX_TYPE == "EDUC_0_100" ~ "Education",
+      INDEX_TYPE == "HEALTH_0_100" ~ "Health",
+      INDEX_TYPE == "COMMUNITY_0_100" ~ "Community",
+      TRUE ~ INDEX_TYPE
+    )
+  ) |>
   filter(!is.na(REGION_NAME)) |>
   filter(!is.na(INDEX_VALUE)) |>
   write_csv(file.path(
     data_path,
     "long_format_index_all.csv"
   ))
+
+index_data_combined |>
+  pivot_longer(
+    cols = contains("_0_100"),
+    names_to = "INDEX_TYPE",
+    values_to = "INDEX_VALUE"
+  ) |>
+  mutate(
+    INDEX_LABEL = case_when(
+      INDEX_TYPE == "TOTAL_INDEX_0_100" ~ "Total Index",
+      INDEX_TYPE == "SEI_INDEX_0_100" ~ "SEI Index",
+      INDEX_TYPE == "ECON_0_100" ~ "Economy",
+      INDEX_TYPE == "EDUC_0_100" ~ "Education",
+      INDEX_TYPE == "HEALTH_0_100" ~ "Health",
+      INDEX_TYPE == "COMMUNITY_0_100" ~ "Community",
+      TRUE ~ INDEX_TYPE
+    )
+  ) |>
+  filter(!is.na(REGION_NAME)) |>
+  filter(!is.na(INDEX_VALUE)) |>
+  distinct(MODEL_TYPE, REGION_LEVEL, CALENDAR_YEAR, REGION_NAME) |>
+  write_csv(file.path(
+    data_path,
+    "long_format_index_distinct_MODEL_TYPE_REGION_LEVEL_CALENDAR_YEAR_REGION_NAME_filter_b.csv"
+  ))
+
+
 #################################################################
 # since we have a long format index data frame, we also need a long format data frame for contribution, so we can link two dataframe together.
 index_contribution_data_path <- list.files(data_path, full.names = TRUE) |>
@@ -322,8 +594,8 @@ index_factor_values_data_combined |>
     "long_format_index_factor_values_data_combined_all.csv"
   ))
 
-#################################################################
 
+###################################################################
 # https://www.statcan.gc.ca/en/subjects/standard/sgc/2021/index
 sgc_element <- readr::read_csv(
   "https://www.statcan.gc.ca/en/statistical-programs/document/sgc-cgt-2021-element-eng.csv"
@@ -375,158 +647,5 @@ sgc_structure_csd_BC |>
     "2024 SES Index\\data\\other\\StatsCAN_sgc\\sgc_structure_csd_BC.csv"
   ))
 
-
-library(bcmaps)
-# The package also contains a few handy utility functions:
+#########################################################################################
 #
-#   transform_bc_albers() for transforming any sf object to BC Albers projection
-# bc_area() to get the total area of British Columbia in various units
-# bc_bbox() to get an extend/bounding box for British Columbia
-
-library(geojsonio)
-library(sf)
-library(dplyr)
-
-# Load the TopoJSON file
-chsa <- geojson_read(
-  file.path(
-    bc_ses_project_lan_path,
-    "2024 SES Index\\data\\other\\StatsCAN_sgc\\chsa_2022_wgs.json"
-  ),
-  what = "sp"
-)
-
-# Convert to sf object
-chsa_sf <- st_as_sf(chsa)
-
-chsa_sf |> glimpse()
-
-# Define Lower Mainland CHSA names
-lower_mainland_chsas <- c(
-  "Downtown Vancouver",
-  "West End",
-  "Fairview",
-  "Downtown Eastside",
-  "Northeast False Creek",
-  "Grandview-Woodland",
-  "Cedar Cottage",
-  "Hastings-Sunrise",
-  "Renfrew-Collingwood",
-  "Shaughnessy/Arbutus Ridge/Kerrisdale",
-  "West Point Grey/Dunbar-Southlands",
-  "University of British Columbia",
-  "Kitsilano",
-  "Kensington",
-  "Mount Pleasant",
-  "South Cambie/Riley Park",
-  "Killarney",
-  "Oakridge/Marpole",
-  "Sunset",
-  "Victoria-Fraserview",
-  "Brentwood/Willingdon/Parkcrest",
-  "Burnaby Mountain/Lougheed",
-  "Garden Village/Cascade/Douglas/Gilpin",
-  "Buckingham/Lakeview/Cariboo/Second Street",
-  "Burnaby Heights/Capital Hill",
-  "Westridge/Sperling/Gov't Road",
-  "Kingsway/Edmonds",
-  "South Slope/Big Bend",
-  "Metrotown/Marlborough/Windsor",
-  "Richmond City Centre",
-  "Blundell",
-  "Broadmoor",
-  "Steveston",
-  "East and West Cambie/Bridgeport",
-  "Thompson/Seafair",
-  "Gilmore/Shellmont/East/Hamilton",
-  "Cloverdale",
-  "Panorama",
-  "East Newton",
-  "Fleetwood",
-  "Guildford",
-  "West Newton",
-  "North Surrey",
-  "Whalley",
-  "South Surrey East",
-  "South Surrey West",
-  "North Delta",
-  "Tsawwassen",
-  "Ladner",
-  "New Westminster - East",
-  "New Westminster - Downtown",
-  "New Westminster - West/Queensborough",
-  "New Westminster - Central",
-  "North Vancouver City - East",
-  "North Vancouver City - West",
-  "North Vancouver DM - Central",
-  "North Vancouver DM - East",
-  "North Vancouver DM - West",
-  "West Vancouver - Lower",
-  "West Vancouver - Upper",
-  "North Coquitlam",
-  "Southwest Coquitlam",
-  "Southeast Coquitlam",
-  "Port Coquitlam",
-  "Port Moody South",
-  "Port Moody North/Anmore/Belcarra",
-  "City of Langley",
-  "Willoughby",
-  "Brookswood/Murrayville",
-  "Aldergrove/Otter",
-  "North Langley Township",
-  "South Langley Township",
-  "Walnut Grove/Fort Langley",
-  "Haney",
-  "Pitt Meadows",
-  "Maple Ridge Rural",
-  "North Mission",
-  "South Mission",
-  "Central Abbotsford",
-  "East Abbotsford",
-  "West Abbotsford",
-  "Abbotsford Rural",
-  "South Chilliwack",
-  "North Chilliwack"
-)
-
-# Filter the CHSAs
-filtered_chsa <- chsa_sf %>%
-  filter(CHSA_Name %in% lower_mainland_chsas)
-
-geojson_data <- geojson_json(filtered_chsa)
-topojson_data <- geo2topo(geojson_data)
-
-writeLines(
-  topojson_data,
-  file.path(
-    bc_ses_project_lan_path,
-    "2024 SES Index\\data\\other\\StatsCAN_sgc\\lower_mainland_chsa.json"
-  )
-)
-#
-#
-# # Save as GeoJSON (Power BI compatible)
-# st_write(
-#   filtered_chsa,
-#   file.path(
-#     bc_ses_project_lan_path,
-#     "2024 SES Index\\data\\other\\StatsCAN_sgc\\lower_mainland_chsa.geojson"
-#   ),
-#   driver = "GeoJSON"
-# )
-
-# look up table from CHSA to HA
-
-library(bcdata)
-bcdc_search("community-health-service-areas-boundaries")
-chsa = bcdc_get_record("68f2f577-28a7-46b4-bca9-7e9770f2f357")
-chsa_tidy = bcdc_tidy_resources('68f2f577-28a7-46b4-bca9-7e9770f2f357')
-chsa_tbl = bcdc_get_data(
-  '68f2f577-28a7-46b4-bca9-7e9770f2f357',
-  resource = "874aa151-afe6-400c-876c-aef1ce55102e"
-)
-
-
-chsa_tbl |> glimpse()
-
-#######################

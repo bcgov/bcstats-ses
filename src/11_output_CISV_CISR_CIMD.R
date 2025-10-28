@@ -211,3 +211,9 @@ cidm_data_dict = create_dictionary(cidm_data, var_labels = cidm_dict_labels)
 
 write_csv(cidm_data_dict, here::here("out/cidm_data_dict.csv"))
 write_csv(cidm_data_dict, file.path(CIMD_csv_folder, "cidm_data_dict.csv"))
+
+#################################################################################################
+# Create CSD and CHSA level aggregation
+# DA to CSD lookup table from 14.r
+# DA to CHSA lookup table from 12.r
+#################################################################################################
