@@ -32,86 +32,86 @@ config <- config::get()
 bc_ses_project_lan_path = config$lan_path
 
 #################################################################
-# get csd map
-# bc_csd_map <- bcmaps::census_subdivision(ask = interactive(), force = FALSE)
+# # get csd map
+# # bc_csd_map <- bcmaps::census_subdivision(ask = interactive(), force = FALSE)
 
-# create a indigenous CSD flag
-# •	Exclude indigenous CSD and CHSA,
-# •	Flag indigenous CSD
-# # In Canada, a census subdivision (CSD) with a CSD_Type value of "IRI" represents an Indian reserve / Réserve indienne. If the CSD_Type value is "NL", it stands for Newfoundland and Labrador community (local service district). These designations are used by Statistics Canada to classify different types of census subdivisions within the Canadian geographic hierarchy
-#
-bc_csd_map |>
-  # remove the geometry column
-  st_drop_geometry(-geometry) |>
-  select(
-    CENSUS_SUBDIVISION_ID,
-    CENSUS_SUBDIVISION_NAME,
-    CENSUS_SUBDIVISION_TYPE_CODE,
-    CENSUS_DIVISION_ID,
-    CENSUS_DIVISION_NAME,
-    CENSUS_METRO_AREA_ID,
-    CENSUS_METRO_AREA_NAME,
-    ECONOMIC_REGION_ID,
-    ECONOMIC_REGION_NAME,
-    ING_CSD_FLAG,
-    REGION_NAME
-  ) |>
-  write_csv(
-    file.path(
-      bc_ses_project_lan_path,
-      "2024 SES Index\\data\\other\\StatsCAN_sgc\\bc_csd_lookup.csv"
-    ),
-  )
-bc_csd_map |> plot()
-###########################################################################
-# bcmaps csd map is too simplified. try statscan's shp file or topojson
-bc_csd_map <- st_read(
-  file.path(
-    bc_ses_project_lan_path,
-    "2024 SES Index\\data\\other\\StatsCAN_sgc\\lcsd000b21a_e\\lcsd000b21a_e.shp"
-  ),
-  quiet = TRUE
-) |>
-  filter(PRUID == "59")
+# # create a indigenous CSD flag
+# # •	Exclude indigenous CSD and CHSA,
+# # •	Flag indigenous CSD
+# # # In Canada, a census subdivision (CSD) with a CSD_Type value of "IRI" represents an Indian reserve / Réserve indienne. If the CSD_Type value is "NL", it stands for Newfoundland and Labrador community (local service district). These designations are used by Statistics Canada to classify different types of census subdivisions within the Canadian geographic hierarchy
+# #
+# bc_csd_map |>
+#   # remove the geometry column
+#   st_drop_geometry(-geometry) |>
+#   select(
+#     CENSUS_SUBDIVISION_ID,
+#     CENSUS_SUBDIVISION_NAME,
+#     CENSUS_SUBDIVISION_TYPE_CODE,
+#     CENSUS_DIVISION_ID,
+#     CENSUS_DIVISION_NAME,
+#     CENSUS_METRO_AREA_ID,
+#     CENSUS_METRO_AREA_NAME,
+#     ECONOMIC_REGION_ID,
+#     ECONOMIC_REGION_NAME,
+#     ING_CSD_FLAG,
+#     REGION_NAME
+#   ) |>
+#   write_csv(
+#     file.path(
+#       bc_ses_project_lan_path,
+#       "2024 SES Index\\data\\other\\StatsCAN_sgc\\bc_csd_lookup.csv"
+#     ),
+#   )
+# bc_csd_map |> plot()
+# ###########################################################################
+# # bcmaps csd map is too simplified. try statscan's shp file or topojson
+# bc_csd_map <- st_read(
+#   file.path(
+#     bc_ses_project_lan_path,
+#     "2024 SES Index\\data\\other\\StatsCAN_sgc\\lcsd000b21a_e\\lcsd000b21a_e.shp"
+#   ),
+#   quiet = TRUE
+# ) |>
+#   filter(PRUID == "59")
 
-bc_csd_map <- bc_csd_map |>
-  mutate(
-    ING_CSD_FLAG = case_when(
-      !CENSUS_SUBDIVISION_TYPE_CODE %in% c("IRI", "NL") ~ "Non-indigenous",
-      TRUE ~ "Indigenous"
-    )
-  ) |>
-  mutate(
-    REGION_NAME = CENSUS_SUBDIVISION_NAME
-  )
+# bc_csd_map <- bc_csd_map |>
+#   mutate(
+#     ING_CSD_FLAG = case_when(
+#       !CENSUS_SUBDIVISION_TYPE_CODE %in% c("IRI", "NL") ~ "Non-indigenous",
+#       TRUE ~ "Indigenous"
+#     )
+#   ) |>
+#   mutate(
+#     REGION_NAME = CENSUS_SUBDIVISION_NAME
+#   )
 
-bc_csd_map |> glimpse()
-bc_csd_map |>
-  filter(PRUID == "59") |>
-  plot()
+# bc_csd_map |> glimpse()
+# bc_csd_map |>
+#   filter(PRUID == "59") |>
+#   plot()
 
-#
-# # Transform to WGS84 (EPSG:4326) for web compatibility
-bc_csd_map_wgs84 <- bc_csd_map |>
-  filter(PRUID == "59") |>
-  st_transform(4326) |>
-  # Simplify geometry to reduce file size and improve Power BI performance
-  # st_simplify(dTolerance = 0.001) |>
-  # Ensure valid geometries
-  st_make_valid()
+# #
+# # # Transform to WGS84 (EPSG:4326) for web compatibility
+# bc_csd_map_wgs84 <- bc_csd_map |>
+#   filter(PRUID == "59") |>
+#   st_transform(4326) |>
+#   # Simplify geometry to reduce file size and improve Power BI performance
+#   # st_simplify(dTolerance = 0.001) |>
+#   # Ensure valid geometries
+#   st_make_valid()
 
-bc_csd_map_wgs84 |> plot()
-#
-# # Save as GeoJSON first for Power BI compatibility
-st_write(
-  bc_csd_map_wgs84,
-  file.path(
-    bc_ses_project_lan_path,
-    "2024 SES Index\\data\\other\\StatsCAN_sgc\\bc_csd.geojson"
-  ),
-  driver = "GeoJSON",
-  delete_dsn = TRUE
-)
+# bc_csd_map_wgs84 |> plot()
+# #
+# # # Save as GeoJSON first for Power BI compatibility
+# st_write(
+#   bc_csd_map_wgs84,
+#   file.path(
+#     bc_ses_project_lan_path,
+#     "2024 SES Index\\data\\other\\StatsCAN_sgc\\bc_csd.geojson"
+#   ),
+#   driver = "GeoJSON",
+#   delete_dsn = TRUE
+# )
 
 # None of them work, so have to upload to mapreshaper.org to do it.
 
@@ -266,6 +266,7 @@ data_path <- file.path(
   bc_ses_project_lan_path,
   "2024 SES Index/exports/2025-07-31-initial-index-results"
 )
+
 index_data_path <- list.files(data_path, full.names = TRUE) |>
   as.data.frame() |>
   filter(str_detect(
@@ -476,11 +477,70 @@ data_dictionary <- bind_rows(
 ) %>%
   distinct()
 
+# Create a new column 'Short Label' for easier plotting
+data_dictionary <- data_dictionary %>%
+  mutate(
+    `Short Label` = case_when(
+      `Variable Name` == "ECON_DEPENDENCY_RATIO" ~ "Dependency Ratio",
+      `Variable Name` == "ECON_HOUSING_SPENDING_PCT" ~ "Housing Spend Pct",
+      `Variable Name` == "ECON_INCOME_ASSISTANCE_PCT" ~ "Income Assist %",
+      `Variable Name` == "ECON_MEDIAN_HH_INCOME" ~ "Median HH Income",
+      `Variable Name` == "ECON_UNEMPLOYMENT_RATE_PCT" ~ "Unemployment %",
+      `Variable Name` == "EDUC_NO_CERTIFICATE_PCT" ~ "No Certificate %",
+      `Variable Name` == "HEALTH_LIFE_EXPECTANCY" ~ "Life Expectancy",
+      `Variable Name` == "COMMUNITY_CRIME_RATE" ~ "Crime Rate",
+      `Variable Name` == "ECON_INC_BT_HHS_MED" ~ "Median HH Income (Census)",
+      `Variable Name` == "EDUC_NO_HIGHSCH_RATIO" ~ "No High School Pct",
+      `Variable Name` == "EDUC_HIGHSCH_RATIO" ~ "High School Only Pct",
+      `Variable Name` == "EDUC_POSTSEC_RATIO" ~ "Post-Secondary Pct",
+      `Variable Name` == "ECON_LABOUR_EMPL_RT" ~ "Employment Rate (Census)",
+      `Variable Name` == "ECON_LABOUR_UNEM_RT" ~ "Unemployment Rate (Census)",
+      `Variable Name` == "ECON_HOME_OWN_RENT_RATIO" ~ "Home Owner/Renter Ratio",
+      `Variable Name` == "ECON_REPAIRS_MAJOR_RATIO" ~ "Major Repairs Needed Pct",
+      `Variable Name` == "COMMUNITY_SING_PARENT_RATIO" ~ "Single Parent Families Pct",
+      `Variable Name` == "COMMUNITY_AVG_LONE_PARENT_AT_BIRTH" ~ "Lone Parent at Birth Pct",
+      `Variable Name` == "HEALTH_ASTHMA_RATE" ~ "Asthma Rate",
+      `Variable Name` == "HEALTH_DIABETES_RATE" ~ "Diabetes Rate",
+      `Variable Name` == "HEALTH_HYPERTENSION_RATE" ~ "Hypertension Rate",
+      `Variable Name` == "HEALTH_OSTEOARTHRITIS_RATE" ~ "Osteoarthritis Rate",
+      `Variable Name` == "HEALTH_MOOD_ANX_RATE" ~ "Mood/Anxiety Rate",
+      `Variable Name` == "HEALTH_PCT_PAID" ~ "Paid Healthcare Pct",
+      `Variable Name` == "EDUC_COURSE_MARK_PERCENT_OF_A_ENGLISH_LANGUAGE_ARTS" ~ "Grade A English Pct",
+      `Variable Name` == "EDUC_COURSE_MARK_PERCENT_OF_A_MATHEMATICS" ~ "Grade A Math Pct",
+      `Variable Name` == "EDUC_COURSE_MARK_PERCENT_OF_A_SOCIAL_STUDIES" ~ "Grade A Social Studies Pct",
+      `Variable Name` == "EDUC_COURSE_MARK_PERCENT_OF_A_SCIENCES" ~ "Grade A Science Pct",
+      `Variable Name` == "EDUC_FSA_AVG_SCORE_PERCENT_04_RE" ~ "FSA G4 Reading Score",
+      `Variable Name` == "EDUC_FSA_AVG_SCORE_PERCENT_04_NU" ~ "FSA G4 Numeracy Score",
+      `Variable Name` == "EDUC_FSA_AVG_SCORE_PERCENT_07_RE" ~ "FSA G7 Reading Score",
+      `Variable Name` == "EDUC_FSA_AVG_SCORE_PERCENT_07_NU" ~ "FSA G7 Numeracy Score",
+      `Variable Name` == "EDUC_ECC_GRADE12_GRADUATION_RATE" ~ "G12 Graduation Rate",
+      `Variable Name` == "COMMUNITY_CYIC_PER_1000" ~ "Children in Care Rate",
+      `Variable Name` == "COMMUNITY_TA_PROP" ~ "Temp. Assistance Pct",
+      `Variable Name` == "COMMUNITY_DA_PROP" ~ "Disability Assistance Pct",
+      `Variable Name` == "COMMUNITY_ALL_CRIME_EXCEPT_TRAFFIC_RATE_PER_100000" ~ "Crime Rate (non-traffic)",
+      `Variable Name` == "COMMUNITY_HOMICIDE_RATE_PER_100000" ~ "Homicide Rate",
+      `Variable Name` == "ECON_POP_PCT_CHANGE" ~ "Population Growth Pct",
+      `Variable Name` == "ECON_OCC_MGMT_RATIO" ~ "Management Occupations Pct",
+      `Variable Name` == "ECON_OCC_NAT_APP_SCI_RATIO" ~ "Science Occupations Pct",
+      `Variable Name` == "ECON_OCC_HLTH_RATIO" ~ "Health Occupations Pct",
+      `Variable Name` == "ECON_LIM_AT_PREVALENCE" ~ "Low Income Pct (LIM-AT)",
+      `Variable Name` == "ECON_MEDIAN_INCOME_MEDIAN" ~ "Median Income (Finance)",
+      `Variable Name` == "ECON_LFS_UNEMPLOYMENT_RATE_MEAN" ~ "Unemployment Rate (LFS)",
+      `Variable Name` == "ECON_LFS_EMPLOYMENT_RATE_MEAN" ~ "Employment Rate (LFS)",
+      `Variable Name` == "ECON_MEDIAN_HOUSE_TOTAL_VALUE" ~ "Median House Value",
+      `Variable Name` == "EDUC_SLS_POSITIVE_NEGATIVE_RESPONSE_PCT_NUTRI_BREAKFAST" ~ "SLS: Had Breakfast Pct",
+      `Variable Name` == "EDUC_SLS_POSITIVE_NEGATIVE_RESPONSE_PCT_LIKE_SCHOOL" ~ "SLS: Like School Pct",
+      `Variable Name` == "EDUC_SLS_POSITIVE_NEGATIVE_RESPONSE_PCT_FEEL_WELCOME" ~ "SLS: Feel Welcome Pct",
+      TRUE ~ `Variable Name` # Fallback to variable name if no match
+    )
+  )
+data_dictionary |> write_csv(file.path(data_path, "data_dictionary.csv"))
+
 # Join data dictionary to contribution data to get better factor names
 index_contribution_data_combined <- index_contribution_data_combined %>%
   left_join(
-    data_dictionary %>%
-      select(`Variable Name`, `Description`) %>%
+    data_dictionary %>%     
+      select(`Variable Name`, `Description`, `Short Label`) %>%
       rename(FACTOR = `Variable Name`, FACTOR_LABEL = `Description`),
     by = "FACTOR"
   ) |>
@@ -572,7 +632,7 @@ index_factor_values_data_combined <- bind_rows(index_factor_values_data_df_ls)
 index_factor_values_data_combined <- index_factor_values_data_combined %>%
   left_join(
     data_dictionary %>%
-      select(`Variable Name`, `Description`) %>%
+      select(`Variable Name`, `Description`, `Short Label`) %>%
       rename(FACTOR = `Variable Name`, FACTOR_LABEL = `Description`),
     by = "FACTOR"
   )
