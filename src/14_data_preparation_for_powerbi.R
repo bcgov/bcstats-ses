@@ -534,14 +534,14 @@ data_dictionary <- data_dictionary %>%
       TRUE ~ `Variable Name` # Fallback to variable name if no match
     )
   )
-data_dictionary |> write_csv(file.path(data_path, "data_dictionary.csv"))
+data_dictionary |> rename(FACTOR = `Variable Name`, FACTOR_LABEL = `Short Label`) |> write_csv(file.path(data_path, "data_dictionary.csv"))
 
 # Join data dictionary to contribution data to get better factor names
 index_contribution_data_combined <- index_contribution_data_combined %>%
   left_join(
     data_dictionary %>%     
       select(`Variable Name`, `Description`, `Short Label`) %>%
-      rename(FACTOR = `Variable Name`, FACTOR_LABEL = `Description`),
+      rename(FACTOR = `Variable Name`, FACTOR_LABEL = `Short Label`),
     by = "FACTOR"
   ) |>
   mutate(
@@ -633,7 +633,7 @@ index_factor_values_data_combined <- index_factor_values_data_combined %>%
   left_join(
     data_dictionary %>%
       select(`Variable Name`, `Description`, `Short Label`) %>%
-      rename(FACTOR = `Variable Name`, FACTOR_LABEL = `Description`),
+      rename(FACTOR = `Variable Name`, FACTOR_LABEL = `Short Label`),
     by = "FACTOR"
   )
 
