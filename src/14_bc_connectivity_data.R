@@ -267,7 +267,7 @@ dgrf_min |> glimpse()
 #
 # sample:
 #
-#   PRUID = "2021A000210" → Vintage 2021, Type A (Administrative), Schema 0002 (province/territory class), Unique ID 10 (province code 10). [www12.statcan.gc.ca]
+# PRUID = "2021A000210" → Vintage 2021, Type A (Administrative), Schema 0002 (province/territory class), Unique ID 10 (province code 10). [www12.statcan.gc.ca]
 # CSDUID = "2021A00051001519" → Vintage 2021, Type A, Schema 0005 (CSD class), Unique ID 1001519 (CSD code). [www12.statcan.gc.ca]
 # DAUID = "2021S051210010165" → Vintage 2021, Type S (Statistical), Schema 0512 (DA class), Unique ID 10010165 → PR 10, CD 01, DA 0165. [www12.statcan.gc.ca]
 # DBUID = "2021S051310010165001" → Vintage 2021, Type S, Schema 0513 (DB class), Unique ID 10010165001 → PR 10, CD 01, DA 0165, DB 001. [www12.statcan.gc.ca]
@@ -425,36 +425,6 @@ message("PHH rows without DA/CSD mapping: ", round(100 * na_map_rate, 2), "%")
 
 # Suppose you already joined speeds to PHH_ID; here we add DA/CSD codes and aggregate:
 #
-# prop_fun <- function(x) mean(x, na.rm = TRUE)
-#
-# # DA-level
-# da_cov <- phh_speeds_with_geo %>%
-#   filter(!is.na(da_code)) %>%
-#   group_by(da_code) %>%
-#   summarize(
-#     n_phh = n(),
-#     prop_combined_50_10 = prop_fun(Combined_50_10_Combine),
-#     prop_combined_25_5 = prop_fun(Combined_25_5_Combine),
-#     prop_wired_50_10 = prop_fun(Wired_50_10_Filaire),
-#     prop_wireless_50_10 = prop_fun(Wireless_50_10_Sans_fil),
-#     prop_lte_mobile = prop_fun(Avail_LTE_Mobile_Dispo),
-#     .groups = "drop"
-#   )
-#
-# # CSD-level
-# csd_cov <- phh_speeds_with_geo %>%
-#   filter(!is.na(csd_code)) %>%
-#   group_by(csd_code) %>%
-#   summarize(
-#     n_phh = n(),
-#     prop_combined_50_10 = prop_fun(Combined_50_10_Combine),
-#     prop_combined_25_5 = prop_fun(Combined_25_5_Combine),
-#     prop_wired_50_10 = prop_fun(Wired_50_10_Filaire),
-#     prop_wireless_50_10 = prop_fun(Wireless_50_10_Sans_fil),
-#     prop_lte_mobile = prop_fun(Avail_LTE_Mobile_Dispo),
-#     .groups = "drop"
-#   )
-
 prop_fun <- function(x, w = NULL) {
   if (length(x) == 0) return(NA_real_)
   if (is.null(w)) return(mean(x, na.rm = TRUE))
@@ -463,21 +433,14 @@ prop_fun <- function(x, w = NULL) {
   sum(x * w, na.rm = TRUE) / sum(w)
 }
 
-# Pick weights if requested and available
-wvec <- NULL
-if (
-  isTRUE(use_weighted) && !is.na(weight_col) && weight_col %in% names(phh_join)
-) {
-  wtmp <- phh_join[[weight_col]]
-  if (is.numeric(wtmp) && sum(wtmp, na.rm = TRUE) > 0) wvec <- wtmp
-}
-
 # -------------------------------------------------------------
 # 7) Aggregate to DA
 # -------------------------------------------------------------
+wvec = NULL # no weight
+
 da_cov <- phh_speeds_with_geo %>%
-  filter(!is.na(DAUID)) %>%
-  group_by(DAUID) %>%
+  filter(!is.na(da_code)) %>%
+  group_by(da_code) %>%
   summarize(
     n_phh = n(),
 
@@ -507,18 +470,18 @@ da_cov <- phh_speeds_with_geo %>%
 
 # Max-threshold distribution (Combined)
 da_enum <- phh_speeds_with_geo %>%
-  filter(!is.na(DAUID)) %>%
+  filter(!is.na(da_code)) %>%
   mutate(
     Combined_Max_Threshold = as.character(
       `Combined_Max_Threshold-Combine_Seuil_Max`
     )
   ) %>%
-  group_by(DAUID, Combined_Max_Threshold) %>%
+  group_by(da_code, Combined_Max_Threshold) %>%
   summarize(
     n_enum = if (is.null(wvec)) n() else sum(wvec, na.rm = TRUE),
     .groups = "drop"
   ) %>%
-  group_by(DAUID) %>%
+  group_by(da_code) %>%
   mutate(prop_enum = n_enum / sum(n_enum)) %>%
   pivot_wider(
     names_from = Combined_Max_Threshold,
@@ -530,7 +493,7 @@ da_enum <- phh_speeds_with_geo %>%
 # Served flag (≥ 75% PHHs at 50/10 combined)
 served_threshold <- 0.75
 da_cov <- da_cov %>%
-  left_join(da_enum, by = "DAUID") %>%
+  left_join(da_enum, by = "da_code") %>%
   mutate(
     served_50_10_phh = if_else(prop_combined_50_10 >= served_threshold, 1L, 0L)
   )
@@ -539,8 +502,8 @@ da_cov <- da_cov %>%
 # 8) Aggregate to CSD
 # -------------------------------------------------------------
 csd_cov <- phh_speeds_with_geo %>%
-  filter(!is.na(CSDUID)) %>%
-  group_by(CSDUID) %>%
+  filter(!is.na(csd_code)) %>%
+  group_by(csd_code) %>%
   summarize(
     n_phh = n(),
 
@@ -569,18 +532,18 @@ csd_cov <- phh_speeds_with_geo %>%
   )
 
 csd_enum <- phh_speeds_with_geo %>%
-  filter(!is.na(CSDUID)) %>%
+  filter(!is.na(csd_code)) %>%
   mutate(
     Combined_Max_Threshold = as.character(
       `Combined_Max_Threshold-Combine_Seuil_Max`
     )
   ) %>%
-  group_by(CSDUID, Combined_Max_Threshold) %>%
+  group_by(csd_code, Combined_Max_Threshold) %>%
   summarize(
     n_enum = if (is.null(wvec)) n() else sum(wvec, na.rm = TRUE),
     .groups = "drop"
   ) %>%
-  group_by(CSDUID) %>%
+  group_by(csd_code) %>%
   mutate(prop_enum = n_enum / sum(n_enum)) %>%
   pivot_wider(
     names_from = Combined_Max_Threshold,
@@ -590,11 +553,11 @@ csd_enum <- phh_speeds_with_geo %>%
   )
 
 csd_cov <- csd_cov %>%
-  left_join(csd_enum, by = "CSDUID") %>%
+  left_join(csd_enum, by = "csd_code") %>%
   mutate(
     served_50_10_phh = if_else(prop_combined_50_10 >= served_threshold, 1L, 0L)
   )
-
+csd_cov |> glimpse()
 # -------------------------------------------------------------
 # 9) Export clean tables (CSV)
 # -------------------------------------------------------------
@@ -605,67 +568,107 @@ message("DA rows: ", nrow(da_cov), " | CSD rows: ", nrow(csd_cov))
 message("DA CSV: ", out_da_csv)
 message("CSD CSV: ", out_csd_csv)
 
-# -------------------------------------------------------------
-# 10) OPTIONAL — Join to boundary files and write GeoPackage
-# -------------------------------------------------------------
-if (file.exists(path_da_boundary) && file.exists(path_csd_boundary)) {
-  da <- st_read(path_da_boundary, quiet = TRUE)
-  csd <- st_read(path_csd_boundary, quiet = TRUE)
-
-  # Try common UID columns in boundary files
-  da_uid_col <- if ("DAUID" %in% names(da)) "DAUID" else if (
-    "DA_UID" %in% names(da)
-  )
-    "DA_UID" else NA_character_
-  csd_uid_col <- if ("CSDUID" %in% names(csd)) "CSDUID" else if (
-    "CSD_UID" %in% names(csd)
-  )
-    "CSD_UID" else NA_character_
-
-  if (!is.na(da_uid_col)) {
-    da_out <- da %>%
-      left_join(
-        da_cov %>% mutate(DAUID = as.character(DAUID)),
-        by = setNames("DAUID", da_uid_col)
-      )
-    st_write(da_out, out_gpkg, layer = "DA_phh_current_bc", delete_dsn = TRUE)
-  } else {
-    warning("DA boundary file missing DAUID column; skipping DA GPKG write.")
-  }
-
-  if (!is.na(csd_uid_col)) {
-    csd_out <- csd %>%
-      left_join(
-        csd_cov %>% mutate(CSDUID = as.character(CSDUID)),
-        by = setNames("CSDUID", csd_uid_col)
-      )
-    # Append to same GeoPackage
-    st_write(csd_out, out_gpkg, layer = "CSD_phh_current_bc", append = TRUE)
-  } else {
-    warning("CSD boundary file missing CSDUID column; skipping CSD GPKG write.")
-  }
-
-  message("GeoPackage written: ", out_gpkg)
-} else {
-  message("Boundary files not found; skipped GPKG export.")
-}
-
 
 #################################################################################################
 # Data dictionary
 #################################################################################################
-housing_value_dict_labels = c(
-  "YR" = "The year of the observation (in '%Y' format)",
 
-  "DA" = "Census Dissemination Area unique ID.",
+da_phh_spd_dict_labels <- c(
+  # Keys & counts
+  "da_code" = "Dissemination Area (DA) code (short UID extracted from DA DGUID: PR(2)+CD(2)+DA(4))",
+  "n_phh" = "Number of pseudo-households (PHHs) matched to this DA",
 
-  "MEDIAN_TOTAL_VALUE" = "Median total value is the sum of the Land and Improvement Value (total value of land plus structures built on it)."
+  # Combined (wired + wireless) availability proportions
+  "prop_combined_5_1" = "Share of PHHs with combined (wired or wireless) availability at ≥ 5/1 Mbps",
+  "prop_combined_10_2" = "Share of PHHs with combined availability at ≥ 10/2 Mbps",
+  "prop_combined_25_5" = "Share of PHHs with combined availability at ≥ 25/5 Mbps",
+  "prop_combined_50_10" = "Share of PHHs with combined availability at ≥ 50/10 Mbps",
+
+  # Wired-only availability proportions
+  "prop_wired_5_1" = "Share of PHHs with wired availability at ≥ 5/1 Mbps",
+  "prop_wired_10_2" = "Share of PHHs with wired availability at ≥ 10/2 Mbps",
+  "prop_wired_25_5" = "Share of PHHs with wired availability at ≥ 25/5 Mbps",
+  "prop_wired_50_10" = "Share of PHHs with wired availability at ≥ 50/10 Mbps",
+
+  # Wireless-only availability proportions
+  "prop_wireless_5_1" = "Share of PHHs with wireless availability at ≥ 5/1 Mbps",
+  "prop_wireless_10_2" = "Share of PHHs with wireless availability at ≥ 10/2 Mbps",
+  "prop_wireless_25_5" = "Share of PHHs with wireless availability at ≥ 25/5 Mbps",
+  "prop_wireless_50_10" = "Share of PHHs with wireless availability at ≥ 50/10 Mbps",
+
+  # Mobile LTE
+  "prop_lte_mobile" = "Share of PHHs where LTE mobile service is available",
+
+  # Enum distribution (Combined_Max_Threshold-Combine_Seuil_Max)
+  "n_enum" = "Denominator used for enum distribution in this DA (PHH count or weighted total if weights were used)",
+  "prop_combined_enum_25_5" = "Proportion of PHHs whose maximum combined threshold category is 25/5",
+  "prop_combined_enum_50_10" = "Proportion of PHHs whose maximum combined threshold category is 50/10",
+  "prop_combined_enum_5_1" = "Proportion of PHHs whose maximum combined threshold category is 5/1",
+  "prop_combined_enum_NA" = "Proportion of PHHs with missing/unknown maximum combined threshold (no enum value)",
+  "prop_combined_enum_<5_1" = "Proportion of PHHs whose maximum combined threshold category is <5/1",
+  "prop_combined_enum_10_2" = "Proportion of PHHs whose maximum combined threshold category is 10/2",
+
+  # Served flag
+  "served_50_10_phh" = "Binary flag: 1 if prop_combined_50_10 ≥ 0.75 (≥ 75% of PHHs at 50/10), else 0"
 )
 
-housing_value_dict = create_dictionary(
-  final_data,
-  var_labels = housing_value_dict_labels
+da_phh_spd_dict_dict = create_dictionary(
+  da_cov,
+  var_labels = da_phh_spd_dict_labels
 )
 
 # since there are comma "," in the labels so sometimes we use write.csv2 with semicolon ";" as delimiter.
-write.csv(housing_value_dict, here::here("out/Housing_Value_Dict_DIP.csv"))
+write.csv(
+  da_phh_spd_dict_dict,
+  here::here(output_path, "da_phh_spd_dict_dict.csv")
+)
+
+csd_phh_spd_dict_labels <- c(
+  # Keys & counts
+  "csd_code" = "Census Subdivision (CSD) code (short UID extracted from CSD DGUID: PR(2)+CD(2)+CSD(3))",
+  "n_phh" = "Number of pseudo-households (PHHs) matched to this CSD",
+
+  # Combined (wired + wireless) availability proportions
+  "prop_combined_5_1" = "Share of PHHs with combined (wired or wireless) availability at ≥ 5/1 Mbps",
+  "prop_combined_10_2" = "Share of PHHs with combined availability at ≥ 10/2 Mbps",
+  "prop_combined_25_5" = "Share of PHHs with combined availability at ≥ 25/5 Mbps",
+  "prop_combined_50_10" = "Share of PHHs with combined availability at ≥ 50/10 Mbps",
+
+  # Wired-only availability proportions
+  "prop_wired_5_1" = "Share of PHHs with wired availability at ≥ 5/1 Mbps",
+  "prop_wired_10_2" = "Share of PHHs with wired availability at ≥ 10/2 Mbps",
+  "prop_wired_25_5" = "Share of PHHs with wired availability at ≥ 25/5 Mbps",
+  "prop_wired_50_10" = "Share of PHHs with wired availability at ≥ 50/10 Mbps",
+
+  # Wireless-only availability proportions
+  "prop_wireless_5_1" = "Share of PHHs with wireless availability at ≥ 5/1 Mbps",
+  "prop_wireless_10_2" = "Share of PHHs with wireless availability at ≥ 10/2 Mbps",
+  "prop_wireless_25_5" = "Share of PHHs with wireless availability at ≥ 25/5 Mbps",
+  "prop_wireless_50_10" = "Share of PHHs with wireless availability at ≥ 50/10 Mbps",
+
+  # Mobile LTE
+  "prop_lte_mobile" = "Share of PHHs where LTE mobile service is available",
+
+  # Enum distribution (Combined_Max_Threshold-Combine_Seuil_Max)
+  "n_enum" = "Denominator used for enum distribution in this CSD (PHH count or weighted total if weights were used)",
+  "prop_combined_enum_25_5" = "Proportion of PHHs whose maximum combined threshold category is 25/5",
+  "prop_combined_enum_50_10" = "Proportion of PHHs whose maximum combined threshold category is 50/10",
+  "prop_combined_enum_5_1" = "Proportion of PHHs whose maximum combined threshold category is 5/1",
+  "prop_combined_enum_NA" = "Proportion of PHHs with missing/unknown maximum combined threshold (no enum value)",
+  "prop_combined_enum_<5_1" = "Proportion of PHHs whose maximum combined threshold category is <5/1",
+  "prop_combined_enum_10_2" = "Proportion of PHHs whose maximum combined threshold category is 10/2",
+
+  # Served flag
+  "served_50_10_phh" = "Binary flag: 1 if prop_combined_50_10 ≥ 0.75 (≥ 75% of PHHs at 50/10), else 0"
+)
+
+csd_phh_spd_dict_dict = create_dictionary(
+  csd_cov,
+  var_labels = csd_phh_spd_dict_labels
+)
+
+# since there are comma "," in the labels so sometimes we use write.csv2 with semicolon ";" as delimiter.
+write.csv(
+  csd_phh_spd_dict_dict,
+  here::here(output_path, "csd_phh_spd_dict_dict.csv")
+)
