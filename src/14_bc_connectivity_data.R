@@ -23,14 +23,8 @@
 # Parallel metrics for Wired and Wireless only.
 # prop_lte_mobile: share of PHHs with LTE mobile available.
 # prop_combined_enum_<level>: distribution across max threshold categories ("", <5_1, 5_1, 10_2, 25_5, 50_10) indicating the top tier reached at each PHH (Combined).
-# served_50_10_phh: binary flag if ≥ 75% PHHs in the CSD meet 50/10 (edit threshold as desired).
+# served_50_10_phh: binary flag if ≥ 75% PHHs in the CSD meet 50/10 (edit threshold as desired).
 #
-#
-# Performance
-#
-# Province filtering: If you only need BC (PRUID = 59), set filter_pruid <- 59 before the spatial join to reduce processing time. [open.canada.ca]
-# CRS: StatsCan boundary files are NAD83 LCC; we transform PHHs to the CSD CRS for consistent spatial operations. [open.canada.ca]
-# Completeness: If some PHHs lack speed fields, they’re dropped. You can keep them by treating missing as 0 for availability if appropriate.
 #
 # References
 #
