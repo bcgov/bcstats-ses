@@ -50,3 +50,4 @@ my_database.duckdb.wal
 bcstats-ses.Rproj
 *.log
 test/
+.RDataTmp1
