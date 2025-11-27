@@ -24,45 +24,19 @@
 # prop_lte_mobile: share of PHHs with LTE mobile available.
 # prop_combined_enum_<level>: distribution across max threshold categories ("", <5_1, 5_1, 10_2, 25_5, 50_10) indicating the top tier reached at each PHH (Combined).
 # served_50_10_phh: binary flag if ≥ 75% PHHs in the CSD meet 50/10 (edit threshold as desired).
-#
+# 5-1 (10_2, etc.): 5 is download speed and 1 is upload speed.
 #
 # References
 #
 # National Broadband Data (NBD) overview and methodology, including pseudo‑households and precision at 250m: Innovation, Science and Economic Development Canada. [ised-isde.canada.ca]
 # 2021 Census Boundary Files (CSD polygons, NAD83 LCC) and relationship file: Statistics Canada, Open Government. [open.canada.ca]
 
-# what those terms mean in the context of **National Broadband Data (NBD)** and Canada’s broadband programs:
-#
-#   ### **Government Support**
-#
-#   Refers to broadband projects funded or supported by **government programs** (federal, provincial, or territorial) to expand high-speed Internet in underserved areas. These include initiatives like the **Universal Broadband Fund (UBF)** and CRTC’s **Broadband Fund**, which provide grants to build infrastructure in rural and remote communities. [\[crtc.gc.ca\]](https://crtc.gc.ca/eng/internet/fnds.htm), [\[ised-isde.canada.ca\]](https://ised-isde.canada.ca/site/high-speed-internet-canada/en/universal-broadband-fund)
-#
-# ***
-#
-#   ### **Private Expansions**
-#
-#   Indicates projects led by **private Internet Service Providers (ISPs)** without direct government funding. These expansions are market-driven, where ISPs invest their own capital to extend broadband coverage into new areas, often where demand or business viability exists. [\[ised-isde.canada.ca\]](https://ised-isde.canada.ca/site/high-speed-internet-canada/en/universal-broadband-fund/national-broadband-data-information)
-#
-# ***
-#
-#   ### **UBF Core**
-#
-#   Stands for **Universal Broadband Fund – Core Stream**, the main funding program launched by the Government of Canada in 2020 with a $3.225 billion budget. Its goal is to provide **50/10 Mbps** service to 98% of Canadian households by 2026 and 100% by 2030. The Core stream supports large-scale infrastructure projects in rural and remote communities. [\[cnpartners.ca\]](https://cnpartners.ca/2025-report-the-state-of-canadas-universal-broadband-fund/), [\[ised-isde.canada.ca\]](https://ised-isde.canada.ca/site/high-speed-internet-canada/en/universal-broadband-fund)
-#
-# ***
-#
-#   ### **UBF RRS**
-#
-#   Refers to the **Universal Broadband Fund – Rapid Response Stream**, a fast-track funding stream for **shovel-ready projects** that can be deployed quickly in areas with urgent connectivity needs. It prioritizes projects that can deliver immediate improvements, often in rural or Indigenous communities. [\[ised-isde.canada.ca\]](https://ised-isde.canada.ca/site/high-speed-internet-canada/en/universal-broadband-fund), [\[www.advintive.com\]](http://www.advintive.com/ubf-rrs/)
-#
-# ***
 #
 # ------------------
+# --- Aggregate NBD-PHH-Speeds to Census Subdivision (CSD) level ---
 
 # Packages
 library(forcats)
-# --- Aggregate NBD-PHH-Speeds to Census Subdivision (CSD) level ---
-# Packages
 library(sf)
 library(dplyr)
 library(readr)
@@ -70,13 +44,13 @@ library(stringr)
 library(tidyr)
 library(lubridate)
 library(glue)
+library(ggplot2)
 library(datadictionary)
 source("./src/utils.R") # get the functions for plotting maps
 
 # Load configuration using config package
 # This will automatically look for a file named config.yml in the current and parent directory
 config <- config::get()
-# use this config <- config::get(config = "development" ) to switch to development environment.
 
 # Extract settings from config
 lan_path <- config$lan_path
@@ -140,7 +114,7 @@ path_dgrf_csv <- unz(zip_path, csv_name)
 # path_csd_boundary <- "data/2021_boundaries/CSD/csd_000b21a_e.shp" # <-- set to your CSD shapefile
 
 # Province filter (BC = 59)
-pruid_filter <- 59
+pruid_filter <- "2021A000259"
 
 # Weighting: set TRUE and choose one of the PHH21 weight fields if desired
 use_weighted <- FALSE
@@ -271,106 +245,6 @@ if (!is.na(col_pr) && col_pr %in% names(dgrf_min)) {
   dgrf_min <- dgrf_min %>% filter(PRUID == pruid_filter)
 }
 
-
-# ---------------------------------------------
-# Clean & decode DGRF DGUIDs to readable fields
-# ---------------------------------------------
-#
-# # Helper: decode one DGUID string into its components
-# decode_dguid <- function(x) {
-#   if (is.na(x)) return(list(vintage = NA, type = NA, schema = NA, geoid = NA))
-#   v <- substr(x, 1, 4) # "2021"
-#   t <- substr(x, 5, 5) # "A","S","C","B","Z"
-#   s <- substr(x, 6, 9) # e.g., "0002","0005","0512","0513"
-#   g <- substr(x, 10, nchar(x)) # the "short" code you actually use
-#   list(vintage = v, type = t, schema = s, geoid = g)
-# }
-#
-# # Apply decode to a vector and bind as columns
-# decode_vec <- function(vec, prefix) {
-#   comps <- lapply(vec, decode_dguid)
-#   df <- as.data.frame(do.call(rbind, comps), stringsAsFactors = FALSE)
-#   names(df) <- paste0(prefix, c("_vintage", "_type", "_schema", "_code"))
-#   df
-# }
-#
-#
-# # 1) Decode each DGUID column into component fields
-# dec_db <- decode_vec(dgrf_min$DBUID, "db")
-# dec_da <- decode_vec(dgrf_min$DAUID, "da")
-# dec_csd <- decode_vec(dgrf_min$CSDUID, "csd")
-# dec_pr <- decode_vec(dgrf_min$PRUID, "pr")
-#
-# dgrf_clean <- bind_cols(dgrf_min, dec_db, dec_da, dec_csd, dec_pr)
-#
-# # 2) For statistical geographies, split the short code into PR/CD/DA/DB parts
-# #    DA code structure (da_code): PR(2) + CD(2) + DA(4) => 8 digits total
-# #    DB code structure (db_code): PR(2) + CD(2) + DA(4) + DB(3) => 11 digits
-# #    CSD admin code (csd_code) is PR(2) + CD(2) + CSD(3) => 7 digits
-# #    PR admin code (pr_code) is province code => usually 2 digits
-# dgrf_clean <- dgrf_clean %>%
-#   mutate(
-#     # DA breakdown (only when da_type == "S")
-#     da_pr = ifelse(
-#       da_type == "S" & nchar(da_code) >= 2,
-#       substr(da_code, 1, 2),
-#       NA
-#     ),
-#     da_cd = ifelse(
-#       da_type == "S" & nchar(da_code) >= 4,
-#       substr(da_code, 3, 4),
-#       NA
-#     ),
-#     da_da = ifelse(
-#       da_type == "S" & nchar(da_code) >= 8,
-#       substr(da_code, 5, 8),
-#       NA
-#     ),
-#
-#     # DB breakdown (only when db_type == "S")
-#     db_pr = ifelse(
-#       db_type == "S" & nchar(db_code) >= 2,
-#       substr(db_code, 1, 2),
-#       NA
-#     ),
-#     db_cd = ifelse(
-#       db_type == "S" & nchar(db_code) >= 4,
-#       substr(db_code, 3, 4),
-#       NA
-#     ),
-#     db_da = ifelse(
-#       db_type == "S" & nchar(db_code) >= 8,
-#       substr(db_code, 5, 8),
-#       NA
-#     ),
-#     db_db = ifelse(
-#       db_type == "S" & nchar(db_code) >= 11,
-#       substr(db_code, 9, 11),
-#       NA
-#     ),
-#
-#     # CSD breakdown (admin)
-#     csd_pr = ifelse(
-#       csd_type == "A" & nchar(csd_code) >= 2,
-#       substr(csd_code, 1, 2),
-#       NA
-#     ),
-#     csd_cd = ifelse(
-#       csd_type == "A" & nchar(csd_code) >= 4,
-#       substr(csd_code, 3, 4),
-#       NA
-#     ),
-#     csd_csd = ifelse(
-#       csd_type == "A" & nchar(csd_code) >= 7,
-#       substr(csd_code, 5, 7),
-#       NA
-#     ),
-#
-#     # PR code (admin)
-#     pr_pr = ifelse(pr_type == "A", pr_code, NA)
-#   )
-#
-# dgrf_clean |> write_csv(file.path(output_path, "dgrf_21_clean.csv"))
 
 # 1) Extract short codes from DGRF DGUIDs (chars 10+: geographic unique identifier)
 dgrf_keys <- dgrf_min %>%

@@ -521,3 +521,103 @@ read_note <- function(csv_folder, file_name, filter_pattern = "notes") {
     return(NULL)
   }
 }
+
+# ---------------------------------------------
+# Clean & decode DGRF DGUIDs to readable fields
+# ---------------------------------------------
+#
+# # Helper: decode one DGUID string into its components
+# decode_dguid <- function(x) {
+#   if (is.na(x)) return(list(vintage = NA, type = NA, schema = NA, geoid = NA))
+#   v <- substr(x, 1, 4) # "2021"
+#   t <- substr(x, 5, 5) # "A","S","C","B","Z"
+#   s <- substr(x, 6, 9) # e.g., "0002","0005","0512","0513"
+#   g <- substr(x, 10, nchar(x)) # the "short" code you actually use
+#   list(vintage = v, type = t, schema = s, geoid = g)
+# }
+#
+# # Apply decode to a vector and bind as columns
+# decode_vec <- function(vec, prefix) {
+#   comps <- lapply(vec, decode_dguid)
+#   df <- as.data.frame(do.call(rbind, comps), stringsAsFactors = FALSE)
+#   names(df) <- paste0(prefix, c("_vintage", "_type", "_schema", "_code"))
+#   df
+# }
+#
+#
+# # 1) Decode each DGUID column into component fields
+# dec_db <- decode_vec(dgrf_min$DBUID, "db")
+# dec_da <- decode_vec(dgrf_min$DAUID, "da")
+# dec_csd <- decode_vec(dgrf_min$CSDUID, "csd")
+# dec_pr <- decode_vec(dgrf_min$PRUID, "pr")
+#
+# dgrf_clean <- bind_cols(dgrf_min, dec_db, dec_da, dec_csd, dec_pr)
+#
+# # 2) For statistical geographies, split the short code into PR/CD/DA/DB parts
+# #    DA code structure (da_code): PR(2) + CD(2) + DA(4) => 8 digits total
+# #    DB code structure (db_code): PR(2) + CD(2) + DA(4) + DB(3) => 11 digits
+# #    CSD admin code (csd_code) is PR(2) + CD(2) + CSD(3) => 7 digits
+# #    PR admin code (pr_code) is province code => usually 2 digits
+# dgrf_clean <- dgrf_clean %>%
+#   mutate(
+#     # DA breakdown (only when da_type == "S")
+#     da_pr = ifelse(
+#       da_type == "S" & nchar(da_code) >= 2,
+#       substr(da_code, 1, 2),
+#       NA
+#     ),
+#     da_cd = ifelse(
+#       da_type == "S" & nchar(da_code) >= 4,
+#       substr(da_code, 3, 4),
+#       NA
+#     ),
+#     da_da = ifelse(
+#       da_type == "S" & nchar(da_code) >= 8,
+#       substr(da_code, 5, 8),
+#       NA
+#     ),
+#
+#     # DB breakdown (only when db_type == "S")
+#     db_pr = ifelse(
+#       db_type == "S" & nchar(db_code) >= 2,
+#       substr(db_code, 1, 2),
+#       NA
+#     ),
+#     db_cd = ifelse(
+#       db_type == "S" & nchar(db_code) >= 4,
+#       substr(db_code, 3, 4),
+#       NA
+#     ),
+#     db_da = ifelse(
+#       db_type == "S" & nchar(db_code) >= 8,
+#       substr(db_code, 5, 8),
+#       NA
+#     ),
+#     db_db = ifelse(
+#       db_type == "S" & nchar(db_code) >= 11,
+#       substr(db_code, 9, 11),
+#       NA
+#     ),
+#
+#     # CSD breakdown (admin)
+#     csd_pr = ifelse(
+#       csd_type == "A" & nchar(csd_code) >= 2,
+#       substr(csd_code, 1, 2),
+#       NA
+#     ),
+#     csd_cd = ifelse(
+#       csd_type == "A" & nchar(csd_code) >= 4,
+#       substr(csd_code, 3, 4),
+#       NA
+#     ),
+#     csd_csd = ifelse(
+#       csd_type == "A" & nchar(csd_code) >= 7,
+#       substr(csd_code, 5, 7),
+#       NA
+#     ),
+#
+#     # PR code (admin)
+#     pr_pr = ifelse(pr_type == "A", pr_code, NA)
+#   )
+#
+# dgrf_clean |> write_csv(file.path(output_path, "dgrf_21_clean.csv"))
