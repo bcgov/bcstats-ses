@@ -51,3 +51,4 @@ bcstats-ses.Rproj
 *.log
 test/
 .RDataTmp1
+.RDataTmp2
