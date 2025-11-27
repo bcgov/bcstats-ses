@@ -7,3 +7,4 @@ refactored_plot_csd_facility_map_fn.R
 refactored_09_output_remoteness.R
 *.log
 test/
+.RDataTmp2
