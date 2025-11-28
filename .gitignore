@@ -51,5 +51,20 @@ bcstats-ses.Rproj
 *.log
 test/
 
-.RDataTmp1
+
+# R/RStudio temp & state
+.RData
+.Rhistory
+.Rproj.user/
+.Ruserdata
+.Rapp.history
+
+# R temporary workspace files (variants)
+.RDataTmp*
+*.RDataTmp*
 .RDataTmp2
+
+# Other temp files
+*.tmp
+*.swp
+
