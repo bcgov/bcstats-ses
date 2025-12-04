@@ -41,7 +41,13 @@ indig_population <- read_csv(indig_population_file_path)
 #for CHSA level geography
 indig_population_total_CHSA <- indig_population %>%
   filter(Gender == "Total", Region.Type == 'Community Health Service Area') %>%
-  select(Region, Region.Name, Year, `Indigenous Identity`, TOTAL) %>%
+  select(
+    Region,
+    Region.Name,
+    Year,
+    `Indigenous Identity`,
+    Total_ind_pop = TOTAL
+  ) %>%
   mutate(Region = as.character(Region))
 
 #for CSD level geography
@@ -116,7 +122,7 @@ chsa_population_total <- chsa_population %>%
 #3 join the 2 population sets to get proportion indigenous by CHSA
 chsa_Indig_pop <- chsa_population_total %>%
   left_join(indig_population_total_CHSA, by = c("Year", "Region")) %>%
-  mutate(pcnt_indigenous = TOTAL / Total) %>%
+  mutate(pcnt_indigenous = Total_ind_pop / Total) %>%
   filter(Year <= "2025", `Indigenous Identity` == "Total - Indigenous") %>% #change this to filter on different identities: First Nations , Total - Indigenous, why 2023
   select(
     Year,
@@ -124,7 +130,7 @@ chsa_Indig_pop <- chsa_population_total %>%
     Region.Name = Region.Name.x,
     Total_population = Total,
     `Indigenous Identity`,
-    Indigenous_population = TOTAL,
+    Indigenous_population = Total_ind_pop,
     pcnt_indigenous
   ) %>%
   mutate(
@@ -277,32 +283,90 @@ chsa_Indig_pop_SEI_DET <- chsa_Indig_pop_SEI_DET %>%
 #--------------------------------------------------
 #charts
 #CHSA TOTAL_INDEX_0_100 and pct indig
+
+# Convert 0/1 to descriptive labels
+chsa_Indig_pop_SEI_DET <- chsa_Indig_pop_SEI_DET %>%
+  mutate(
+    pcnt_indigenous_25_label = ifelse(pcnt_indigenous_25 == 1, ">=25%", "<25%")
+  )
+
+# Plot with new labels
 ggplot(
   chsa_Indig_pop_SEI_DET,
-  aes(x = pcnt_indigenous, y = TOTAL_INDEX_0_100)
+  aes(
+    x = pcnt_indigenous,
+    y = TOTAL_INDEX_0_100,
+    color = pcnt_indigenous_25_label
+  )
 ) +
-  geom_point(color = "blue", alpha = 0.7) +
+  geom_point(alpha = 0.7) +
   geom_smooth(method = "lm", color = "black", se = FALSE) +
-  labs(title = "Total Index", x = "pcnt_indigenous", y = "Total_Index") +
+  labs(title = "CHSA Total Index", x = "pcnt_indigenous", y = "Total_Index") +
+  scale_color_manual(
+    values = c("<25%" = "blue", ">=25%" = "red"),
+    name = "Indigenous %"
+  ) +
   theme_minimal()
+
 
 #CHSA SEI and pct indig
-ggplot(chsa_Indig_pop_SEI_DET, aes(x = pcnt_indigenous, y = SEI_INDEX_0_100)) +
-  geom_point(color = "blue", alpha = 0.7) +
+ggplot(
+  chsa_Indig_pop_SEI_DET,
+  aes(
+    x = pcnt_indigenous,
+    y = SEI_INDEX_0_100,
+    color = pcnt_indigenous_25_label
+  )
+) +
+  geom_point(alpha = 0.7) +
   geom_smooth(method = "lm", color = "black", se = FALSE) +
-  labs(title = "SEI Index", x = "pcnt_indigenous", y = "SEI") +
+  labs(title = "CHSA SEI Index", x = "pcnt_indigenous", y = "SEI_Index") +
+  scale_color_manual(
+    values = c("<25%" = "blue", ">=25%" = "red"),
+    name = "Indigenous %"
+  ) +
   theme_minimal()
 
+CSD_Indig_pop_SEI <- CSD_Indig_pop_SEI |>
+  mutate(
+    pcnt_indigenous_25_label = ifelse(pcnt_indigenous_25 == 1, ">=25%", "<25%"),
+    SEI_INDEX_0_100 = as.numeric(SEI_INDEX_0_100),
+    TOTAL_INDEX_0_100 = as.numeric(TOTAL_INDEX_0_100)
+  )
 
 #CSD TOTAL_INDEX_0_100 and pct indig
-ggplot(CSD_Indig_pop_SEI, aes(x = pcnt_indigenous, y = TOTAL_INDEX_0_100)) +
-  geom_point(color = "blue", alpha = 0.7) +
+ggplot(
+  CSD_Indig_pop_SEI,
+  aes(
+    x = pcnt_indigenous,
+    y = TOTAL_INDEX_0_100,
+    color = pcnt_indigenous_25_label
+  )
+) +
+  geom_point(alpha = 0.7) +
   geom_smooth(method = "lm", color = "black", se = FALSE) +
-  labs(title = "SEI Index", x = "pcnt_indigenous", y = "SEI") +
+  labs(title = "CSD Total Index", x = "pcnt_indigenous", y = "Total_Index") +
+  scale_color_manual(
+    values = c("<25%" = "blue", ">=25%" = "red"),
+    name = "Indigenous %"
+  ) +
   theme_minimal()
+
+
 #CSD SEI and pct indig
-ggplot(CSD_Indig_pop_SEI, aes(x = pcnt_indigenous, y = SEI_INDEX_0_100)) +
-  geom_point(color = "blue", alpha = 0.7) +
+ggplot(
+  CSD_Indig_pop_SEI,
+  aes(
+    x = pcnt_indigenous,
+    y = SEI_INDEX_0_100,
+    color = pcnt_indigenous_25_label
+  )
+) +
+  geom_point(alpha = 0.7) +
   geom_smooth(method = "lm", color = "black", se = FALSE) +
-  labs(title = "SEI Index", x = "pcnt_indigenous", y = "SEI") +
+  labs(title = "CSD SEI Index", x = "pcnt_indigenous", y = "SEI_Index") +
+  scale_color_manual(
+    values = c("<25%" = "blue", ">=25%" = "red"),
+    name = "Indigenous %"
+  ) +
   theme_minimal()
