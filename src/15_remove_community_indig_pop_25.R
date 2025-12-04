@@ -172,27 +172,36 @@ SEI_DET_CHSA_Indig_pop_25 <- SEI_DET_CHSA %>%
     by = c("CHSA_UID" = "Region", "CALENDAR_YEAR" = "Year")
   ) |>
   filter(pcnt_indigenous_25 == 0 | is.na(pcnt_indigenous_25)) |>
-  select(-pcnt_indigenous_25)
+  select(-pcnt_indigenous_25) |>
+  select(-AVERAGE_AGE, -POPULATION_ESTIMATE)
 
 #export SEI_DET_CHSA without communities with >25% indigenous population
 SEI_DET_CHSA_Indig_pop_25 |>
   write_csv(file.path(
     config$lan_path,
-    config$file_path$sei_file_path,
-    paste0(config$file_name$SEI_DET_CHSA, "_no_indig25.csv")
+    config$file_path$data_catalogue_path,
+    paste0(
+      sub("\\.csv$", "", config$file_name$SEI_DET_CHSA),
+      "_no_indig25.csv"
+    )
   ))
+
 
 # by CHSA join to SEI LONG
 # keep consistent with DET, we filter out CHSAs that are filterd out in DET.
 SEI_LONG_CHSA_Indig_pop_25 <- SEI_LONG_CHSA %>%
-  filter(CHSA_UID %in% SEI_DET_CHSA_Indig_pop_25$CHSA_UID)
+  filter(CHSA_UID %in% SEI_DET_CHSA_Indig_pop_25$CHSA_UID) |>
+  select(-AVERAGE_AGE, -POPULATION_ESTIMATE)
 
 #export SEI_LONG_CHSA without communities with >25% indigenous population
 SEI_LONG_CHSA_Indig_pop_25 |>
   write_csv(file.path(
     config$lan_path,
-    config$file_path$sei_file_path,
-    paste0(config$file_name$SEI_LONG_CHSA, "_no_indig25.csv")
+    config$file_path$data_catalogue_path,
+    paste0(
+      sub("\\.csv$", "", config$file_name$SEI_LONG_CHSA),
+      "_no_indig25.csv"
+    )
   ))
 
 
@@ -244,27 +253,29 @@ SEI_DET_CSD_Indig_pop_25 <- SEI_DET_CSD %>%
   ) %>%
   filter(pcnt_indigenous_25 == 0 | is.na(pcnt_indigenous_25)) %>%
   filter(Indigenous_community != "Y" | is.na(Indigenous_community)) |>
-  select(-pcnt_indigenous_25, -Indigenous_community)
+  select(-pcnt_indigenous_25, -Indigenous_community) |>
+  select(-AVERAGE_AGE, -POPULATION_ESTIMATE)
 
 
 #export CSD SEI without communities with >25% indigenous population
 SEI_DET_CSD_Indig_pop_25 |>
   write_csv(file.path(
     config$lan_path,
-    config$file_path$sei_file_path,
-    paste0(config$file_name$SEI_DET_CSD, "_no_indig25.csv")
+    config$file_path$data_catalogue_path,
+    paste0(sub("\\.csv$", "", config$file_name$SEI_DET_CSD), "_no_indig25.csv")
   ))
 
 SEI_LONG_CSD_Indig_pop_25 <- SEI_LONG_CSD %>%
-  filter(CSD_UID %in% SEI_DET_CSD_Indig_pop_25$CSD_UID)
+  filter(CSD_UID %in% SEI_DET_CSD_Indig_pop_25$CSD_UID) |>
+  select(-AVERAGE_AGE, -POPULATION_ESTIMATE)
 
 
 #export CSD SEI without communities with >25% indigenous population
 SEI_LONG_CSD_Indig_pop_25 |>
   write_csv(file.path(
     config$lan_path,
-    config$file_path$sei_file_path,
-    paste0(config$file_name$SEI_LONG_CSD, "_no_indig25.csv")
+    config$file_path$data_catalogue_path,
+    paste0(sub("\\.csv$", "", config$file_name$SEI_LONG_CSD), "_no_indig25.csv")
   ))
 
 ##########################################################################################
