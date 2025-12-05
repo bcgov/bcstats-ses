@@ -17,7 +17,7 @@
 
 # Since NBD‑PHH‑Speeds is evaluated at pseudo‑household (PHH) representative points,
 # we can aggregate to Census Subdivision (CSD) by spatially joining those PHH points to CSD polygons
-# or if we have DB ids, we can directlly join to CSD via DGRF.
+# or if we have DB ids, we can directlly join to CSD via tmf.
 
 # Output dataset: csd_out
 #
@@ -48,6 +48,7 @@ library(tidyr)
 library(lubridate)
 library(glue)
 library(ggplot2)
+library(bcdata)
 library(datadictionary)
 source("./src/utils.R") # get the functions for plotting maps
 
@@ -61,12 +62,11 @@ connectivity_data_path <- config$conectivity_data_path
 
 
 ########################################################################
-# CSD info 2021 Dissemination Geographies Relationship File (DGRF) from Statistics Canada.
-# https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/dguid-idugd/index2021-eng.cfm?year=21
-# or https://www150.statcan.gc.ca/n1/pub/92-150-g/92-150-g2021001-eng.htm
+# DB, DA, and CSD codes via bcdata package/BC Datacatalog
+########################################################################
 
 # -------------------------------------------------------------
-# Aggregate CURRENT NBD PHH speeds (BC) to DA and CSD via DGRF
+# Aggregate CURRENT NBD PHH speeds (BC) to DA and CSD via tmf
 # Date: Sys.Date()
 # -------------------------------------------------------------
 
@@ -90,27 +90,16 @@ path_phh21_points_csv <- file.path(
   "PHH_2021_CSV\\PHH_2021_CSV\\PHH-BC.csv"
 )
 
-# C) 2021 DGRF (Dissemination Geographies Relationship File) — nationwide CSV
+# C) 2021 BCStats TMF CSV
 #    This links DBUID -> DAUID -> CSDUID (and others). We'll filter PRUID=59 for BC.
 
-DGRF_url <- "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/dguid-idugd/files-fichiers/2021_98260004.zip"
-
-zip_path <- tempfile(fileext = ".zip")
-
-httr::GET(
-  DGRF_url,
-  httr::write_disk(zip_path, overwrite = TRUE),
-  httr::progress()
+bcdata::bcdc_search("Dissemination Block")
+bcdata::bcdc_tidy_resources("76909e49-8ba8-44b1-b69e-dba1fe9ecfba")
+tmf_csv <- file.path(
+  lan_path,
+  config$file_path$tmf_file_path,
+  config$file_name$tmf_file_name
 )
-
-csv_name <- unzip(zip_path, list = TRUE)$Name[grep(
-  "\\.csv$",
-  unzip(zip_path, list = TRUE)$Name,
-  ignore.case = TRUE
-)][1]
-
-path_dgrf_csv <- unz(zip_path, csv_name)
-
 # D) Optional: 2021 Boundary files for DA and CSD (digital/cartographic)
 #    Use the 2021 boundary shapefiles and filter to PRUID=59 for BC, then join the tables for mapping
 # path_da_boundary <- "data/2021_boundaries/DA/da_000b21a_e.shp" # <-- set to your DA shapefile
@@ -204,28 +193,28 @@ phh21 <- read_csv(
 # all zeros in "TDwell2021_TLog2021" or "Pop2021" or "URDwell2021_RH2021" so could not be used as weight
 phh21 |> glimpse()
 # -------------------------------------------------------------
-# 4) Load DGRF (DB -> DA -> CSD) and filter to BC
+# 4) Load TMF (DB -> DA -> CSD) and filter to BC
 # -------------------------------------------------------------
-# DGRF fields vary slightly by release; we just need DBUID, DAUID, CSDUID (and PRUID if present)
-dgrf <- read_csv(
-  path_dgrf_csv,
+# tmf_csv from bcdata package/BC Datacatalog
+tmf <- read_csv(
+  tmf_csv,
   col_types = cols(.default = "c") # all columns as character
 )
-col_db <- "DBDGUID_IDIDUGD"
-col_da <- "DADGUID_ADIDUGD"
-col_csd <- "CSDDGUID_SDRIDUGD"
-col_pr <- "PRDGUID_PRIDUGD"
+col_db <- "DSSMNTNBLC"
+col_da <- "DSSMNTNRD"
+col_csd <- "CNSSCNSLDT"
 
-# Keep minimal columns & filter PRUID=59
-dgrf_min <- dgrf %>%
+
+# 1) Extract short codes from tmf DGUIDs (chars 10+: geographic unique identifier)
+
+tmf_min <- tmf %>%
   select(
-    DBUID = rlang::sym(col_db),
-    DAUID = rlang::sym(col_da),
-    CSDUID = rlang::sym(col_csd),
-    PRUID = rlang::sym(col_pr)
+    db_code = rlang::sym(col_db),
+    da_code = rlang::sym(col_da),
+    csd_code = rlang::sym(col_csd)
   )
 
-dgrf_min |> glimpse()
+tmf_min |> glimpse()
 
 # DGUIDs (Dissemination Geography Unique Identifiers). A DGUID is a structured string:
 #   DGUID = Vintage (4) │ Type (1) │ Schema (4) │ Geographic Unique Identifier (1–12)
@@ -243,22 +232,6 @@ dgrf_min |> glimpse()
 # DAUID = "2021S051210010165" → Vintage 2021, Type S (Statistical), Schema 0512 (DA class), Unique ID 10010165 → PR 10, CD 01, DA 0165. [www12.statcan.gc.ca]
 # DBUID = "2021S051310010165001" → Vintage 2021, Type S, Schema 0513 (DB class), Unique ID 10010165001 → PR 10, CD 01, DA 0165, DB 001. [www12.statcan.gc.ca]
 
-if (!is.na(col_pr) && col_pr %in% names(dgrf_min)) {
-  names(dgrf_min)[names(dgrf_min) == col_pr] <- "PRUID"
-  dgrf_min <- dgrf_min %>% filter(PRUID == pruid_filter)
-}
-
-
-# 1) Extract short codes from DGRF DGUIDs (chars 10+: geographic unique identifier)
-dgrf_keys <- dgrf_min %>%
-  mutate(
-    db_code = substr(DBUID, 10, nchar(DBUID)), # 11 digits: PR(2)+CD(2)+DA(4)+DB(3)
-    da_code = substr(DAUID, 10, nchar(DAUID)), #  8 digits: PR(2)+CD(2)+DA(4)
-    csd_code = substr(CSDUID, 10, nchar(CSDUID)), #  7 digits: PR(2)+CD(2)+CSD(3) (admin)
-    pr_code = substr(PRUID, 10, nchar(PRUID)) #  2 digits: province code
-  ) %>%
-  select(db_code, da_code, csd_code, pr_code)
-
 # 2) Normalize PHH DBUID_Ididu (numeric -> zero-padded character of width 11)
 phh_keys <- phh21 %>%
   transmute(
@@ -266,9 +239,9 @@ phh_keys <- phh21 %>%
     db_code = str_pad(as.character(DBUID_Ididu), width = 11, pad = "0")
   )
 
-# 3) Join PHH to DGRF by short DB code
+# 3) Join PHH to tmf by short DB code
 phh_joined <- phh_keys %>%
-  left_join(dgrf_keys, by = "db_code")
+  left_join(tmf_min, by = "db_code")
 
 # 4) Optional sanity checks
 sum(is.na(phh_joined$da_code)) # PHHs with no DA mapping
@@ -277,7 +250,7 @@ sum(is.na(phh_joined$csd_code)) # PHHs with no CSD mapping
 phh_joined |> glimpse()
 
 # -------------------------------------------------------------
-# 5) Join Speeds -> PHH21 (by PHH_ID), then -> DGRF (by DBUID)
+# 5) Join Speeds -> PHH21 (by PHH_ID), then -> tmf (by DBUID)
 # -------------------------------------------------------------
 phh_speeds_with_geo <- phh_spd %>% # your PHH speeds table (Current)
   inner_join(phh_joined, by = "PHH_ID") # brings in da_code, csd_code
@@ -407,7 +380,7 @@ csd_cov <- phh_speeds_with_geo %>%
 
     .groups = "drop"
   )
-phh_speeds_with_geo |> glimpse()
+# phh_speeds_with_geo |> glimpse()
 
 csd_enum <- phh_speeds_with_geo %>%
   filter(!is.na(csd_code)) %>%
