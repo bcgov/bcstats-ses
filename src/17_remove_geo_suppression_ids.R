@@ -280,7 +280,7 @@ cat("\nOutput files written to:\n", output_path, "\n")
 cat("\nOutput files:\n")
 output_files <- list.files(
   output_path,
-  pattern = "$SEI*.csv",
+  pattern = ".csv",
   full.names = TRUE
 )
 for (f in output_files) {
