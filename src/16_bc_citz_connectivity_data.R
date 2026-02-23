@@ -11,62 +11,73 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 # =============================================================================
-# 16_bc_citz_connectivity_data.R
+# SCRIPT: 16_bc_citz_connectivity_data.R
+# PURPOSE: Reconcile provincial CITZ broadband data with federal PHH baseline
+# =============================================================================
 #
-# PURPOSE:
-#   Reconcile CITZ (provincial, BC Ministry of Citizens' Services) broadband
-#   connectivity micro-data against the federal PHH (pseudo-household) baseline
-#   produced by 14_bc_connectivity_data.R.
+# WHAT THIS SCRIPT DOES:
+#   1. Loads CITZ micro-level broadband data (one row per dissemination block)
+#   2. Parses speed threshold strings into numeric values
+#   3. Creates boolean flags for each speed tier (50/10, 25/5, 10/2, 5/1, <5/1)
+#   4. Aggregates dwelling-weighted shares at CSD and DA levels
+#   5. Loads PHH baseline from script 14
+#   6. Reconciles CITZ vs PHH shares, computing deltas and flagging outliers
+#   7. Generates data dictionaries for all outputs
 #
-# WHY:
-#   The federal NBD-PHH data and provincial CITZ data measure broadband
-#   coverage independently. Comparing them highlights discrepancies -- areas
-#   where the two sources disagree on connectivity levels -- which may indicate
-#   data quality issues or genuine differences in methodology/timing.
+# WHY THIS MATTERS:
+#   - Federal (PHH) and provincial (CITZ) data measure coverage independently
+#   - Comparing them reveals discrepancies that may indicate:
+#     * Data quality issues in one or both sources
+#     * Methodological differences (timing, definitions, coverage)
+#     * Genuine changes in infrastructure between data collection dates
+#   - Outlier flags highlight areas needing investigation
 #
-# WHAT IT DOES:
-#   1. Loads the CITZ micro-level data (one row per dissemination block) and
-#      the PHH baseline (aggregated by 14_bc_connectivity_data.R).
-#   2. Parses speed threshold strings (e.g. "50_10", "25_5", "<5_1") into
-#      numeric download/upload values for both wired and wireless connections.
-#   3. Flags each record against ALL speed tiers (50/10, 25/5, 10/2, 5/1, <5/1)
-#      for both connection types.
-#   4. Aggregates dwelling-weighted shares at CSD (Census Subdivision) and
-#      DA (Dissemination Area) levels.
-#   5. Reconciles CITZ shares against PHH shares, computing deltas and flagging
-#      outliers where |delta| >= 0.20.
-#   6. Generates data dictionaries for all output files.
+# DATA FLOW:
 #
-# HOW:
-#   - Speed tiers and connection types are defined as constants (SPEED_TIERS,
-#     CONNECTION_TYPES). All helper functions loop over these, so adding a new
-#     tier or type only requires editing the constants.
-#   - Aggregation uses dwelling weights (TDwell2021) from the CITZ data.
-#   - PHH shares use n_phh-weighted means when available, else simple means.
-#   - DA codes are derived by joining CITZ dissemination block IDs (DBUID) to
-#     the Translation Master File (TMF) when DAUID is not in the CITZ file.
+#   [CITZ Micro Data] ──────┐
+#   (per DB, speeds as      │
+#    strings like "50_10")  │
+#                            ├─> [Reconcile] ─> [Output CSVs with deltas]
+#   [PHH Baseline] ─────────┤
+#   (from script 14,        │
+#    aggregated by CSD/DA) │
 #
-# INPUTS:
-#   - {output_path}/csd_phh_current_coverage_bc.csv  (from script 14)
-#   - {output_path}/da_phh_current_coverage_bc.csv   (from script 14)
-#   - CITZ_SHR_Connectivity_Status_January2025.csv   (provincial micro-data)
-#   - TMF CSV (Translation Master File linking DB -> DA -> CSD)
+# KEY CONCEPTS:
+#   - CITZ: BC Ministry of Citizens' Services (provincial broadband program)
+#           Manages BC's connectivity initiatives and collects its own coverage data
+#           Data may be more current but focused on program-eligible areas
+#   - PHH: Pseudo-Household (federal ISED/NBD methodology)
+#           ISED's standard methodology, more comprehensive geographic coverage
+#           May be less current than provincial data
+#   - Speed tiers: Download/Upload in Mbps (50_10 = 50 down, 10 up)
+#   - Wired: Fiber, cable, DSL
+#   - Wireless: Fixed wireless, satellite
+#   - Delta: CITZ share - PHH share (positive = CITZ reports higher coverage)
+#   - Outlier: |delta| >= 20% → flagged for investigation
 #
-# OUTPUTS:
-#   - csd_connectivity_reconciled.csv      (CSD-level reconciliation)
-#   - da_connectivity_current_citz.csv     (DA-level CITZ shares)
-#   - da_connectivity_reconciled.csv       (DA-level reconciliation)
-#   - *_dict.csv                           (data dictionaries for each output)
-#   - logs/16_bc_citz_connectivity_*.log   (timestamped run log)
+# GEOGRAPHIC HIERARCHY:
+#   DB (Dissemination Block) → DA (Dissemination Area) → CSD (Census Subdivision)
+#   - DB: ~few households, smallest unit
+#   - DA: 400-700 people, neighborhood level
+#   - CSD: Municipality, community level
+#
+# REFERENCES:
+#   - ISED National Broadband Data: https://ised-isde.canada.ca/site/high-speed-internet-canada
+#   - BC CITZ Broadband Program: https://www2.gov.bc.ca/gov/content/governments/organizational-structure/ministries-organizations/ministries/citizens-services
+#   - Statistics Canada Census Geography: https://www12.statcan.gc.ca/census-recensement/2021/geo/index-eng.cfm
 # =============================================================================
 
 # ---- Packages ----
 library(readr)
 library(dplyr)
 library(stringr)
-library(tidyr)          # for bind_cols used when attaching tier flags
+library(tidyr) # for bind_cols used when attaching tier flags
 library(datadictionary) # for create_dictionary to build data dictionaries
-library(logger)         # structured logging to console + file
+library(logger) # structured logging to console + file
+
+# =============================================================================
+# SECTION 1: CONFIGURATION & SETUP
+# =============================================================================
 
 # ---- Configuration ----
 # config.yml holds all environment-specific paths (LAN, file locations, etc.)
@@ -85,14 +96,29 @@ log_dir <- file.path(output_path, "logs")
 dir.create(log_dir, showWarnings = FALSE, recursive = TRUE)
 log_file <- file.path(
   log_dir,
-  paste0("16_bc_citz_connectivity_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".log")
+  paste0(
+    "16_bc_citz_connectivity_",
+    format(Sys.time(), "%Y%m%d_%H%M%S"),
+    ".log"
+  )
 )
 log_appender(appender_tee(log_file))
 log_info("Starting 16_bc_citz_connectivity_data.R")
 log_info("Log file: {log_file}")
 log_info("Output path: {output_path}")
 
-# ---- Constants ----
+# =============================================================================
+# SECTION 2: CONSTANTS - CONFIGURABLE PARAMETERS
+# =============================================================================
+#
+# NOTE FOR FUTURE DEVELOPERS:
+#   To add a new speed tier (e.g., 100_20 for gigabit service):
+#   1. Add to SPEED_TIERS list below: list(label = "100_20", down = 100, up = 20)
+#   2. All helper functions will automatically handle the new tier
+#   3. Data dictionaries will automatically include it
+#
+# This design pattern makes the script easily extensible without modifying
+# the core logic functions.
 
 # If the absolute delta between CITZ and PHH shares exceeds this threshold,
 # the geographic unit is flagged as an outlier for investigation.
@@ -102,10 +128,10 @@ OUTLIER_THRESHOLD <- 0.20
 # Each tier represents a "at least this speed" cumulative test.
 # The "<5_1" category is handled separately (not a threshold test but a label).
 SPEED_TIERS <- list(
-  list(label = "50_10", down = 50, up = 10),  # Universal service objective
-  list(label = "25_5",  down = 25, up = 5),
-  list(label = "10_2",  down = 10, up = 2),
-  list(label = "5_1",   down = 5,  up = 1)
+  list(label = "50_10", down = 50, up = 10), # Universal service objective
+  list(label = "25_5", down = 25, up = 5),
+  list(label = "10_2", down = 10, up = 2),
+  list(label = "5_1", down = 5, up = 1)
 )
 
 # The CITZ data reports separate max thresholds for wired and wireless.
@@ -114,17 +140,20 @@ SPEED_TIERS <- list(
 CONNECTION_TYPES <- c("wired", "wireless")
 
 log_info("Outlier threshold: {OUTLIER_THRESHOLD}")
-log_info("Speed tiers: {paste(sapply(SPEED_TIERS, `[[`, 'label'), collapse = ', ')}")
+log_info(
+  "Speed tiers: {paste(sapply(SPEED_TIERS, `[[`, 'label'), collapse = ', ')}"
+)
 log_info("Connection types: {paste(CONNECTION_TYPES, collapse = ', ')}")
 
 # =============================================================================
-# Helper functions
-#
-# These are designed to be generic over speed tiers and connection types.
-# Adding a new tier (e.g. 100/20) or type only requires editing the constants
-# above -- no function changes needed.
+# SECTION 3: HELPER FUNCTIONS
+# =============================================================================
+# See inline documentation for each function.
+# All functions are generic over SPEED_TIERS and CONNECTION_TYPES - see
+# Section 2 for how to add new tiers/types.
 # =============================================================================
 
+# ---- Helper: Parse speed threshold strings ----
 #' Parse speed threshold strings into numeric download/upload values.
 #'
 #' The CITZ data stores max thresholds as strings like "50_10", "25_5", "<5_1".
@@ -144,16 +173,22 @@ parse_speed <- function(speed_str) {
   n_na <- sum(is.na(speed_str))
   n_lt <- sum(is_lt)
   n_ok <- sum(ok)
-  log_debug("parse_speed: {length(speed_str)} values, {n_ok} valid, {n_lt} <5_1, {n_na} NA")
+  log_debug(
+    "parse_speed: {length(speed_str)} values, {n_ok} valid, {n_lt} <5_1, {n_na} NA"
+  )
 
   data.frame(
     # Extract download speed (everything before "_") or 0 for "<5_1"
     down = suppressWarnings(as.numeric(ifelse(
-      ok, str_extract(speed_str, "^[0-9]+(?=_)"), ifelse(is_lt, 0, NA)
+      ok,
+      str_extract(speed_str, "^[0-9]+(?=_)"),
+      ifelse(is_lt, 0, NA)
     ))),
     # Extract upload speed (everything after "_") or 0 for "<5_1"
     up = suppressWarnings(as.numeric(ifelse(
-      ok, str_extract(speed_str, "(?<=_)[0-9]+$"), ifelse(is_lt, 0, NA)
+      ok,
+      str_extract(speed_str, "(?<=_)[0-9]+$"),
+      ifelse(is_lt, 0, NA)
     ))),
     is_lt5_1 = is_lt
   )
@@ -175,9 +210,13 @@ flag_all_tiers <- function(parsed, prefix) {
   # Test each tier threshold (cumulative: >= down AND >= up)
   for (tier in SPEED_TIERS) {
     col_name <- paste0("is_", prefix, "_", tier$label)
-    result[[col_name]] <- !is.na(parsed$down) & !is.na(parsed$up) &
-      parsed$down >= tier$down & parsed$up >= tier$up
-    log_debug("flag_all_tiers [{prefix}]: {sum(result[[col_name]])} rows meet {tier$label}")
+    result[[col_name]] <- !is.na(parsed$down) &
+      !is.na(parsed$up) &
+      parsed$down >= tier$down &
+      parsed$up >= tier$up
+    log_debug(
+      "flag_all_tiers [{prefix}]: {sum(result[[col_name]])} rows meet {tier$label}"
+    )
   }
 
   # The "<5_1" flag comes directly from parse_speed (not a threshold test)
@@ -302,7 +341,9 @@ compute_all_phh_shares <- function(df, group_col) {
         left_join(share_df, by = group_col_str)
     }
   }
-  log_info("compute_all_phh_shares: computed {length(CONNECTION_TYPES) * length(SPEED_TIERS)} tier shares for {nrow(result)} groups")
+  log_info(
+    "compute_all_phh_shares: computed {length(CONNECTION_TYPES) * length(SPEED_TIERS)} tier shares for {nrow(result)} groups"
+  )
   result
 }
 
@@ -322,7 +363,9 @@ reconcile_all_shares <- function(citz_df, phh_df, join_col) {
   joined <- citz_df %>%
     inner_join(phh_df, by = join_col)
 
-  log_info("reconcile_all_shares: {nrow(joined)} rows after inner join on '{join_col}' (CITZ: {nrow(citz_df)}, PHH: {nrow(phh_df)})")
+  log_info(
+    "reconcile_all_shares: {nrow(joined)} rows after inner join on '{join_col}' (CITZ: {nrow(citz_df)}, PHH: {nrow(phh_df)})"
+  )
 
   for (type in CONNECTION_TYPES) {
     for (tier in SPEED_TIERS) {
@@ -344,9 +387,14 @@ reconcile_all_shares <- function(citz_df, phh_df, join_col) {
               TRUE ~ "OK"
             )
           )
-        n_outliers <- sum(joined[[flag_col]] != "OK" & joined[[flag_col]] != "NA", na.rm = TRUE)
+        n_outliers <- sum(
+          joined[[flag_col]] != "OK" & joined[[flag_col]] != "NA",
+          na.rm = TRUE
+        )
         if (n_outliers > 0) {
-          log_warn("reconcile [{type} {tier$label}]: {n_outliers} outliers detected")
+          log_warn(
+            "reconcile [{type} {tier$label}]: {n_outliers} outliers detected"
+          )
         }
       } else {
         log_warn("reconcile: skipping {type} {tier$label} -- missing column(s)")
@@ -364,8 +412,11 @@ reconcile_all_shares <- function(citz_df, phh_df, join_col) {
 #' @param df Reconciled data frame.
 #' @param label Human-readable label for the geographic level (e.g. "CSD", "DA").
 #' @param delta_col Which delta column to summarize (default: wired 50/10).
-print_reconciliation_summary <- function(df, label,
-                                         delta_col = "delta_wired_50_10") {
+print_reconciliation_summary <- function(
+  df,
+  label,
+  delta_col = "delta_wired_50_10"
+) {
   if (!delta_col %in% names(df)) {
     log_warn("Column '{delta_col}' not found; skipping summary for {label}")
     return(invisible(NULL))
@@ -378,21 +429,29 @@ print_reconciliation_summary <- function(df, label,
       p10 = quantile(.data[[delta_col]], 0.10, na.rm = TRUE),
       p90 = quantile(.data[[delta_col]], 0.90, na.rm = TRUE)
     )
-  log_info("Reconciliation summary ({label}, {delta_col}): n={stats$n}, mean={round(stats$mean_delta, 4)}, median={round(stats$median_delta, 4)}, p10={round(stats$p10, 4)}, p90={round(stats$p90, 4)}")
+  log_info(
+    "Reconciliation summary ({label}, {delta_col}): n={stats$n}, mean={round(stats$mean_delta, 4)}, median={round(stats$median_delta, 4)}, p10={round(stats$p10, 4)}, p90={round(stats$p90, 4)}"
+  )
   print(stats)
 }
 
 # ============================================================================
 # PART 1: CSD-level reconciliation
 #
-# CSD (Census Subdivision) is roughly equivalent to a municipality.
-# This section compares CITZ and PHH broadband shares at the CSD level.
+# =============================================================================
+# SECTION 4: CSD-LEVEL RECONCILIATION
+# =============================================================================
+# CSD (Census Subdivision) = municipality level
+# Compare CITZ vs PHH broadband shares at the community/municipal level
+# This is the primary output for policy analysis
 # ============================================================================
 log_info("==== PART 1: CSD-level reconciliation ====")
 
 # ---- 1.1) Load inputs ----
 # PHH baseline: aggregated by script 14 from federal NBD pseudo-household data
-log_info("Loading PHH CSD baseline from: {file.path(output_path, 'csd_phh_current_coverage_bc.csv')}")
+log_info(
+  "Loading PHH CSD baseline from: {file.path(output_path, 'csd_phh_current_coverage_bc.csv')}"
+)
 phh_csd <- read_csv(
   file.path(output_path, "csd_phh_current_coverage_bc.csv"),
   show_col_types = FALSE
@@ -414,7 +473,9 @@ log_info("CITZ micro data loaded: {nrow(citz)} rows, {ncol(citz)} cols")
 # since we cannot aggregate them meaningfully.
 citz_clean <- citz %>%
   filter(!is.na(CENSUS_SUBDIVISION_ID), !is.na(TDwell2021))
-log_info("CITZ after filtering NA CSD/TDwell: {nrow(citz_clean)} rows (dropped {nrow(citz) - nrow(citz_clean)})")
+log_info(
+  "CITZ after filtering NA CSD/TDwell: {nrow(citz_clean)} rows (dropped {nrow(citz) - nrow(citz_clean)})"
+)
 
 # Parse the string speed labels into numeric values and flag each tier
 log_info("Parsing wired speed thresholds")
@@ -464,9 +525,18 @@ recon_csd_named <- recon_csd %>%
 # ---- 1.6) Save CSD outputs ----
 csd_out_path <- file.path(output_path, "csd_connectivity_reconciled.csv")
 write_csv(recon_csd_named, csd_out_path)
-log_info("CSD reconciled output saved: {csd_out_path} ({nrow(recon_csd_named)} rows)")
+log_info(
+  "CSD reconciled output saved: {csd_out_path} ({nrow(recon_csd_named)} rows)"
+)
 print_reconciliation_summary(recon_csd_named, "CSD")
 
+# =============================================================================
+# SECTION 5: DA-LEVEL RECONCILIATION
+# =============================================================================
+# DA (Dissemination Area) = neighborhood level (400-700 people)
+# Finer geographic granularity than CSD for identifying specific areas
+# of discrepancy between provincial and federal data
+# Requires TMF join to map DBUID -> DAUID
 # ============================================================================
 # PART 2: DA-level reconciliation
 #
@@ -533,14 +603,18 @@ citz_da <- citz_da %>%
   mutate(DAUID = if_else(is.na(DAUID), da_code, DAUID))
 
 n_da_missing <- sum(is.na(citz_da$DAUID))
-log_info("After TMF join: {n_da_missing} rows still missing DAUID out of {nrow(citz_da)}")
+log_info(
+  "After TMF join: {n_da_missing} rows still missing DAUID out of {nrow(citz_da)}"
+)
 
 # If DAUID was not in the original CITZ file AND the TMF join failed
 # completely, we cannot proceed with DA-level analysis.
 if (!has_da && all(is.na(citz_da$DAUID))) {
   log_error("DAUID is not in the CITZ file and TMF join failed")
-  stop("DAUID is not in the CITZ file and TMF join failed. ",
-       "Please join DAUID via your TMF before proceeding.")
+  stop(
+    "DAUID is not in the CITZ file and TMF join failed. ",
+    "Please join DAUID via your TMF before proceeding."
+  )
 }
 
 # ---- 2.4) Parse speeds and flag all tiers ----
@@ -592,18 +666,22 @@ if (file.exists(phh_da_path)) {
 
   da_recon_path <- file.path(output_path, "da_connectivity_reconciled.csv")
   write_csv(da_recon, da_recon_path)
-  log_info("DA reconciled output saved: {da_recon_path} ({nrow(da_recon)} rows)")
+  log_info(
+    "DA reconciled output saved: {da_recon_path} ({nrow(da_recon)} rows)"
+  )
   print_reconciliation_summary(da_recon, "DA")
 } else {
-  log_warn("PHH DA baseline not found at {phh_da_path}; skipping DA reconciliation")
+  log_warn(
+    "PHH DA baseline not found at {phh_da_path}; skipping DA reconciliation"
+  )
 }
 
-# ============================================================================
-# PART 3: Data dictionaries
-#
-# Each output CSV gets a companion data dictionary CSV describing every column.
-# Labels are generated programmatically from the SPEED_TIERS and
-# CONNECTION_TYPES constants, ensuring they stay in sync with the data.
+# =============================================================================
+# SECTION 6: DATA DICTIONARIES
+# =============================================================================
+# Each output CSV gets a companion data dictionary explaining every column.
+# Labels are generated programmatically from SPEED_TIERS and CONNECTION_TYPES
+# constants - ensuring they stay in sync when you add new tiers.
 # ============================================================================
 log_info("==== PART 3: Data dictionaries ====")
 
@@ -619,13 +697,19 @@ build_citz_agg_labels <- function(geo_id_label, geo_id_desc) {
     for (tier in SPEED_TIERS) {
       col <- paste0("share_", type, "_", tier$label)
       labels[[col]] <- paste0(
-        "Dwelling-weighted share with ", type_label,
-        " max threshold >= ", tier$down, "/", tier$up, " Mbps."
+        "Dwelling-weighted share with ",
+        type_label,
+        " max threshold >= ",
+        tier$down,
+        "/",
+        tier$up,
+        " Mbps."
       )
     }
     lt_col <- paste0("share_", type, "_lt5_1")
     labels[[lt_col]] <- paste0(
-      "Dwelling-weighted share with ", type_label,
+      "Dwelling-weighted share with ",
+      type_label,
       " max threshold < 5/1 Mbps."
     )
   }
@@ -635,12 +719,17 @@ build_citz_agg_labels <- function(geo_id_label, geo_id_desc) {
 #' Build data dictionary labels for reconciled output columns.
 #' Extends the CITZ aggregation labels with PHH share, delta, and outlier flag
 #' columns for each tier.
-build_recon_labels <- function(geo_id_label, geo_id_desc,
-                               include_csd_name = FALSE) {
+build_recon_labels <- function(
+  geo_id_label,
+  geo_id_desc,
+  include_csd_name = FALSE
+) {
   labels <- build_citz_agg_labels(geo_id_label, geo_id_desc)
 
   if (include_csd_name) {
-    labels[["CENSUS_SUBDIVISION_NAME"]] <- "Census Subdivision name from the CITZ micro file."
+    labels[[
+      "CENSUS_SUBDIVISION_NAME"
+    ]] <- "Census Subdivision name from the CITZ micro file."
   }
 
   for (type in CONNECTION_TYPES) {
@@ -651,16 +740,31 @@ build_recon_labels <- function(geo_id_label, geo_id_desc,
       flag_col <- paste0("outlier_", type, "_", tier$label)
 
       labels[[phh_col]] <- paste0(
-        "PHH (federal NBD) ", type_label, " >= ", tier$down, "/",
-        tier$up, " share, PHH-weighted."
+        "PHH (federal NBD) ",
+        type_label,
+        " >= ",
+        tier$down,
+        "/",
+        tier$up,
+        " share, PHH-weighted."
       )
       labels[[delta_col]] <- paste0(
-        "Difference: CITZ minus PHH share for ", type_label,
-        " >= ", tier$down, "/", tier$up, "."
+        "Difference: CITZ minus PHH share for ",
+        type_label,
+        " >= ",
+        tier$down,
+        "/",
+        tier$up,
+        "."
       )
       labels[[flag_col]] <- paste0(
-        "Outlier flag for ", type_label, " ", tier$label,
-        " (threshold +/-", OUTLIER_THRESHOLD, ")."
+        "Outlier flag for ",
+        type_label,
+        " ",
+        tier$label,
+        " (threshold +/-",
+        OUTLIER_THRESHOLD,
+        ")."
       )
     }
   }
@@ -682,7 +786,10 @@ if (file.exists(csd_recon_csv)) {
   csd_labels <- csd_labels[names(csd_labels) %in% names(csd_recon_tbl)]
 
   csd_recon_dict <- create_dictionary(csd_recon_tbl, var_labels = csd_labels)
-  csd_dict_path <- file.path(output_path, "csd_connectivity_reconciled_dict.csv")
+  csd_dict_path <- file.path(
+    output_path,
+    "csd_connectivity_reconciled_dict.csv"
+  )
   write.csv(csd_recon_dict, csd_dict_path, row.names = FALSE)
   log_info("CSD data dictionary saved: {csd_dict_path}")
 } else {
@@ -697,10 +804,15 @@ if (file.exists(da_citz_csv)) {
     "DAUID",
     "Dissemination Area (DA) unique identifier (2021 DAUID, character)."
   )
-  da_citz_labels <- da_citz_labels[names(da_citz_labels) %in% names(da_citz_tbl)]
+  da_citz_labels <- da_citz_labels[
+    names(da_citz_labels) %in% names(da_citz_tbl)
+  ]
 
   da_citz_dict <- create_dictionary(da_citz_tbl, var_labels = da_citz_labels)
-  da_citz_dict_path <- file.path(output_path, "da_connectivity_current_citz_dict.csv")
+  da_citz_dict_path <- file.path(
+    output_path,
+    "da_connectivity_current_citz_dict.csv"
+  )
   write.csv(da_citz_dict, da_citz_dict_path, row.names = FALSE)
   log_info("DA CITZ data dictionary saved: {da_citz_dict_path}")
 } else {
@@ -717,14 +829,57 @@ if (file.exists(da_recon_csv)) {
     "DAUID",
     "Dissemination Area (DA) unique identifier (2021 DAUID, character)."
   )
-  da_recon_labels <- da_recon_labels[names(da_recon_labels) %in% names(da_recon_tbl)]
+  da_recon_labels <- da_recon_labels[
+    names(da_recon_labels) %in% names(da_recon_tbl)
+  ]
 
   da_recon_dict <- create_dictionary(da_recon_tbl, var_labels = da_recon_labels)
-  da_recon_dict_path <- file.path(output_path, "da_connectivity_reconciled_dict.csv")
+  da_recon_dict_path <- file.path(
+    output_path,
+    "da_connectivity_reconciled_dict.csv"
+  )
   write.csv(da_recon_dict, da_recon_dict_path, row.names = FALSE)
   log_info("DA reconciliation data dictionary saved: {da_recon_dict_path}")
 } else {
-  log_warn("DA reconciled CSV not found; skipping DA reconciliation data dictionary")
+  log_warn(
+    "DA reconciled CSV not found; skipping DA reconciliation data dictionary"
+  )
 }
 
 log_info("Done: 16_bc_citz_connectivity_data.R")
+
+# =============================================================================
+# ADDITIONAL NOTES FOR FUTURE ANALYSTS
+# =============================================================================
+#
+# UNDERSTANDING THE RECONCILIATION OUTPUT:
+#   - delta = CITZ share - PHH share
+#   - Positive delta (> 0): CITZ reports higher coverage than PHH
+#   - Negative delta (< 0): PHH reports higher coverage than CITZ
+#   - outlier = "CITZ >> PHH": CITZ is 20%+ higher (possible over-reporting by CITZ)
+#   - outlier = "PHH >> CITZ": PHH is 20%+ higher (possible under-reporting by CITZ)
+#   - outlier = "OK": Within 20% tolerance
+#   - outlier = "NA": Missing data in one or both sources
+#
+# COMMON CAUSES OF DISCREPANCIES:
+#   1. Timing differences: CITZ may be more recent than PHH snapshot
+#   2. Methodology: Different definitions of "available"
+#   3. Data quality: Missing or incorrect DBUID mappings
+#   4. Coverage: Different geographic scope (e.g., CITZ focuses on underserved areas)
+#
+# POTENTIAL IMPROVEMENTS:
+#   1. Add combined (wired + wireless) reconciliation - CITZ doesn't have this
+#      but it would align with script 14's output
+#   2. Add time-series tracking by saving deltas before updating
+#   3. Implement weighted outlier threshold (weight by n_phh or dwell_total)
+#   4. Add visualization of delta distributions
+#   5. Investigate systematically "PHH >> CITZ" areas - may indicate CITZ
+#      needs to update their database
+#   6. Consider adding confidence intervals if underlying data supports it
+#
+# RUNNING THIS SCRIPT:
+#   - Requires: script 14 output files (csd_phh_current_coverage_bc.csv, etc.)
+#   - Requires: CITZ micro-data file in the specified path
+#   - Requires: TMF file for DA-level join
+#   - Output: Check logs/ folder for detailed run information
+# =============================================================================
