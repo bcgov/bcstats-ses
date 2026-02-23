@@ -169,7 +169,7 @@ if (length(chsa_to_remove) > 0) {
   # Write output
   output_file <- file.path(
     output_path,
-    "SEI_DET_CHSA_2023_geosuppression.csv"
+    "SEI_DET_CHSA_2023.csv"
   )
   write_csv(sei_det_chsa_filtered, output_file)
   cat("  Output:", output_file, "\n")
@@ -195,7 +195,7 @@ if (length(chsa_to_remove) > 0) {
 
   output_file <- file.path(
     output_path,
-    "SEI_LONG_CHSA_2023_geosuppression.csv"
+    "SEI_LONG_CHSA_2023.csv"
   )
   write_csv(sei_long_chsa_filtered, output_file)
   cat("  Output:", output_file, "\n")
@@ -230,7 +230,7 @@ if (length(csd_to_remove) > 0) {
 
   output_file <- file.path(
     output_path,
-    "SEI_DET_CSD_2023_geosuppression.csv"
+    "SEI_DET_CSD_2023.csv"
   )
   write_csv(sei_det_csd_filtered, output_file)
   cat("  Output:", output_file, "\n")
@@ -256,7 +256,7 @@ if (length(csd_to_remove) > 0) {
 
   output_file <- file.path(
     output_path,
-    "SEI_LONG_CSD_2023_geosuppression.csv"
+    "SEI_LONG_CSD_2023.csv"
   )
   write_csv(sei_long_csd_filtered, output_file)
   cat("  Output:", output_file, "\n")
@@ -280,7 +280,7 @@ cat("\nOutput files written to:\n", output_path, "\n")
 cat("\nOutput files:\n")
 output_files <- list.files(
   output_path,
-  pattern = "_geosuppression.csv",
+  pattern = "$SEI*.csv",
   full.names = TRUE
 )
 for (f in output_files) {
