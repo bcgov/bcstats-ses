@@ -66,9 +66,6 @@ cat("Identifying Indigenous CSDs using StatsCan Geographic Attribute File\n")
 cat("========================================\n\n")
 
 
-cat("Indigenous CSD types being suppressed:\n")
-cat("  ", paste(indig_csd_types, collapse = ", "), "\n\n")
-
 # Download 2021 Geographic Attribute File for BC CSDs directly from StatsCan
 # Reference: https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/definition-eng.cfm?ID=geo044
 cat("Downloading StatsCan Geographic Attribute File for BC CSDs...\n")
@@ -187,6 +184,9 @@ bc_csds |> count(CSDTYPE)
 # TWL – Tsawwassen Lands
 indig_csd_types <- c('IRI', 'IGD', 'NL', 'S-É', 'TAL', 'TWL')
 
+cat("Indigenous CSD types being suppressed:\n")
+cat("  ", paste(indig_csd_types, collapse = ", "), "\n\n")
+
 bc_indig_csds <- bc_csds %>%
   # Why: Only keep CSDs with types matching those to be suppressed (e.g., IRI, NL, IGD, TAL)
   # What: Identifies Indigenous CSDs by type code
@@ -196,13 +196,13 @@ bc_indig_csds <- bc_csds %>%
 # 427 indigenous csds in 2021 census
 # our Geo Suppression IDs.xlsx only has 322 indigenous CSDs.
 
-cat("Found", nrow(indig_csds), "CSDs with indigenous types\n")
+cat("Found", nrow(bc_indig_csds), "CSDs with indigenous types\n")
 cat("Sample:\n")
-print(head(indig_csds, 10))
+print(head(bc_indig_csds, 10))
 
 # Convert CSD_UID to short format: remove non-digit characters and leading '2021A0005'
-csd_to_remove <- indig_csds$CSD_UID %>%
-  gsub("^2021A0005", "5", .) %>%
+csd_to_remove <- bc_indig_csds$CSD_UID %>%
+  gsub("^2021A0005", "", .) %>%
   as.character()
 
 # If no CSDs found from download, try database query as fallback
@@ -263,32 +263,25 @@ cat("\n========================================\n")
 cat("Identifying Nisga's CHSAs\n")
 cat("========================================\n\n")
 
-# Query CHSAs with "Nisga's" in the name - requires database connection
-nisgas_chsa_query <- "
-SELECT DISTINCT CHSA_UID, CHSA_NAME 
-FROM [Population_Labour_Social].[Prod].[FCT_CHSA_2021]
-WHERE CHSA_NAME LIKE '%Nisga%'
-"
-
-# Connect to database for CHSA query
-con <- dbConnect(
-  odbc::odbc(),
-  Driver = config$data_server$driver,
-  Server = config$data_server$server,
-  Database = config$data_server$database,
-  Trusted_Connection = "Yes"
+bcdata::bcdc_search("Community Health Service Area")
+bcdc_get_record("68f2f577-28a7-46b4-bca9-7e9770f2f357")
+bc_chsa_resources <- bcdata::bcdc_tidy_resources(
+  '68f2f577-28a7-46b4-bca9-7e9770f2f357'
 )
 
-nisgas_chsas <- dbGetQuery(con, nisgas_chsa_query)
+bc_chsa <- bcdc_query_geodata('68f2f577-28a7-46b4-bca9-7e9770f2f357') |>
+  collect()
 
-cat("Found", nrow(nisgas_chsas), "Nisga's CHSAs\n")
-cat("Sample:\n")
-print(nisgas_chsas)
+chsa_to_remove <- bc_chsa |>
+  dplyr::select(
+    HLTH_CHSA_SYSID,
+    CMNTY_HLTH_SERV_AREA_NAME,
+    CMNTY_HLTH_SERV_AREA_CODE,
+    CHSA_POPULATION_CENSUS
+  ) |>
+  filter(stringr::str_detect(CMNTY_HLTH_SERV_AREA_NAME, "Nisga")) |>
+  pull(CMNTY_HLTH_SERV_AREA_CODE)
 
-chsa_to_remove <- as.character(nisgas_chsas$CHSA_UID)
-
-# Close database connection
-dbDisconnect(con)
 
 #-------------------------------------------------------------------------------------------
 # 4. LOAD SEI DATA FILES
@@ -397,8 +390,12 @@ if (length(chsa_to_remove) > 0) {
   cat("  Original records:", nrow(sei_long_chsa), "\n")
 
   # Keep consistent with DET - filter out CHSAs removed in DET
-  sei_long_chsa_filtered <- sei_long_chsa %>%
-    filter(!CHSA_UID %in% chsa_to_remove)
+  sei_long_chsa_filtered <- remove_geographies(
+    sei_data = sei_long_chsa,
+    geo_col = "CHSA_UID",
+    geo_codes_to_remove = chsa_to_remove,
+    geo_type = "CHSA"
+  )
 
   cat(
     "  Removed:",
@@ -458,8 +455,12 @@ if (length(csd_to_remove) > 0) {
   cat("  Original records:", nrow(sei_long_csd), "\n")
 
   # Keep consistent with DET - filter out CSDs removed in DET
-  sei_long_csd_filtered <- sei_long_csd %>%
-    filter(!CSD_UID %in% csd_to_remove)
+  sei_long_csd_filtered <- remove_geographies(
+    sei_data = sei_long_csd,
+    geo_col = "CSD_UID",
+    geo_codes_to_remove = csd_to_remove,
+    geo_type = "CSD"
+  )
 
   cat(
     "  Removed:",
@@ -487,7 +488,7 @@ cat("========================================\n")
 cat("Indigenous CSDs suppressed (by CSDTYPE):\n")
 cat("  CSD types:", paste(indig_csd_types, collapse = ", "), "\n")
 cat("  Total CSDs removed:", length(csd_to_remove), "\n")
-cat("\nNisga's CHSAs suppressed:\n")
+cat("\Indigenous CHSAs suppressed:\n")
 cat("  Total CHSAs removed:", length(chsa_to_remove), "\n")
 cat("\nOutput files written to:\n", output_path, "\n")
 
