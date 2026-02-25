@@ -11,15 +11,28 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 #-------------------------------------------------------------------------------------------
-# Purpose: Remove specific geography IDs from SEI Data Catalogue files
-# Input: Geo Suppression IDs Excel file (GEO_TYPE, GEO_CODE, GEO_NAME)
+# Purpose: Remove indigenous geographies from SEI Data Catalogue files
+#           - CHSA: Nisga's regions (via CHSA_TYPE)
+#           - CSD: Indian reserves, Nisga'a lands, Indian government districts (via CSD_TYPE)
+# Input: Database queries using official StatsCan CSD type codes and CHSA type info
 # Output: 4 filtered CSV files for BC Data Catalogue (2023)
+#
+# CSD Types to suppress:
+#   IRI  = Indian reserve
+#   NL   = Nisga'a land
+#   IGD  = Indian government district
+#
+# CHSA Types to suppress:
+#   Nisga's regions (identified by name pattern)
 #-------------------------------------------------------------------------------------------
 
 library(readr)
 library(dplyr)
 library(readxl)
+library(DBI)
+library(odbc)
 library(ggplot2)
+library(bcdata)
 source("./src/utils.R")
 
 # Load configuration
@@ -28,16 +41,6 @@ config <- config::get()
 #-------------------------------------------------------------------------------------------
 # 1. SET PATHS
 #-------------------------------------------------------------------------------------------
-
-# Input: Geo Suppression IDs file
-geo_suppression_file <- file.path(
-  config$lan_path,
-  "2024 SES Index",
-  "scripts",
-  "Percent Indigenous population",
-  "output pcnt indigenous population",
-  "Geo Suppression IDs.xlsx"
-)
 
 # Output path for 2023 data catalogue products
 output_path <- file.path(
@@ -54,36 +57,246 @@ if (!dir.exists(output_path)) {
   cat("Created output directory:", output_path, "\n")
 }
 
-
 #-------------------------------------------------------------------------------------------
-# 2. LOAD GEO SUPPRESSION LIST
+# 2. IDENTIFY INDIGENOUS CSDs USING STATSCAN GEOGRAPHIC ATTRIBUTE FILE
 #-------------------------------------------------------------------------------------------
 
-cat("Loading geo suppression list from:\n", geo_suppression_file, "\n")
+cat("\n========================================\n")
+cat("Identifying Indigenous CSDs using StatsCan Geographic Attribute File\n")
+cat("========================================\n\n")
 
-geo_suppression <- read_excel(geo_suppression_file)
 
-cat("\nGeo Suppression List:\n")
-print(geo_suppression)
+cat("Indigenous CSD types being suppressed:\n")
+cat("  ", paste(indig_csd_types, collapse = ", "), "\n\n")
 
-# Separate by GEO_TYPE
-chsa_to_remove <- geo_suppression %>%
-  filter(GEO_TYPE == "CHSA") %>%
-  pull(GEO_CODE) %>%
+# Download 2021 Geographic Attribute File for BC CSDs directly from StatsCan
+# Reference: https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/definition-eng.cfm?ID=geo044
+cat("Downloading StatsCan Geographic Attribute File for BC CSDs...\n")
+
+# the geographic attribute file
+geo_attr_url <- 'https://www12.statcan.gc.ca/census-recensement/2021/geo/aip-pia/attribute-attribs/files-fichiers/2021_92-151_X.zip'
+zip_path <- tempfile(fileext = ".zip")
+
+# Download with timeout
+tryCatch(
+  {
+    download.file(geo_attr_url, zip_path, mode = "wb", quiet = TRUE)
+
+    # Create temp directory for unzip (this is the fix)
+    unzip_dir <- file.path(tempdir(), "geo_attr")
+    if (!dir.exists(unzip_dir)) {
+      dir.create(unzip_dir, recursive = TRUE)
+    }
+
+    # Unzip to temp directory
+    unzip(zip_path, exdir = unzip_dir)
+
+    # Find the CSV file (usually only one)
+    csv_files <- list.files(unzip_dir, pattern = "\\.csv$", full.names = TRUE)
+    geo_attr_file <- csv_files[1]
+    # The Byte: \xc9 is the hexadecimal value for É in the Latin-1 character set.
+    # The Mismatch: R (especially on modern systems) often expects UTF-8, where É is represented by two bytes (\xc3\xa9).
+    geo_attr <- read_csv(
+      geo_attr_file,
+      show_col_types = FALSE,
+      locale = locale(encoding = "Latin1")
+    )
+    cat("Successfully downloaded and extracted geographic attribute file\n")
+  },
+  error = function(e) {
+    cat("Warning: Download/extraction failed:", conditionMessage(e), "\n")
+    geo_attr <<- NULL
+  }
+)
+geo_attr |> glimpse()
+colnames(geo_attr)
+# this table has name, type, id for db, da, population center, ct, cma, csd, er,ccs,sac,dpl,fed, cd, province,
+# The names are long, and we will simplify them.
+# Filter for indigenous CSD types
+# The column name may vary - try different possibilities
+# Use first column that contains type info
+csd_type_col <- names(geo_attr)[grepl(
+  "CSDTYPE",
+  names(geo_attr),
+  ignore.case = TRUE
+)][1]
+# CSDTYPE_SDRGENRE
+csd_id_col <- names(geo_attr)[grepl(
+  "CSDDGUID",
+  names(geo_attr),
+  ignore.case = TRUE
+)][1]
+# "CSDDGUID_SDRIDUGD"
+csd_name_col <- names(geo_attr)[grepl(
+  "CSDNAME",
+  names(geo_attr),
+  ignore.case = TRUE
+)][1]
+# "CSDNAME_SDRNOM"
+
+cat("Using column: ", csd_type_col, "\n")
+
+# Filter the geographic attribute data frame to identify Indigenous CSDs
+bc_csds <- geo_attr %>%
+  # Why: Only keep records for British Columbia (PRUID_PRIDU == 59)
+  # What: Restricts to BC rows in the StatsCan file
+  filter(PRUID_PRIDU == 59) %>%
+  # Why: Select only relevant columns for downstream processing
+  # What: Renames columns to standard names for consistency
+  # How: Uses dynamic column names for CSD UID, name, and type
+  select(
+    CSD_UID = csd_id_col,
+    CSD_NAME = csd_name_col,
+    CSDTYPE = csd_type_col
+  ) |>
+  distinct()
+# 751 csds in 2021 census
+
+# https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/definition-eng.cfm?ID=geo012
+# Census subdivisions (CSDs) are classified into 57 types according to official designations adopted by provincial, territorial or federal authorities.
+# https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/tab/index-eng.cfm?ID=t1_5
+# Key 2021 Census CSD Types and Abbreviations:
+
+bc_csds |> count(CSDTYPE)
+
+#     C: City
+#     T: Town
+#     VL: Village
+#     CV: City / Cité
+#     CY – City
+#     TV: Town / Ville
+#     DM – District municipality
+#     IGD: Indian government district
+#     IRI: Indian reserve / Réserve indienne
+#     IM: Island municipality
+#     LGD: Local government district
+#     RCR: Rural community / Communauté rurale
+#     RDA – Regional district electoral area
+#     RGM – Regional municipality
+#     NL :	Nisga'a land
+#     S-É: 	Indian settlement / Établissement indien
+#     TAL – Tla'amin Lands
+#     TWL – Tsawwassen Lands
+
+# Indigenous CSD types to suppress (as specified by user)
+# IRI = Indian reserve
+# IGD = Indian government district
+# NL  = Nisga'a land
+# S-É: 	Indian settlement / Établissement indien
+# TAL = Tla'amin Lands
+# TWL – Tsawwassen Lands
+indig_csd_types <- c('IRI', 'IGD', 'NL', 'S-É', 'TAL', 'TWL')
+
+bc_indig_csds <- bc_csds %>%
+  # Why: Only keep CSDs with types matching those to be suppressed (e.g., IRI, NL, IGD, TAL)
+  # What: Identifies Indigenous CSDs by type code
+  # How: Uses the dynamically detected column for CSD type
+  filter(CSDTYPE %in% indig_csd_types) %>%
+  arrange(CSD_UID)
+# 427 indigenous csds in 2021 census
+# our Geo Suppression IDs.xlsx only has 322 indigenous CSDs.
+
+cat("Found", nrow(indig_csds), "CSDs with indigenous types\n")
+cat("Sample:\n")
+print(head(indig_csds, 10))
+
+# Convert CSD_UID to short format: remove non-digit characters and leading '2021A0005'
+csd_to_remove <- indig_csds$CSD_UID %>%
+  gsub("^2021A0005", "5", .) %>%
   as.character()
 
-csd_to_remove <- geo_suppression %>%
-  filter(GEO_TYPE == "CSD") %>%
-  pull(GEO_CODE) %>%
-  as.character()
+# If no CSDs found from download, try database query as fallback
+if (length(csd_to_remove) == 0) {
+  cat("\nNo CSDs from download. Attempting database query as fallback...\n")
 
-cat("\nSummary:\n")
-cat("  CHSAs to remove:", length(chsa_to_remove), "\n")
-cat("  CSDs to remove:", length(csd_to_remove), "\n")
+  con <- dbConnect(
+    odbc::odbc(),
+    Driver = config$data_server$driver,
+    Server = config$data_server$server,
+    Database = config$data_server$database,
+    Trusted_Connection = "Yes"
+  )
+
+  # Programmatically generate the LIKE conditions from the vector
+  like_conditions <- paste0(
+    "GEO_NAME like '%(",
+    indig_csd_types,
+    ")%'",
+    collapse = " or "
+  )
+
+  indig_csds_query <- sprintf(
+    paste0(
+      "SELECT DISTINCT ALT_GEO_CODE, GEO_NAME, ",
+      "CASE WHEN %s THEN 'Y' ELSE 'N' END as Indigenous_community\n",
+      "FROM [Population_Labour_Social].[Prod].[FCT_CENSUS_2021_BC_CSD_UD]\n",
+      "WHERE %s"
+    ),
+    like_conditions,
+    like_conditions
+  )
+
+  cat("Generated SQL query:\n")
+  cat(indig_csds_query, "\n\n")
+
+  indig_csds <- dbGetQuery(con, indig_csds_query) %>%
+    rename(
+      CSD_UID = ALT_GEO_CODE,
+      CSD_NAME = GEO_NAME,
+      CSDTYPE = Indigenous_community
+    )
+
+  cat("Found", nrow(indig_csds), "CSDs from database fallback\n")
+  cat("Sample:\n")
+  print(head(indig_csds, 10))
+
+  csd_to_remove <- as.character(indig_csds$CSD_UID)
+
+  dbDisconnect(con)
+}
 
 #-------------------------------------------------------------------------------------------
-# 3. LOAD SEI DATA FILES
+# 3. IDENTIFY NISGA'S CHSAs USING CHSA NAME PATTERN
 #-------------------------------------------------------------------------------------------
+
+cat("\n========================================\n")
+cat("Identifying Nisga's CHSAs\n")
+cat("========================================\n\n")
+
+# Query CHSAs with "Nisga's" in the name - requires database connection
+nisgas_chsa_query <- "
+SELECT DISTINCT CHSA_UID, CHSA_NAME 
+FROM [Population_Labour_Social].[Prod].[FCT_CHSA_2021]
+WHERE CHSA_NAME LIKE '%Nisga%'
+"
+
+# Connect to database for CHSA query
+con <- dbConnect(
+  odbc::odbc(),
+  Driver = config$data_server$driver,
+  Server = config$data_server$server,
+  Database = config$data_server$database,
+  Trusted_Connection = "Yes"
+)
+
+nisgas_chsas <- dbGetQuery(con, nisgas_chsa_query)
+
+cat("Found", nrow(nisgas_chsas), "Nisga's CHSAs\n")
+cat("Sample:\n")
+print(nisgas_chsas)
+
+chsa_to_remove <- as.character(nisgas_chsas$CHSA_UID)
+
+# Close database connection
+dbDisconnect(con)
+
+#-------------------------------------------------------------------------------------------
+# 4. LOAD SEI DATA FILES
+#-------------------------------------------------------------------------------------------
+
+cat("\n========================================\n")
+cat("Loading SEI Data Files\n")
+cat("========================================\n\n")
 
 # Input files (2023 data catalogue products)
 sei_files <- list(
@@ -110,7 +323,7 @@ sei_files <- list(
 )
 
 #-------------------------------------------------------------------------------------------
-# 4. FUNCTION: REMOVE GEOGRAPHIES
+# 5. FUNCTION: REMOVE GEOGRAPHIES
 #-------------------------------------------------------------------------------------------
 
 remove_geographies <- function(
@@ -142,7 +355,7 @@ remove_geographies <- function(
 }
 
 #-------------------------------------------------------------------------------------------
-# 5. PROCESS CHSA FILES
+# 6. PROCESS CHSA FILES
 #-------------------------------------------------------------------------------------------
 
 cat("\n========================================\n")
@@ -204,7 +417,7 @@ if (length(chsa_to_remove) > 0) {
 }
 
 #-------------------------------------------------------------------------------------------
-# 6. PROCESS CSD FILES
+# 7. PROCESS CSD FILES
 #-------------------------------------------------------------------------------------------
 
 cat("\n========================================\n")
@@ -265,15 +478,17 @@ if (length(csd_to_remove) > 0) {
 }
 
 #-------------------------------------------------------------------------------------------
-# 7. SUMMARY
+# 8. SUMMARY
 #-------------------------------------------------------------------------------------------
 
 cat("\n========================================\n")
 cat("SUMMARY\n")
 cat("========================================\n")
-cat("Geographies removed:\n")
-cat("  CHSAs:", paste(chsa_to_remove, collapse = ", "), "\n")
-cat("  CSDs:", paste(csd_to_remove, collapse = ", "), "\n")
+cat("Indigenous CSDs suppressed (by CSDTYPE):\n")
+cat("  CSD types:", paste(indig_csd_types, collapse = ", "), "\n")
+cat("  Total CSDs removed:", length(csd_to_remove), "\n")
+cat("\nNisga's CHSAs suppressed:\n")
+cat("  Total CHSAs removed:", length(chsa_to_remove), "\n")
 cat("\nOutput files written to:\n", output_path, "\n")
 
 # List output files

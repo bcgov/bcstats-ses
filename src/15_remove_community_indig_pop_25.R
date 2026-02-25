@@ -98,7 +98,7 @@ indig_pop_total_CSD <- indig_pop_total_CSD %>%
 record_id <- "86839277-986a-4a29-9f70-fa9b1166f6cb"
 
 #####################################################################
-# Pull the record’s full metadata
+# Pull the record's full metadata
 rec <- bcdc_get_record(record_id)
 
 # Tidy list of resources (IDs, names, formats, download URLs)
@@ -279,7 +279,7 @@ SEI_LONG_CSD_Indig_pop_25 |>
   ))
 
 ##########################################################################################
-# 7 explore data, visualizations, verify removal of indig >.25
+# 7 explore data, visualizations, verify removal of indig >25
 #by CHSA
 chsa_Indig_pop_SEI_DET <- chsa_Indig_pop %>%
   left_join(
