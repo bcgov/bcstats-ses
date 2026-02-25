@@ -12,7 +12,7 @@
 
 #-------------------------------------------------------------------------------------------
 # Purpose: Remove indigenous geographies from SEI Data Catalogue files
-#           - CHSA: Nisga's regions (via CHSA_TYPE)
+#           - CHSA: Nisga's regions (via CHSA_NAME)
 #           - CSD: Indian reserves, Nisga'a lands, Indian government districts (via CSD_TYPE)
 # Input: Database queries using official StatsCan CSD type codes and CHSA type info
 # Output: 4 filtered CSV files for BC Data Catalogue (2023)
@@ -42,13 +42,22 @@ config <- config::get()
 # 1. SET PATHS
 #-------------------------------------------------------------------------------------------
 
-# Output path for 2023 data catalogue products
+# Output path for data catalogue products
+output_year <- 2023 # Set year parameter here
+
 output_path <- file.path(
   config$lan_path,
   "2024 SES Index",
   "bc data catalogue",
   "Data Catalogue final products",
-  "2023"
+  as.character(output_year)
+)
+output_path <- file.path(
+  config$lan_path,
+  "2024 SES Index",
+  "bc data catalogue",
+  "Data Catalogue final products",
+  as.character(output_year)
 )
 
 # Create output directory if it doesn't exist
@@ -375,7 +384,7 @@ if (length(chsa_to_remove) > 0) {
   # Write output
   output_file <- file.path(
     output_path,
-    "SEI_DET_CHSA_2023.csv"
+    paste0("SEI_DET_CHSA_", as.character(output_year), ".csv")
   )
   write_csv(sei_det_chsa_filtered, output_file)
   cat("  Output:", output_file, "\n")
@@ -405,7 +414,7 @@ if (length(chsa_to_remove) > 0) {
 
   output_file <- file.path(
     output_path,
-    "SEI_LONG_CHSA_2023.csv"
+    paste0("SEI_LONG_CHSA_", as.character(output_year), ".csv")
   )
   write_csv(sei_long_chsa_filtered, output_file)
   cat("  Output:", output_file, "\n")
@@ -440,7 +449,7 @@ if (length(csd_to_remove) > 0) {
 
   output_file <- file.path(
     output_path,
-    "SEI_DET_CSD_2023.csv"
+    paste0("SEI_DET_CSD_", as.character(output_year), ".csv")
   )
   write_csv(sei_det_csd_filtered, output_file)
   cat("  Output:", output_file, "\n")
@@ -470,7 +479,7 @@ if (length(csd_to_remove) > 0) {
 
   output_file <- file.path(
     output_path,
-    "SEI_LONG_CSD_2023.csv"
+    paste0("SEI_LONG_CSD_", as.character(output_year), ".csv")
   )
   write_csv(sei_long_csd_filtered, output_file)
   cat("  Output:", output_file, "\n")
@@ -488,7 +497,7 @@ cat("========================================\n")
 cat("Indigenous CSDs suppressed (by CSDTYPE):\n")
 cat("  CSD types:", paste(indig_csd_types, collapse = ", "), "\n")
 cat("  Total CSDs removed:", length(csd_to_remove), "\n")
-cat("\Indigenous CHSAs suppressed:\n")
+cat("\nIndigenous CHSAs suppressed:\n")
 cat("  Total CHSAs removed:", length(chsa_to_remove), "\n")
 cat("\nOutput files written to:\n", output_path, "\n")
 
