@@ -144,14 +144,27 @@ path_phh21_points_csv <- file.path(
   "PHH_2021_CSV\\PHH_2021_CSV\\PHH-BC.csv"
 )
 
-# TMF - Translation file linking DB → DA → CSD
+
+# file linking DB → DA → CSD
+# the metadata says 2016, but the data itself says its from census 2021, so use as crosswalk basis
 bcdata::bcdc_search("Dissemination Block")
 bcdata::bcdc_tidy_resources("76909e49-8ba8-44b1-b69e-dba1fe9ecfba")
-tmf_csv <- file.path(
-  lan_path,
-  config$file_path$tmf_file_path,
-  config$file_name$tmf_file_name
-)
+db_shapefiles <- bcdata::bcdc_query_geodata(
+  '76909e49-8ba8-44b1-b69e-dba1fe9ecfba'
+) |>
+  collect()
+
+db_da_csd_ids <- db_shapefiles |>
+  janitor::clean_names() |>
+  select(
+    db_code = dissemination_block_id,
+    da_code = dissemination_area_id,
+    csd_code = census_subdivision_id,
+    land_area = feature_area_sqm
+  ) |>
+  st_drop_geometry() |>
+  distinct(db_code, da_code, csd_code, land_area)
+#  file linking DB → DA → CSD
 
 # Province filter: BC = 59 (PRUID = "2021A000259")
 pruid_filter <- "2021A000259"
@@ -170,7 +183,7 @@ dir.create(output_path, showWarnings = FALSE)
 
 out_da_csv <- file.path(output_path, "da_phh_current_coverage_bc.csv")
 out_csd_csv <- file.path(output_path, "csd_phh_current_coverage_bc.csv")
-# out_gpkg <- "outputs/phh_current_bc.gpkg"  # Uncomment if adding spatial layers
+
 
 # ==============================================================================
 # SECTION 5: LOAD AND PREPARE PHH SPEEDS DATA
@@ -293,9 +306,9 @@ phh21 |> glimpse()
 # ==============================================================================
 # SECTION 7: LOAD TMF AND EXTRACT GEOGRAPHIC CODES
 # ==============================================================================
+# https://catalogue.data.gov.bc.ca/dataset/current-census-dissemination-blocks
 #
-# WHAT IS TMF?
-# - Translation/Matching File from Statistics Canada
+# - Current Census Dissemination Blocks
 # - Maps between different census geography levels
 # - Allows us to go from DB (Dissemination Block) → DA → CSD
 #
@@ -315,31 +328,9 @@ phh21 |> glimpse()
 #   B = Blended
 #   Z = Other
 #
-# WHAT WE DO HERE:
-# 1. Load TMF with all columns as character (preserve leading zeros)
-# 2. Extract short codes from DGUIDs (everything after position 10)
-# 3. These short codes are what we'll join to DBUID
 
-# Load TMF - all columns as character to preserve leading zeros in codes
-tmf <- read_csv(
-  tmf_csv,
-  col_types = cols(.default = "c") # All columns as character
-)
+db_da_csd_ids |> glimpse()
 
-# TMF column names (from BC Data Catalogue)
-col_db <- "DSSMNTNBLC" # Dissemination Block code
-col_da <- "DSSMNTNRD" # Dissemination Area code
-col_csd <- "CNSSCNSLDT" # Census Subdivision code
-
-# Extract just the geographic codes we need (skip the full DGUIDs)
-tmf_min <- tmf %>%
-  select(
-    db_code = rlang::sym(col_db), # DB code (short form from DGUID)
-    da_code = rlang::sym(col_da), # DA code
-    csd_code = rlang::sym(col_csd) # CSD code
-  )
-
-tmf_min |> glimpse()
 
 # ==============================================================================
 # SECTION 8: LINK PHH TO GEOGRAPHIC CODES
@@ -369,7 +360,7 @@ phh_keys <- phh21 %>%
 
 # Join PHH to TMF - this brings in DA and CSD codes
 phh_joined <- phh_keys %>%
-  left_join(tmf_min, by = "db_code")
+  left_join(db_da_csd_ids, by = "db_code")
 
 # Sanity check: How many PHHs didn't match to a geographic area?
 sum(is.na(phh_joined$da_code)) # PHHs with no DA mapping

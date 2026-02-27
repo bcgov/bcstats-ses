@@ -38,7 +38,7 @@
 #   (per DB, speeds as      │
 #    strings like "50_10")  │
 #                            ├─> [Reconcile] ─> [Output CSVs with deltas]
-#   [PHH Baseline] ─────────┤
+#   [NBD Baseline] ─────────┤
 #   (from script 14,        │
 #    aggregated by CSD/DA) │
 #
@@ -46,7 +46,7 @@
 #   - CITZ: BC Ministry of Citizens' Services (provincial broadband program)
 #           Manages BC's connectivity initiatives and collects its own coverage data
 #           Data may be more current but focused on program-eligible areas
-#   - PHH: Pseudo-Household (federal ISED/NBD methodology)
+#   - NBD: National Broadband Data Pseudo-Household (federal ISED/NBD methodology)
 #           ISED's standard methodology, more comprehensive geographic coverage
 #           May be less current than provincial data
 #   - Speed tiers: Download/Upload in Mbps (50_10 = 50 down, 10 up)
@@ -435,29 +435,8 @@ print_reconciliation_summary <- function(
   print(stats)
 }
 
-# ============================================================================
-# PART 1: CSD-level reconciliation
-#
-# =============================================================================
-# SECTION 4: CSD-LEVEL RECONCILIATION
-# =============================================================================
-# CSD (Census Subdivision) = municipality level
-# Compare CITZ vs PHH broadband shares at the community/municipal level
-# This is the primary output for policy analysis
-# ============================================================================
-log_info("==== PART 1: CSD-level reconciliation ====")
 
-# ---- 1.1) Load inputs ----
-# PHH baseline: aggregated by script 14 from federal NBD pseudo-household data
-log_info(
-  "Loading PHH CSD baseline from: {file.path(output_path, 'csd_phh_current_coverage_bc.csv')}"
-)
-phh_csd <- read_csv(
-  file.path(output_path, "csd_phh_current_coverage_bc.csv"),
-  show_col_types = FALSE
-)
-log_info("PHH CSD baseline loaded: {nrow(phh_csd)} rows, {ncol(phh_csd)} cols")
-
+# ============================================================================
 # CITZ micro-data: one row per dissemination block with max speed thresholds
 citz_path <- file.path(
   lan_path,
@@ -489,6 +468,31 @@ wireless_flags <- flag_all_tiers(wireless_parsed, "wireless")
 
 # Attach the boolean flags back to the cleaned CITZ data
 citz_clean <- bind_cols(citz_clean, wired_flags, wireless_flags)
+
+
+# ============================================================================
+# PART 1: CSD-level reconciliation
+#
+# =============================================================================
+# SECTION 4: CSD-LEVEL RECONCILIATION
+# =============================================================================
+# CSD (Census Subdivision) = municipality level
+# Compare CITZ vs PHH broadband shares at the community/municipal level
+# This is the primary output for policy analysis
+# ============================================================================
+log_info("==== PART 1: CSD-level reconciliation ====")
+
+# ---- 1.1) Load inputs ----
+# PHH baseline: aggregated by script 14 from federal NBD pseudo-household data
+log_info(
+  "Loading PHH CSD baseline from: {file.path(output_path, 'csd_phh_current_coverage_bc.csv')}"
+)
+phh_csd <- read_csv(
+  file.path(output_path, "csd_phh_current_coverage_bc.csv"),
+  show_col_types = FALSE
+)
+log_info("PHH CSD baseline loaded: {nrow(phh_csd)} rows, {ncol(phh_csd)} cols")
+
 
 # ---- 1.3) Aggregate CITZ to CSD (all tiers) ----
 # Dwelling-weighted shares: what proportion of dwellings in each CSD
