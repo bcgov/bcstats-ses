@@ -450,7 +450,7 @@ if (length(csd_to_remove) > 0) {
   )
   # remove masked rows
   sei_det_csd_filtered <- sei_det_csd_filtered |>
-    filter(TOTAL_INDEX_0_100 == "masked")
+    filter(!TOTAL_INDEX_0_100 == "masked")
 
   output_file <- file.path(
     output_path,
@@ -484,7 +484,7 @@ if (length(csd_to_remove) > 0) {
 
   # remove masked rows
   sei_long_csd_filtered <- sei_long_csd_filtered |>
-    filter(TOTAL_INDEX_0_100 == "masked")
+    filter(!TOTAL_INDEX_0_100 == "masked")
 
   output_file <- file.path(
     output_path,
