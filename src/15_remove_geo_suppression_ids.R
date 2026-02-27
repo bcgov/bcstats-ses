@@ -14,6 +14,8 @@
 # Purpose: Remove indigenous geographies from SEI Data Catalogue files
 #           - CHSA: Nisga's regions (via CHSA_NAME)
 #           - CSD: Indian reserves, Nisga'a lands, Indian government districts (via CSD_TYPE)
+#          second purpose is to the masked entries in the CSD level files
+#
 # Input: Database queries using official StatsCan CSD type codes and CHSA type info
 # Output: 4 filtered CSV files for BC Data Catalogue (2023)
 #
@@ -446,6 +448,9 @@ if (length(csd_to_remove) > 0) {
     geo_codes_to_remove = csd_to_remove,
     geo_type = "CSD"
   )
+  # remove masked rows
+  sei_det_csd_filtered <- sei_det_csd_filtered |>
+    filter(TOTAL_INDEX_0_100 == "masked")
 
   output_file <- file.path(
     output_path,
@@ -476,6 +481,10 @@ if (length(csd_to_remove) > 0) {
     nrow(sei_long_csd) - nrow(sei_long_csd_filtered),
     "records\n"
   )
+
+  # remove masked rows
+  sei_long_csd_filtered <- sei_long_csd_filtered |>
+    filter(TOTAL_INDEX_0_100 == "masked")
 
   output_file <- file.path(
     output_path,
