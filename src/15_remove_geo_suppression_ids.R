@@ -81,41 +81,44 @@ cat("========================================\n\n")
 # Reference: https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/definition-eng.cfm?ID=geo044
 cat("Downloading StatsCan Geographic Attribute File for BC CSDs...\n")
 
+geo_attr <- cancensus::get_statcan_geographic_attributes('2021')
+# the file is downloaded, but is not able to be unzipped.
+
 # the geographic attribute file
-geo_attr_url <- 'https://www12.statcan.gc.ca/census-recensement/2021/geo/aip-pia/attribute-attribs/files-fichiers/2021_92-151_X.zip'
-zip_path <- tempfile(fileext = ".zip")
+# geo_attr_url <- 'https://www12.statcan.gc.ca/census-recensement/2021/geo/aip-pia/attribute-attribs/files-fichiers/2021_92-151_X.zip'
+# zip_path <- tempfile(fileext = ".zip")
 
-# Download with timeout
-tryCatch(
-  {
-    download.file(geo_attr_url, zip_path, mode = "wb", quiet = TRUE)
+# # Download with timeout
+# tryCatch(
+#   {
+#     download.file(geo_attr_url, zip_path, mode = "wb", quiet = TRUE)
 
-    # Create temp directory for unzip (this is the fix)
-    unzip_dir <- file.path(tempdir(), "geo_attr")
-    if (!dir.exists(unzip_dir)) {
-      dir.create(unzip_dir, recursive = TRUE)
-    }
+#     # Create temp directory for unzip (this is the fix)
+#     unzip_dir <- file.path(tempdir(), "geo_attr")
+#     if (!dir.exists(unzip_dir)) {
+#       dir.create(unzip_dir, recursive = TRUE)
+#     }
 
-    # Unzip to temp directory
-    unzip(zip_path, exdir = unzip_dir)
+#     # Unzip to temp directory
+#     unzip(zip_path, exdir = unzip_dir)
 
-    # Find the CSV file (usually only one)
-    csv_files <- list.files(unzip_dir, pattern = "\\.csv$", full.names = TRUE)
-    geo_attr_file <- csv_files[1]
-    # The Byte: \xc9 is the hexadecimal value for É in the Latin-1 character set.
-    # The Mismatch: R (especially on modern systems) often expects UTF-8, where É is represented by two bytes (\xc3\xa9).
-    geo_attr <- read_csv(
-      geo_attr_file,
-      show_col_types = FALSE,
-      locale = locale(encoding = "Latin1")
-    )
-    cat("Successfully downloaded and extracted geographic attribute file\n")
-  },
-  error = function(e) {
-    cat("Warning: Download/extraction failed:", conditionMessage(e), "\n")
-    geo_attr <<- NULL
-  }
-)
+#     # Find the CSV file (usually only one)
+#     csv_files <- list.files(unzip_dir, pattern = "\\.csv$", full.names = TRUE)
+#     geo_attr_file <- csv_files[1]
+#     # The Byte: \xc9 is the hexadecimal value for É in the Latin-1 character set.
+#     # The Mismatch: R (especially on modern systems) often expects UTF-8, where É is represented by two bytes (\xc3\xa9).
+#     geo_attr <- read_csv(
+#       geo_attr_file,
+#       show_col_types = FALSE,
+#       locale = locale(encoding = "Latin1")
+#     )
+#     cat("Successfully downloaded and extracted geographic attribute file\n")
+#   },
+#   error = function(e) {
+#     cat("Warning: Download/extraction failed:", conditionMessage(e), "\n")
+#     geo_attr <<- NULL
+#   }
+# )
 geo_attr |> glimpse()
 colnames(geo_attr)
 # this table has name, type, id for db, da, population center, ct, cma, csd, er,ccs,sac,dpl,fed, cd, province,
