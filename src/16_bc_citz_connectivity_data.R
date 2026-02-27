@@ -12,7 +12,7 @@
 
 # =============================================================================
 # SCRIPT: 16_bc_citz_connectivity_data.R
-# PURPOSE: Reconcile provincial CITZ broadband data with federal PHH baseline
+# PURPOSE: Reconcile provincial CITZ broadband data with federal NBD baseline
 # =============================================================================
 #
 # WHAT THIS SCRIPT DOES:
@@ -20,12 +20,12 @@
 #   2. Parses speed threshold strings into numeric values
 #   3. Creates boolean flags for each speed tier (50/10, 25/5, 10/2, 5/1, <5/1)
 #   4. Aggregates dwelling-weighted shares at CSD and DA levels
-#   5. Loads PHH baseline from script 14
-#   6. Reconciles CITZ vs PHH shares, computing deltas and flagging outliers
+#   5. Loads NBD baseline from script 14
+#   6. Reconciles CITZ vs NBD shares, computing deltas and flagging outliers
 #   7. Generates data dictionaries for all outputs
 #
 # WHY THIS MATTERS:
-#   - Federal (PHH) and provincial (CITZ) data measure coverage independently
+#   - Federal (NBD) and provincial (CITZ) data measure coverage independently
 #   - Comparing them reveals discrepancies that may indicate:
 #     * Data quality issues in one or both sources
 #     * Methodological differences (timing, definitions, coverage)
@@ -52,7 +52,7 @@
 #   - Speed tiers: Download/Upload in Mbps (50_10 = 50 down, 10 up)
 #   - Wired: Fiber, cable, DSL
 #   - Wireless: Fixed wireless, satellite
-#   - Delta: CITZ share - PHH share (positive = CITZ reports higher coverage)
+#   - Delta: CITZ share - NBD share (positive = CITZ reports higher coverage)
 #   - Outlier: |delta| >= 20% → flagged for investigation
 #
 # GEOGRAPHIC HIERARCHY:
@@ -120,7 +120,7 @@ log_info("Output path: {output_path}")
 # This design pattern makes the script easily extensible without modifying
 # the core logic functions.
 
-# If the absolute delta between CITZ and PHH shares exceeds this threshold,
+# If the absolute delta between CITZ and NBD shares exceeds this threshold,
 # the geographic unit is flagged as an outlier for investigation.
 OUTLIER_THRESHOLD <- 0.20
 
@@ -278,11 +278,11 @@ aggregate_all_shares <- function(df, group_col) {
 
 #' Compute PHH-weighted share for a single proportion column.
 #'
-#' The PHH baseline from script 14 has prop_{type}_{tier} columns (e.g.
+#' The NBD baseline from script 14 has prop_{type}_{tier} columns (e.g.
 #' prop_wired_50_10) and an n_phh count. If n_phh exists, we compute a
 #' PHH-weighted mean across slices within each group; otherwise, simple mean.
 #'
-#' @param df PHH baseline data frame.
+#' @param df NBD baseline data frame.
 #' @param group_col Unquoted column name to group by.
 #' @param prop_col Character name of the proportion column (e.g. "prop_wired_50_10").
 #' @return Tibble with group column and {prop_col}_phh.
@@ -320,7 +320,7 @@ compute_phh_share <- function(df, group_col, prop_col) {
 #' Iterates over every combination of CONNECTION_TYPES x SPEED_TIERS and
 #' calls compute_phh_share for each, then joins them into a single table.
 #'
-#' @param df PHH baseline data frame.
+#' @param df NBD baseline data frame.
 #' @param group_col Unquoted column name to group by.
 #' @return Tibble with group column and prop_{type}_{tier}_phh columns.
 compute_all_phh_shares <- function(df, group_col) {
@@ -347,10 +347,10 @@ compute_all_phh_shares <- function(df, group_col) {
   result
 }
 
-#' Reconcile CITZ vs PHH shares for all tiers and flag outliers.
+#' Reconcile CITZ vs NBD shares for all tiers and flag outliers.
 #'
 #' For each tier, computes:
-#'   delta = CITZ share - PHH share
+#'   delta = CITZ share - NBD share
 #' Then flags outliers where |delta| >= OUTLIER_THRESHOLD. This helps identify
 #' geographic units where the provincial and federal data disagree significantly.
 #'
@@ -437,7 +437,7 @@ print_reconciliation_summary <- function(
 
 
 # ============================================================================
-# CITZ micro-data: one row per dissemination block with max speed thresholds
+# CITZ micro-data: one row per phh within dissemination block with max speed thresholds
 citz_path <- file.path(
   lan_path,
   "2024 SES Index/data/raw_data/internet_connectivity/CITZ",
@@ -485,13 +485,13 @@ log_info("==== PART 1: CSD-level reconciliation ====")
 # ---- 1.1) Load inputs ----
 # PHH baseline: aggregated by script 14 from federal NBD pseudo-household data
 log_info(
-  "Loading PHH CSD baseline from: {file.path(output_path, 'csd_phh_current_coverage_bc.csv')}"
+  "Loading NBD CSD baseline from: {file.path(output_path, 'csd_nbd_current_coverage_bc.csv')}"
 )
-phh_csd <- read_csv(
-  file.path(output_path, "csd_phh_current_coverage_bc.csv"),
+nbd_csd <- read_csv(
+  file.path(output_path, "csd_nbd_current_coverage_bc.csv"),
   show_col_types = FALSE
 )
-log_info("PHH CSD baseline loaded: {nrow(phh_csd)} rows, {ncol(phh_csd)} cols")
+log_info("NBD CSD baseline loaded: {nrow(nbd_csd)} rows, {ncol(nbd_csd)} cols")
 
 
 # ---- 1.3) Aggregate CITZ to CSD (all tiers) ----
@@ -505,14 +505,14 @@ citz_csd <- aggregate_all_shares(citz_clean, CENSUS_SUBDIVISION_ID) %>%
 # ---- 1.4) Prepare PHH/CSD baseline (all tiers) ----
 # Compute PHH-weighted means for each tier from the federal baseline
 log_info("Computing PHH shares at CSD level")
-phh_csd1 <- phh_csd %>%
+nbd_csd1 <- nbd_csd %>%
   mutate(csd_code = as.integer(csd_code)) %>%
   compute_all_phh_shares(csd_code)
 
 # ---- 1.5) Reconcile and flag outliers ----
 # Join CITZ and PHH shares, compute deltas, flag large discrepancies
 log_info("Reconciling CSD-level shares")
-recon_csd <- reconcile_all_shares(citz_csd, phh_csd1, "csd_code")
+recon_csd <- reconcile_all_shares(citz_csd, nbd_csd1, "csd_code")
 
 # Add human-readable CSD names from the CITZ file for easier review
 csd_lookup <- citz %>%
@@ -646,16 +646,16 @@ log_info("DA CITZ output saved: {da_citz_csv} ({nrow(da_citz)} rows)")
 
 # ---- 2.7) Reconcile with PHH DA baseline (if available) ----
 # The PHH DA baseline may not exist if script 14 was not run at DA level.
-phh_da_path <- file.path(output_path, "da_phh_current_coverage_bc.csv")
+nbd_da_path <- file.path(output_path, "da_nbd_current_coverage_bc.csv")
 
-if (file.exists(phh_da_path)) {
-  log_info("Loading PHH DA baseline from: {phh_da_path}")
-  phh_da <- read_csv(phh_da_path, show_col_types = FALSE)
-  log_info("PHH DA baseline loaded: {nrow(phh_da)} rows")
+if (file.exists(nbd_da_path)) {
+  log_info("Loading NBD DA baseline from: {nbd_da_path}")
+  nbd_da <- read_csv(nbd_da_path, show_col_types = FALSE)
+  log_info("NBD DA baseline loaded: {nrow(nbd_da)} rows")
 
-  # The PHH DA file may use "da_code" or "DAUID" as the key column name;
+  # The NBD DA file may use "da_code" or "DAUID" as the key column name;
   # harmonize to DAUID for a clean join.
-  phh_da1 <- phh_da %>%
+  nbd_da1 <- nbd_da %>%
     mutate(
       DAUID = if ("da_code" %in% names(.)) {
         as.character(da_code)
@@ -666,7 +666,7 @@ if (file.exists(phh_da_path)) {
     compute_all_phh_shares(DAUID)
 
   log_info("Reconciling DA-level shares")
-  da_recon <- reconcile_all_shares(da_citz, phh_da1, "DAUID")
+  da_recon <- reconcile_all_shares(da_citz, nbd_da1, "DAUID")
 
   da_recon_path <- file.path(output_path, "da_connectivity_reconciled.csv")
   write_csv(da_recon, da_recon_path)
@@ -676,7 +676,7 @@ if (file.exists(phh_da_path)) {
   print_reconciliation_summary(da_recon, "DA")
 } else {
   log_warn(
-    "PHH DA baseline not found at {phh_da_path}; skipping DA reconciliation"
+    "NBD DA baseline not found at {nbd_da_path}; skipping DA reconciliation"
   )
 }
 

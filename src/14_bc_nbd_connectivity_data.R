@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and limitations under the License.
 
 # ==============================================================================
-# SCRIPT: 14_bc_phh_connectivity_data.R
+# SCRIPT: 14_bc_nbd_connectivity_data.R
 # PURPOSE: Load NBD-PHH-Speeds for British Columbia and aggregate to census
 #          geography levels (DA and CSD) with PHH-weighted connectivity metrics.
 #
@@ -138,7 +138,7 @@ path_phh_current_csv <- file.path(
 
 # PHH21 Demographics - for DBUID mapping and optional weighting
 # DBUID = Dissemination Block Unique Identifier (smallest census unit)
-path_phh21_points_csv <- file.path(
+path_nbd21_points_csv <- file.path(
   lan_path,
   connectivity_data_path,
   "PHH_2021_CSV\\PHH_2021_CSV\\PHH-BC.csv"
@@ -181,8 +181,8 @@ output_path <- file.path(
 )
 dir.create(output_path, showWarnings = FALSE)
 
-out_da_csv <- file.path(output_path, "da_phh_current_coverage_bc.csv")
-out_csd_csv <- file.path(output_path, "csd_phh_current_coverage_bc.csv")
+out_da_csv <- file.path(output_path, "da_nbd_current_coverage_bc.csv")
+out_csd_csv <- file.path(output_path, "csd_nbd_current_coverage_bc.csv")
 
 
 # ==============================================================================
@@ -238,11 +238,11 @@ enum_cols <- c(
 )
 
 # Load PHH speeds CSV
-phh_spd <- read_csv(path_phh_current_csv, show_col_types = FALSE)
+nbd_spd <- read_csv(path_phh_current_csv, show_col_types = FALSE)
 
 # Validate: Check all required columns exist
 req_spd <- c("PHH_ID", bool_cols, enum_cols)
-missing_spd <- setdiff(req_spd, names(phh_spd))
+missing_spd <- setdiff(req_spd, names(nbd_spd))
 if (length(missing_spd) > 0) {
   stop(
     "Missing fields in PHH Current CSV: ",
@@ -252,8 +252,8 @@ if (length(missing_spd) > 0) {
 
 # Convert Yes/No text to numeric 0/1 for calculations
 # Why numeric? Easier to compute proportions (mean of 0s and 1s = proportion)
-phh_spd[bool_cols] <- lapply(
-  phh_spd[bool_cols],
+nbd_spd[bool_cols] <- lapply(
+  nbd_spd[bool_cols],
   function(x) as.numeric(as.character(x))
 )
 
@@ -262,8 +262,8 @@ phh_spd[bool_cols] <- lapply(
 # <5_1 = below 5/1 (underserved)
 # 5_1, 10_2, 25_5, 50_10 = progressively better service
 enum_levels <- c("", "<5_1", "5_1", "10_2", "25_5", "50_10")
-phh_spd[enum_cols] <- lapply(
-  phh_spd[enum_cols],
+nbd_spd[enum_cols] <- lapply(
+  nbd_spd[enum_cols],
   function(x) forcats::fct(x, levels = enum_levels)
 )
 
@@ -288,8 +288,8 @@ phh_spd[enum_cols] <- lapply(
 # - Pop2021, TDwell2021_TLog2021, URDwell2021_RH2021: Weight candidates
 
 # Load PHH21 points - only needed columns to save memory
-phh21 <- read_csv(
-  path_phh21_points_csv,
+nbd21 <- read_csv(
+  path_nbd21_points_csv,
   show_col_types = FALSE,
   col_types = cols(
     PHH_ID = col_double(), # Links to speed data
@@ -302,7 +302,7 @@ phh21 <- read_csv(
   )
 )
 # Note: Weight columns contain zeros, so weighting is not practical
-phh21 |> glimpse()
+nbd21 |> glimpse()
 # ==============================================================================
 # SECTION 7: LOAD TMF AND EXTRACT GEOGRAPHIC CODES
 # ==============================================================================
@@ -352,7 +352,7 @@ db_da_csd_ids |> glimpse()
 
 # Convert PHH21 DBUID to zero-padded character (DB codes are 11 digits)
 # Example: 10010165001 (numeric) → "10010165001" (character with leading zeros preserved)
-phh_keys <- phh21 %>%
+phh_keys <- nbd21 %>%
   transmute(
     PHH_ID,
     db_code = str_pad(as.character(DBUID_Ididu), width = 11, pad = "0")
@@ -381,7 +381,7 @@ phh_joined |> glimpse()
 
 # Join speeds to PHH with geographic codes
 # Inner join ensures we only keep PHHs that have geographic mapping
-phh_speeds_with_geo <- phh_spd %>% # PHH speeds table (Current)
+phh_speeds_with_geo <- nbd_spd %>% # PHH speeds table (Current)
   inner_join(phh_joined, by = "PHH_ID") # brings in da_code, csd_code
 
 phh_speeds_with_geo |> glimpse()
@@ -621,8 +621,8 @@ csd_cov |> glimpse()
 # OUTPUT FILES:
 # 1. da_phh_current_coverage_bc.csv - DA-level connectivity metrics
 # 2. csd_phh_current_coverage_bc.csv - CSD-level connectivity metrics
-# 3. da_phh_spd_dict_dict.csv - Data dictionary for DA metrics
-# 4. csd_phh_spd_dict_dict.csv - Data dictionary for CSD metrics
+# 3. da_nbd_spd_dict_dict.csv - Data dictionary for DA metrics
+# 4. csd_nbd_spd_dict_dict.csv - Data dictionary for CSD metrics
 #
 # WHY DATA DICTIONARIES?
 # - Column names like "prop_combined_50_10" aren't self-explanatory
@@ -658,7 +658,7 @@ message("CSD CSV: ", out_csd_csv)
 # - prop_combined_enum_X_Y: Distribution of max threshold category
 # - served_50_10_phh: Binary flag (1 if ≥75% at 50/10)
 
-da_phh_spd_dict_labels <- c(
+da_nbd_spd_dict_labels <- c(
   # Keys & counts
   "da_code" = "Dissemination Area (DA) code (short UID extracted from DA DGUID: PR(2)+CD(2)+DA(4))",
   "n_phh" = "Number of pseudo-households (PHHs) matched to this DA",
@@ -698,16 +698,16 @@ da_phh_spd_dict_labels <- c(
 )
 
 # Create and export DA data dictionary
-da_phh_spd_dict_dict = create_dictionary(
+da_nbd_spd_dict_dict = create_dictionary(
   da_cov,
-  var_labels = da_phh_spd_dict_labels
+  var_labels = da_nbd_spd_dict_labels
 )
 
 # Note: Using write.csv (comma delimiter) instead of write.csv2 (semicolon)
 # because dictionary labels contain commas
 write.csv(
-  da_phh_spd_dict_dict,
-  here::here(output_path, "da_phh_spd_dict_dict.csv")
+  da_nbd_spd_dict_dict,
+  here::here(output_path, "da_nbd_spd_dict_dict.csv")
 )
 
 # ==============================================================================
@@ -716,7 +716,7 @@ write.csv(
 # Same structure as DA dictionary but for Census Subdivision level
 # CSD = municipality / community level (more useful for policy)
 
-csd_phh_spd_dict_labels <- c(
+csd_nbd_spd_dict_labels <- c(
   # Keys & counts
   "csd_code" = "Census Subdivision (CSD) code (short UID extracted from CSD DGUID: PR(2)+CD(2)+CSD(3))",
   "n_phh" = "Number of pseudo-households (PHHs) matched to this CSD",
@@ -756,16 +756,16 @@ csd_phh_spd_dict_labels <- c(
 )
 
 # Create and export CSD data dictionary
-csd_phh_spd_dict_dict = create_dictionary(
+csd_nbd_spd_dict_dict = create_dictionary(
   csd_cov,
-  var_labels = csd_phh_spd_dict_labels
+  var_labels = csd_nbd_spd_dict_labels
 )
 
 # Note: Using write.csv (comma delimiter) instead of write.csv2 (semicolon)
 # because dictionary labels contain commas
 write.csv(
-  csd_phh_spd_dict_dict,
-  here::here(output_path, "csd_phh_spd_dict_dict.csv")
+  csd_nbd_spd_dict_dict,
+  here::here(output_path, "csd_nbd_spd_dict_dict.csv")
 )
 
 # ----------------------------------------------------

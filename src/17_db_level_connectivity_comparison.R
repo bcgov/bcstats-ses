@@ -14,11 +14,11 @@
 # SCRIPT: 17_db_level_connectivity_comparison.R
 #
 # PURPOSE:
-#   Compare PHH (federal) and CITZ (provincial) broadband data at the
+#   Compare NBD (federal) and CITZ (provincial) broadband data at the
 #   PHH_ID level for direct 1:1 comparison, then aggregate to DB/DA/CSD.
 #
 # DATA STRUCTURE:
-#   - Both PHH and CITZ have PHH_ID column
+#   - Both NBD and CITZ have PHH_ID column
 #   - PHH_ID is a unique identifier representing the same location in both datasets
 #   - Direct join by PHH_ID = 1:1 (no aggregation needed!)
 #
@@ -30,17 +30,17 @@
 #   - PowerBI gets clean data, no complex calculations needed
 #
 # WHAT THIS SCRIPT DOES:
-#   1. Loads PHH data (keeps at PHH_ID level)
+#   1. Loads NBD data (keeps at PHH_ID level)
 #   2. Loads CITZ data (keeps at PHH_ID level)
-#   3. Joins PHH and CITZ by PHH_ID (direct 1:1 join)
+#   3. Joins NBD and CITZ by PHH_ID (direct 1:1 join)
 #   4. Computes deltas and flags outliers at PHH_ID level
 #   5. Aggregates to DB, DA, and CSD levels
 #   6. Exports clean datasets for PowerBI
 #
 # OUTPUTS:
-#   - phh_clean.csv       : PHH data at PHH_ID level
+#   - nbd_clean.csv       : NBD data at PHH_ID level
 #   - citz_clean.csv      : CITZ data at PHH_ID level
-#   - phh_comparison.csv  : Direct PHH_ID to PHH_ID comparison
+#   - nbd_comparison.csv  : Direct PHH_ID to PHH_ID comparison
 #   - db_comparison.csv  : DB-level summary (Dissemination Block)
 #   - da_comparison.csv  : DA-level summary (Dissemination Area)
 #   - csd_comparison.csv : CSD-level summary (Census Subdivision)
@@ -51,7 +51,7 @@
 #   PHH_ID → DB (Dissemination Block) → DA (Dissemination Area) → CSD (Census Subdivision)
 #
 # REFERENCES:
-#   - Script 14: bc_phh_connectivity_data.R (original PHH processing)
+#   - Script 14: bc_NBD_connectivity_data.R (original NBD processing)
 #   - Script 16: bc_citz_connectivity_data.R (original CITZ processing)
 # =============================================================================
 
@@ -169,7 +169,7 @@ flag_all_tiers <- function(parsed, prefix) {
 
 # ---- Helper: Compute combined max threshold from wired and wireless ----
 #' Compute combined max threshold = the higher of wired or wireless
-#' This mimics PHH's "combined" approach (wired OR wireless)
+#' This mimics NBD's "combined" approach (wired OR wireless)
 #' @param wired_max Character: wired max threshold (e.g., "50_10", "25_5", "<5_1")
 #' @param wireless_max Character: wireless max threshold
 #' @return Character: the higher of the two (NA if both are NA)
@@ -229,7 +229,7 @@ threshold_to_numeric <- function(threshold) {
 
 # ---- Helper: Compute PHH-weighted share at DB level ----
 #' For a single PHH DB record, convert boolean flags to proportions
-#' Since PHH is already at DB level, each DB has 1 PHH = 100%
+#' Since NBD is already at DB level, each DB has 1 PHH = 100%
 compute_phh_props_at_db <- function(phh_row) {
   # PHH data already has 1 row per DB with boolean/numeric availability
   # Just rename columns to match CITZ naming convention
@@ -316,11 +316,11 @@ aggregate_comparison <- function(df, group_col, weight_col = "dwell_total") {
 }
 
 # =============================================================================
-# SECTION 4: LOAD AND PROCESS PHH DATA AT PHH_ID LEVEL
+# SECTION 4: LOAD AND PROCESS NBD DATA AT PHH_ID LEVEL
 # =============================================================================
-log_info("==== PART 1: Load PHH data at PHH_ID level ====")
+log_info("==== PART 1: Load NBD data at PHH_ID level ====")
 
-# Load PHH Speeds (Current) - raw PHH-level data
+# Load NBD Speeds (Current) - raw PHH-level data
 path_phh_current_csv <- file.path(
   lan_path,
   connectivity_data_path,
@@ -328,8 +328,8 @@ path_phh_current_csv <- file.path(
   "PHH_Speeds_Current-PHH_Vitesses_Actuelles_BC.csv"
 )
 
-# Load PHH21 points for DBUID mapping
-path_phh21_points_csv <- file.path(
+# Load NBD21 points for DBUID mapping
+path_nbd21_points_csv <- file.path(
   lan_path,
   connectivity_data_path,
   "PHH_2021_CSV\\PHH_2021_CSV\\PHH-BC.csv"
@@ -342,9 +342,9 @@ tmf_csv <- file.path(
   config$file_name$tmf_file_name
 )
 
-# ---- 4.1) Load PHH Speeds ----
-log_info("Loading PHH speeds: {path_phh_current_csv}")
-phh_spd <- read_csv(path_phh_current_csv, show_col_types = FALSE)
+# ---- 4.1) Load NBD Speeds ----
+log_info("Loading NBD speeds: {path_phh_current_csv}")
+nbd_spd <- read_csv(path_phh_current_csv, show_col_types = FALSE)
 
 # Define columns we need
 bool_cols <- c(
@@ -373,23 +373,23 @@ enum_cols <- c(
 
 # Validate columns
 req_spd <- c("PHH_ID", bool_cols, enum_cols)
-missing_spd <- setdiff(req_spd, names(phh_spd))
+missing_spd <- setdiff(req_spd, names(nbd_spd))
 if (length(missing_spd) > 0) {
   stop("Missing PHH columns: ", paste(missing_spd, collapse = ", "))
 }
 
 # Convert boolean text to numeric
-phh_spd[bool_cols] <- lapply(
-  phh_spd[bool_cols],
+nbd_spd[bool_cols] <- lapply(
+  nbd_spd[bool_cols],
   function(x) as.numeric(as.character(x))
 )
 
-log_info("PHH speeds loaded: {nrow(phh_spd)} rows")
+log_info("NBD speeds loaded: {nrow(nbd_spd)} rows")
 
-# ---- 4.2) Load PHH21 for DBUID mapping ----
-log_info("Loading PHH21 points for DBUID mapping")
-phh21 <- read_csv(
-  path_phh21_points_csv,
+# ---- 4.2) Load NBD21 for DBUID mapping ----
+log_info("Loading NBD21 points for DBUID mapping")
+nbd21 <- read_csv(
+  path_nbd21_points_csv,
   show_col_types = FALSE,
   col_types = cols(
     PHH_ID = col_double(),
@@ -399,7 +399,7 @@ phh21 <- read_csv(
 )
 
 # Create DB code (zero-padded)
-phh_keys <- phh21 %>%
+nbd_keys <- nbd21 %>%
   transmute(
     PHH_ID,
     db_code = str_pad(as.character(DBUID_Ididu), width = 11, pad = "0")
@@ -417,22 +417,22 @@ tmf_min <- tmf %>%
   ) %>%
   mutate(db_code = str_sub(db_code, start = nchar(db_code) - 10L))
 
-# ---- 4.4) Join PHH to geographic codes ----
-log_info("Joining PHH to geographic codes")
-phh_with_geo <- phh_spd %>%
-  inner_join(phh_keys, by = "PHH_ID") %>%
+# ---- 4.4) Join NBD to geographic codes ----
+log_info("Joining NBD to geographic codes")
+nbd_with_geo <- nbd_spd %>%
+  inner_join(nbd_keys, by = "PHH_ID") %>%
   left_join(tmf_min, by = "db_code")
 
-log_info("PHH with geography: {nrow(phh_with_geo)} rows")
-log_info("  - With CSD: {sum(!is.na(phh_with_geo$csd_code))}")
-log_info("  - With DA: {sum(!is.na(phh_with_geo$da_code))}")
+log_info("NBD with geography: {nrow(nbd_with_geo)} rows")
+log_info("  - With CSD: {sum(!is.na(nbd_with_geo$csd_code))}")
+log_info("  - With DA: {sum(!is.na(nbd_with_geo$da_code))}")
 
-# ---- 4.5) Keep PHH at PHH_ID level (no aggregation!) ----
+# ---- 4.5) Keep NBD at PHH_ID level (no aggregation!) ----
 # KEY: We join directly by PHH_ID - no aggregation needed
 # Each PHH_ID represents the same location in both datasets
-log_info("Keeping PHH at PHH_ID level (1:1 join with CITZ)")
+log_info("Keeping NBD at PHH_ID level (1:1 join with CITZ)")
 
-phh_clean <- phh_with_geo %>%
+nbd_clean <- nbd_with_geo %>%
   transmute(
     PHH_ID,
     db_code,
@@ -475,10 +475,10 @@ phh_clean <- phh_with_geo %>%
     )
   )
 
-# Save PHH clean
-phh_clean_path <- file.path(output_path, "phh_clean.csv")
-write_csv(phh_clean, phh_clean_path)
-log_info("PHH clean saved: {phh_clean_path} ({nrow(phh_clean)} rows)")
+# Save NBD clean
+nbd_clean_path <- file.path(output_path, "nbd_clean.csv")
+write_csv(nbd_clean, nbd_clean_path)
+log_info("NBD clean saved: {nbd_clean_path} ({nrow(nbd_clean)} rows)")
 
 # =============================================================================
 # SECTION 5: LOAD AND PROCESS CITZ DATA AT PHH_ID LEVEL
@@ -624,7 +624,7 @@ log_info("==== PART 3: PHH_ID to PHH_ID comparison ====")
 log_info("Joining PHH and CITZ by PHH_ID (direct 1:1 join)")
 
 # Inner join - only keep PHH_IDs that exist in both datasets
-comparison <- phh_clean %>%
+comparison <- nbd_clean %>%
   inner_join(
     citz_clean %>%
       select(-db_code, -da_code, -csd_code), # Keep geography from PHH side
@@ -633,14 +633,14 @@ comparison <- phh_clean %>%
   ) %>%
   # Re-join geography (from PHH side which has TMF codes)
   left_join(
-    phh_clean %>% select(PHH_ID, db_code, da_code, csd_code)
+    nbd_clean %>% select(PHH_ID, db_code, da_code, csd_code)
     # by = "PHH_ID"
   )
 
 log_info("Comparison: {nrow(comparison)} matched PHH_IDs")
 
 # Save comparison
-comparison_path <- file.path(output_path, "phh_comparison.csv")
+comparison_path <- file.path(output_path, "nbd_comparison.csv")
 write_csv(comparison, comparison_path)
 log_info("PHH comparison saved: {comparison_path} ({nrow(comparison)} rows)")
 
@@ -691,7 +691,7 @@ for (type in CONNECTION_TYPES) {
 }
 
 # ---- 6.3) Save PHH_ID comparison ----
-comparison_path <- file.path(output_path, "phh_comparison.csv")
+comparison_path <- file.path(output_path, "nbd_comparison.csv")
 write_csv(comparison, comparison_path)
 log_info(
   "PHH_ID comparison saved: {comparison_path} ({nrow(comparison)} rows)"
@@ -854,7 +854,7 @@ log_info(
 log_info("==== PART 5: Creating data dictionaries ====")
 
 # ---- PHH clean dictionary ----
-phh_labels <- list(
+nbd_labels <- list(
   "PHH_ID" = "Pseudo-household ID (unique identifier in both PHH and CITZ)",
   "db_code" = "Dissemination Block code (11-digit, zero-padded)",
   "da_code" = "Dissemination Area code from TMF",
@@ -878,11 +878,11 @@ phh_labels <- list(
   "phh_combined_max" = "PHH: Maximum combined threshold category",
   "phh_combined_max_numeric" = "PHH: Numeric version of combined max threshold"
 )
-phh_clean |> glimpse()
-phh_dict <- create_dictionary(phh_clean, var_labels = phh_labels)
+nbd_clean |> glimpse()
+nbd_dict <- create_dictionary(nbd_clean, var_labels = nbd_labels)
 write.csv(
-  phh_dict,
-  file.path(output_path, "phh_clean_dict.csv"),
+  nbd_dict,
+  file.path(output_path, "nbd_clean_dict.csv"),
   row.names = FALSE
 )
 
@@ -1003,7 +1003,7 @@ comp_labels <- list(
 comp_dict <- create_dictionary(comparison, var_labels = comp_labels)
 write.csv(
   comp_dict,
-  file.path(output_path, "phh_comparison_dict.csv"),
+  file.path(output_path, "nbd_comparison_dict.csv"),
   row.names = FALSE
 )
 
@@ -1014,9 +1014,9 @@ log_info("Data dictionaries saved")
 # =============================================================================
 log_info("==== SUMMARY ====")
 log_info("Files created:")
-log_info("  1. phh_clean.csv - PHH data at PHH_ID level")
+log_info("  1. nbd_clean.csv - PHH data at PHH_ID level")
 log_info("  2. citz_clean.csv - CITZ data at PHH_ID level")
-log_info("  3. phh_comparison.csv - Direct PHH_ID to PHH_ID comparison")
+log_info("  3. nbd_comparison.csv - Direct PHH_ID to PHH_ID comparison")
 log_info("  4. db_comparison.csv - DB-level summary")
 log_info("  5. da_comparison.csv - DA-level summary")
 log_info("  6. csd_comparison.csv - CSD-level summary")
