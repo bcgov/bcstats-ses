@@ -40,7 +40,7 @@
 # OUTPUTS:
 #   - nbd_clean.csv       : NBD data at PHH_ID level
 #   - citz_clean.csv      : CITZ data at PHH_ID level
-#   - nbd_comparison.csv  : Direct PHH_ID to PHH_ID comparison
+#   - phh_comparison.csv  : Direct PHH_ID to PHH_ID comparison
 #   - db_comparison.csv  : DB-level summary (Dissemination Block)
 #   - da_comparison.csv  : DA-level summary (Dissemination Area)
 #   - csd_comparison.csv : CSD-level summary (Census Subdivision)
@@ -227,42 +227,42 @@ threshold_to_numeric <- function(threshold) {
   }
 }
 
-# ---- Helper: Compute PHH-weighted share at DB level ----
-#' For a single PHH DB record, convert boolean flags to proportions
-#' Since NBD is already at DB level, each DB has 1 PHH = 100%
-compute_phh_props_at_db <- function(phh_row) {
-  # PHH data already has 1 row per DB with boolean/numeric availability
-  # Just rename columns to match CITZ naming convention
-  result <- list()
+# # ---- Helper: Compute DBD-weighted share at DB level ----
+# #' For a single NBD DB record, convert boolean flags to proportions
+# #' Since NBD is at PHH level within DB level, each DB has n_phh as weight, each phh has weight 1, since th e
+# compute_nbd_props_at_db <- function(nbd_row) {
+#   # DBD data  has 1 or more row per DB with boolean/numeric availability
+#   # Just rename columns to match CITZ naming convention
+#   result <- list()
 
-  for (type in CONNECTION_TYPES) {
-    for (tier in SPEED_TIERS) {
-      # PHH column names: prop_{type}_{tier}
-      phh_col <- paste0("prop_", type, "_", tier$label)
+#   for (type in CONNECTION_TYPES) {
+#     for (tier in SPEED_TIERS) {
+#       # NBD column names: prop_{type}_{tier}
+#       nbd_col <- paste0("prop_", type, "_", tier$label)
 
-      if (phh_col %in% names(phh_row)) {
-        result[[paste0("phh_", type, "_", tier$label)]] <- phh_row[[phh_col]]
-      } else {
-        result[[paste0("phh_", type, "_", tier$label)]] <- NA_real_
-      }
-    }
-    # LT5_1 flag
-    lt_col <- paste0("prop_", type, "_lt5_1")
-    if (lt_col %in% names(phh_row)) {
-      result[[paste0("phh_", type, "_lt5_1")]] <- phh_row[[lt_col]]
-    } else {
-      # Can derive from: 1 - prop_{type}_5_1
-      prop_5_1 <- phh_row[[paste0("prop_", type, "_5_1")]]
-      result[[paste0("phh_", type, "_lt5_1")]] <- ifelse(
-        is.na(prop_5_1),
-        NA,
-        1 - prop_5_1
-      )
-    }
-  }
+#       if (nbd_col %in% names(nbd_row)) {
+#         result[[paste0("nbd_", type, "_", tier$label)]] <- nbd_row[[nbd_col]]
+#       } else {
+#         result[[paste0("nbd_", type, "_", tier$label)]] <- NA_real_
+#       }
+#     }
+#     # LT5_1 flag
+#     lt_col <- paste0("prop_", type, "_lt5_1")
+#     if (lt_col %in% names(nbd_row)) {
+#       result[[paste0("nbd_", type, "_lt5_1")]] <- nbd_row[[lt_col]]
+#     } else {
+#       # Can derive from: 1 - prop_{type}_5_1
+#       prop_5_1 <- nbd_row[[paste0("prop_", type, "_5_1")]]
+#       result[[paste0("nbd_", type, "_lt5_1")]] <- ifelse(
+#         is.na(prop_5_1),
+#         NA,
+#         1 - prop_5_1
+#       )
+#     }
+#   }
 
-  as.data.frame(result)
-}
+#   as.data.frame(result)
+# }
 
 # ---- Helper: Aggregate DB comparison to CSD/DA ----
 #' Aggregate DB-level comparison to higher geography
@@ -302,13 +302,13 @@ aggregate_comparison <- function(df, group_col, weight_col = "dwell_total") {
       ),
       across(
         all_of(outlier_cols),
-        ~ sum(.x == "CITZ >> PHH", na.rm = TRUE),
+        ~ sum(.x == "CITZ >> NBD", na.rm = TRUE),
         .names = "n_{.col}_citz_higher"
       ),
       across(
         all_of(outlier_cols),
-        ~ sum(.x == "PHH >> CITZ", na.rm = TRUE),
-        .names = "n_{.col}_phh_higher"
+        ~ sum(.x == "NBD >> CITZ", na.rm = TRUE),
+        .names = "n_{.col}_nbd_higher"
       ),
 
       .groups = "drop"
@@ -321,7 +321,7 @@ aggregate_comparison <- function(df, group_col, weight_col = "dwell_total") {
 log_info("==== PART 1: Load NBD data at PHH_ID level ====")
 
 # Load NBD Speeds (Current) - raw PHH-level data
-path_phh_current_csv <- file.path(
+path_nbd_current_csv <- file.path(
   lan_path,
   connectivity_data_path,
   "NBD_PHH_Speeds",
@@ -343,8 +343,8 @@ tmf_csv <- file.path(
 )
 
 # ---- 4.1) Load NBD Speeds ----
-log_info("Loading NBD speeds: {path_phh_current_csv}")
-nbd_spd <- read_csv(path_phh_current_csv, show_col_types = FALSE)
+log_info("Loading NBD speeds: {path_nbd_current_csv}")
+nbd_spd <- read_csv(path_nbd_current_csv, show_col_types = FALSE)
 
 # Define columns we need
 bool_cols <- c(
@@ -394,34 +394,63 @@ nbd21 <- read_csv(
   col_types = cols(
     PHH_ID = col_double(),
     DBUID_Ididu = col_double(),
+    TDwell2021_TLog2021 = col_double(),
+    URDwell2021_RH2021 = col_double(),
     .default = col_skip()
   )
 )
+
+nbd21 |>
+  mutate(is_non_zero = TDwell2021_TLog2021 > 0) |>
+  count(is_non_zero)
+
+#   is_non_zero       n
+#   <lgl>         <int>
+# 1 FALSE       1457590
+# 2 TRUE         385198
+
+# Data dictionary. Pop and Dwell variables have manyu zeros, and are not useful for analysis as weights
+#
+# PHH_ID              |  Unique identifier for pseudo-household (PHH) representative point
+# Type                |  PHH Type:
+#                     |    1 = Road Center
+#                     |    2 = Road Right
+#                     |    3 = Road Left
+#                     |    4 = Other
+#                     |    5 = Centroid of a 2021 Census dissemination block
+# Pop2021             |  PHH representative population
+# TDwell2021_TLog2021 |  PHH representative total private dwellings
+# URDwell2021_RH2021  |  PHH representative private dwellings occupied by usual residents
+# DBUID_Ididu         |  2021 Census dissemination block
 
 # Create DB code (zero-padded)
 nbd_keys <- nbd21 %>%
   transmute(
     PHH_ID,
-    db_code = str_pad(as.character(DBUID_Ididu), width = 11, pad = "0")
+    db_code = str_pad(as.character(DBUID_Ididu), width = 11, pad = "0"),
+    TDwell2021 = TDwell2021_TLog2021
   )
 
-# ---- 4.3) Load TMF ----
-log_info("Loading TMF for geographic mapping")
-tmf <- read_csv(tmf_csv, col_types = cols(.default = "c"))
 
-tmf_min <- tmf %>%
+# ---- 4.3) Load standard geographical classification ----
+log_info("Loading SGC for geographic mapping")
+sgc <- cancensus::get_statcan_geographic_attributes('2021')
+bc_sgc_2021_df <- sgc |>
+  filter(PRUID_PRIDU == '59') |>
   select(
-    db_code = DSSMNTNBLC,
-    da_code = DSSMNTNRD,
-    csd_code = CNSSCNSLDT
-  ) %>%
-  mutate(db_code = str_sub(db_code, start = nchar(db_code) - 10L))
+    csd_code = CSDUID_SDRIDU,
+    CSDNAME_SDRNOM,
+    CSDTYPE_SDRGENRE,
+    da_code = DAUID_ADIDU,
+    db_code = DBUID_IDIDU
+  )
+
 
 # ---- 4.4) Join NBD to geographic codes ----
 log_info("Joining NBD to geographic codes")
 nbd_with_geo <- nbd_spd %>%
   inner_join(nbd_keys, by = "PHH_ID") %>%
-  left_join(tmf_min, by = "db_code")
+  left_join(bc_sgc_2021_df, by = "db_code")
 
 log_info("NBD with geography: {nrow(nbd_with_geo)} rows")
 log_info("  - With CSD: {sum(!is.na(nbd_with_geo$csd_code))}")
@@ -438,37 +467,38 @@ nbd_clean <- nbd_with_geo %>%
     db_code,
     da_code,
     csd_code,
+    nbd_TDwell2021 = as.numeric(TDwell2021),
 
     # Wired availability flags (already 0/1 per PHH)
-    phh_wired_50_10 = Wired_50_10_Filaire,
-    phh_wired_25_5 = Wired_25_5_Filaire,
-    phh_wired_10_2 = Wired_10_2_Filaire,
-    phh_wired_5_1 = Wired_5_1_Filaire,
-    phh_wired_lt5_1 = Wired_lt5_1_Filaire,
+    nbd_wired_50_10 = Wired_50_10_Filaire,
+    nbd_wired_25_5 = Wired_25_5_Filaire,
+    nbd_wired_10_2 = Wired_10_2_Filaire,
+    nbd_wired_5_1 = Wired_5_1_Filaire,
+    nbd_wired_lt5_1 = Wired_lt5_1_Filaire,
 
     # Wireless availability flags
-    phh_wireless_50_10 = Wireless_50_10_Sans_fil,
-    phh_wireless_25_5 = Wireless_25_5_Sans_fil,
-    phh_wireless_10_2 = Wireless_10_2_Sans_fil,
-    phh_wireless_5_1 = Wireless_5_1_Sans_fil,
-    phh_wireless_lt5_1 = Wireless_lt5_Sans_fil,
+    nbd_wireless_50_10 = Wireless_50_10_Sans_fil,
+    nbd_wireless_25_5 = Wireless_25_5_Sans_fil,
+    nbd_wireless_10_2 = Wireless_10_2_Sans_fil,
+    nbd_wireless_5_1 = Wireless_5_1_Sans_fil,
+    nbd_wireless_lt5_1 = Wireless_lt5_Sans_fil,
 
     # Combined availability flags
-    phh_combined_50_10 = Combined_50_10_Combine,
-    phh_combined_25_5 = Combined_25_5_Combine,
-    phh_combined_10_2 = Combined_10_2_Combine,
-    phh_combined_5_1 = Combined_5_1_Combine,
-    phh_combined_lt5_1 = Combined_lt5_1_Combine,
+    nbd_combined_50_10 = Combined_50_10_Combine,
+    nbd_combined_25_5 = Combined_25_5_Combine,
+    nbd_combined_10_2 = Combined_10_2_Combine,
+    nbd_combined_5_1 = Combined_5_1_Combine,
+    nbd_combined_lt5_1 = Combined_lt5_1_Combine,
 
     # LTE mobile
-    phh_lte_mobile = Avail_LTE_Mobile_Dispo,
+    nbd_lte_mobile = Avail_LTE_Mobile_Dispo,
 
     # Max threshold (for reference)
-    phh_combined_max = as.character(`Combined_Max_Threshold-Combine_Seuil_Max`),
+    nbd_combined_max = as.character(`Combined_Max_Threshold-Combine_Seuil_Max`),
 
     # Numeric version of combined max threshold for regression/analysis
     # 5=50_10, 4=25_5, 3=10_2, 2=5_1, 1=<5_1, 0=NA
-    phh_combined_max_numeric = vapply(
+    nbd_combined_max_numeric = vapply(
       as.character(`Combined_Max_Threshold-Combine_Seuil_Max`),
       threshold_to_numeric,
       FUN.VALUE = 0
@@ -537,7 +567,7 @@ citz <- citz %>%
 
 # Join to TMF for DA/CSD codes
 citz_geo <- citz %>%
-  left_join(tmf_min, by = "db_code")
+  left_join(bc_sgc_2021_df, by = "db_code")
 
 # Use DAUID from CITZ if available, otherwise use TMF da_code
 if ("DAUID" %in% names(citz)) {
@@ -566,7 +596,7 @@ citz_clean <- citz_geo %>%
     da_code,
     csd_code = as.integer(CENSUS_SUBDIVISION_ID),
     csd_name = CENSUS_SUBDIVISION_NAME,
-    TDwell2021,
+    citz_TDwell2021 = TDwell2021,
 
     # Wired availability flags (from parsed speeds) - convert TRUE/FALSE to 1/0
     citz_wired_50_10 = as.numeric(wired_flags$is_wired_50_10),
@@ -618,20 +648,20 @@ log_info("CITZ clean saved: {citz_clean_path} ({nrow(citz_clean)} rows)")
 # =============================================================================
 log_info("==== PART 3: PHH_ID to PHH_ID comparison ====")
 
-# ---- 6.1) Join PHH and CITZ by PHH_ID ----
+# ---- 6.1) Join NBD and CITZ by PHH_ID ----
 # KEY: Direct 1:1 join - no aggregation needed!
 # Each PHH_ID exists in both datasets and represents the same location
-log_info("Joining PHH and CITZ by PHH_ID (direct 1:1 join)")
+log_info("Joining NBD and CITZ by PHH_ID (direct 1:1 join)")
 
 # Inner join - only keep PHH_IDs that exist in both datasets
 comparison <- nbd_clean %>%
   inner_join(
     citz_clean %>%
-      select(-db_code, -da_code, -csd_code), # Keep geography from PHH side
+      select(-db_code, -da_code, -csd_code), # Keep geography from NBD side
     by = "PHH_ID",
-    suffix = c("_phh", "_citz")
+    suffix = c("_nbd", "_citz")
   ) %>%
-  # Re-join geography (from PHH side which has TMF codes)
+  # Re-join geography (from DBD side which has SGC codes)
   left_join(
     nbd_clean %>% select(PHH_ID, db_code, da_code, csd_code)
     # by = "PHH_ID"
@@ -640,7 +670,7 @@ comparison <- nbd_clean %>%
 log_info("Comparison: {nrow(comparison)} matched PHH_IDs")
 
 # Save comparison
-comparison_path <- file.path(output_path, "nbd_comparison.csv")
+comparison_path <- file.path(output_path, "phh_comparison.csv")
 write_csv(comparison, comparison_path)
 log_info("PHH comparison saved: {comparison_path} ({nrow(comparison)} rows)")
 
@@ -649,22 +679,22 @@ log_info("Computing deltas and outlier flags")
 
 for (type in CONNECTION_TYPES) {
   for (tier in SPEED_TIERS) {
-    phh_col <- paste0("phh_", type, "_", tier$label)
+    nbd_col <- paste0("nbd_", type, "_", tier$label)
     citz_col <- paste0("citz_", type, "_", tier$label)
     delta_col <- paste0("delta_", type, "_", tier$label)
     outlier_col <- paste0("outlier_", type, "_", tier$label)
 
-    if (phh_col %in% names(comparison) && citz_col %in% names(comparison)) {
+    if (nbd_col %in% names(comparison) && citz_col %in% names(comparison)) {
       comparison <- comparison %>%
         mutate(
-          # Delta: CITZ - PHH (proportion difference)
-          !!delta_col := .data[[citz_col]] - .data[[phh_col]],
+          # Delta: CITZ - NBD (proportion difference)
+          !!delta_col := .data[[citz_col]] - .data[[nbd_col]],
 
           # Outlier flag
           !!outlier_col := case_when(
             is.na(.data[[delta_col]]) ~ "NA",
-            .data[[delta_col]] >= OUTLIER_THRESHOLD ~ "CITZ >> PHH",
-            .data[[delta_col]] <= -OUTLIER_THRESHOLD ~ "PHH >> CITZ",
+            .data[[delta_col]] >= OUTLIER_THRESHOLD ~ "CITZ >> NBD",
+            .data[[delta_col]] <= -OUTLIER_THRESHOLD ~ "NBD >> CITZ",
             TRUE ~ "OK"
           )
         )
@@ -673,25 +703,25 @@ for (type in CONNECTION_TYPES) {
 }
 
 # Summary statistics
-log_info("Outlier summary at PHH_ID level:")
+log_info("Outlier summary at NBD_ID level:")
 for (type in CONNECTION_TYPES) {
   for (tier in SPEED_TIERS) {
     outlier_col <- paste0("outlier_", type, "_", tier$label)
     if (outlier_col %in% names(comparison)) {
       n_total <- sum(!is.na(comparison[[outlier_col]]))
       n_ok <- sum(comparison[[outlier_col]] == "OK", na.rm = TRUE)
-      n_citz <- sum(comparison[[outlier_col]] == "CITZ >> PHH", na.rm = TRUE)
-      n_phh <- sum(comparison[[outlier_col]] == "PHH >> CITZ", na.rm = TRUE)
+      n_citz <- sum(comparison[[outlier_col]] == "CITZ >> NBD", na.rm = TRUE)
+      n_phh <- sum(comparison[[outlier_col]] == "NBD >> CITZ", na.rm = TRUE)
 
       log_info(
-        "  {type} {tier$label}: {n_ok}/{n_total} OK, {n_citz} CITZ higher, {n_phh} PHH higher"
+        "  {type} {tier$label}: {n_ok}/{n_total} OK, {n_citz} CITZ higher, {n_phh} NBD higher"
       )
     }
   }
 }
 
 # ---- 6.3) Save PHH_ID comparison ----
-comparison_path <- file.path(output_path, "nbd_comparison.csv")
+comparison_path <- file.path(output_path, "phh_comparison.csv")
 write_csv(comparison, comparison_path)
 log_info(
   "PHH_ID comparison saved: {comparison_path} ({nrow(comparison)} rows)"
@@ -712,6 +742,50 @@ csd_comparison <- comparison %>%
     # Basic counts
     n_phh_id = n(),
 
+    # ---- NBD connectivity variables (mean) ----
+    across(
+      starts_with("nbd_wired_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      starts_with("nbd_wireless_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      starts_with("nbd_combined_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      matches("nbd_lte_mobile|nbd_combined_max_numeric"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+
+    # ---- CITZ connectivity variables (mean) ----
+    across(
+      starts_with("citz_wired_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      starts_with("citz_wireless_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      starts_with("citz_combined_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      matches("citz_combined_max_numeric"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+
     # Mean deltas
     across(
       starts_with("delta_"),
@@ -727,13 +801,13 @@ csd_comparison <- comparison %>%
     ),
     across(
       starts_with("outlier_"),
-      ~ sum(.x == "CITZ >> PHH", na.rm = TRUE),
+      ~ sum(.x == "CITZ >> NBD", na.rm = TRUE),
       .names = "n_{.col}_citz_higher"
     ),
     across(
       starts_with("outlier_"),
-      ~ sum(.x == "PHH >> CITZ", na.rm = TRUE),
-      .names = "n_{.col}_phh_higher"
+      ~ sum(.x == "NBD >> CITZ", na.rm = TRUE),
+      .names = "n_{.col}_nbd_higher"
     ),
 
     .groups = "drop"
@@ -769,6 +843,50 @@ db_comparison <- comparison %>%
     da_code = first(na.omit(da_code)),
     csd_code = first(na.omit(csd_code)),
 
+    # ---- NBD connectivity variables (mean) ----
+    across(
+      starts_with("nbd_wired_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      starts_with("nbd_wireless_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      starts_with("nbd_combined_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      matches("nbd_lte_mobile|nbd_combined_max_numeric"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+
+    # ---- CITZ connectivity variables (mean) ----
+    across(
+      starts_with("citz_wired_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      starts_with("citz_wireless_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      starts_with("citz_combined_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      matches("citz_combined_max_numeric"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+
     # Mean deltas
     across(
       starts_with("delta_"),
@@ -784,13 +902,13 @@ db_comparison <- comparison %>%
     ),
     across(
       starts_with("outlier_"),
-      ~ sum(.x == "CITZ >> PHH", na.rm = TRUE),
+      ~ sum(.x == "CITZ >> NBD", na.rm = TRUE),
       .names = "n_{.col}_citz_higher"
     ),
     across(
       starts_with("outlier_"),
-      ~ sum(.x == "PHH >> CITZ", na.rm = TRUE),
-      .names = "n_{.col}_phh_higher"
+      ~ sum(.x == "NBD >> CITZ", na.rm = TRUE),
+      .names = "n_{.col}_nbd_higher"
     ),
 
     .groups = "drop"
@@ -814,6 +932,50 @@ da_comparison <- comparison %>%
     # Basic counts
     n_phh_id = n(),
 
+    # ---- NBD connectivity variables (mean) ----
+    across(
+      starts_with("nbd_wired_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      starts_with("nbd_wireless_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      starts_with("nbd_combined_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      matches("nbd_lte_mobile|nbd_combined_max_numeric"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+
+    # ---- CITZ connectivity variables (mean) ----
+    across(
+      starts_with("citz_wired_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      starts_with("citz_wireless_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      starts_with("citz_combined_"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+    across(
+      matches("citz_combined_max_numeric"),
+      ~ mean(.x, na.rm = TRUE),
+      .names = "mean_{.col}"
+    ),
+
     # Mean deltas
     across(
       starts_with("delta_"),
@@ -829,13 +991,13 @@ da_comparison <- comparison %>%
     ),
     across(
       starts_with("outlier_"),
-      ~ sum(.x == "CITZ >> PHH", na.rm = TRUE),
+      ~ sum(.x == "CITZ >> NBD", na.rm = TRUE),
       .names = "n_{.col}_citz_higher"
     ),
     across(
       starts_with("outlier_"),
-      ~ sum(.x == "PHH >> CITZ", na.rm = TRUE),
-      .names = "n_{.col}_phh_higher"
+      ~ sum(.x == "NBD >> CITZ", na.rm = TRUE),
+      .names = "n_{.col}_nbd_higher"
     ),
 
     .groups = "drop"
@@ -853,30 +1015,30 @@ log_info(
 # =============================================================================
 log_info("==== PART 5: Creating data dictionaries ====")
 
-# ---- PHH clean dictionary ----
+# ---- NBD clean dictionary ----
 nbd_labels <- list(
-  "PHH_ID" = "Pseudo-household ID (unique identifier in both PHH and CITZ)",
+  "PHH_ID" = "Pseudo-household ID (unique identifier in both NBD and CITZ)",
   "db_code" = "Dissemination Block code (11-digit, zero-padded)",
   "da_code" = "Dissemination Area code from TMF",
   "csd_code" = "Census Subdivision code from TMF",
-  "phh_wired_50_10" = "PHH: 1 if wired >= 50/10 Mbps available, else 0",
-  "phh_wired_25_5" = "PHH: 1 if wired >= 25/5 Mbps available, else 0",
-  "phh_wired_10_2" = "PHH: 1 if wired >= 10/2 Mbps available, else 0",
-  "phh_wired_5_1" = "PHH: 1 if wired >= 5/1 Mbps available, else 0",
-  "phh_wired_lt5_1" = "PHH: 1 if wired < 5/1 Mbps (below threshold)",
-  "phh_wireless_50_10" = "PHH: 1 if wireless >= 50/10 Mbps available, else 0",
-  "phh_wireless_25_5" = "PHH: 1 if wireless >= 25/5 Mbps available, else 0",
-  "phh_wireless_10_2" = "PHH: 1 if wireless >= 10/2 Mbps available, else 0",
-  "phh_wireless_5_1" = "PHH: 1 if wireless >= 5/1 Mbps available, else 0",
-  "phh_wireless_lt5_1" = "PHH: 1 if wireless < 5/1 Mbps (below threshold)",
-  "phh_combined_50_10" = "PHH: 1 if either wired or wireless >= 50/10 Mbps available, else 0",
-  "phh_combined_25_5" = "PHH: 1 if either wired or wireless >= 25/5 Mbps available, else 0",
-  "phh_combined_10_2" = "PHH: 1 if either wired or wireless >= 10/2 Mbps available, else 0",
-  "phh_combined_5_1" = "PHH: 1 if either wired or wireless >= 5/1 Mbps available, else 0",
-  "phh_combined_lt5_1" = "PHH: 1 if both wired and wireless < 5/1 Mbps (below threshold)",
-  "phh_lte_mobile" = "PHH: 1 if LTE mobile available, else 0",
-  "phh_combined_max" = "PHH: Maximum combined threshold category",
-  "phh_combined_max_numeric" = "PHH: Numeric version of combined max threshold"
+  "nbd_wired_50_10" = "NBD: 1 if wired >= 50/10 Mbps available, else 0",
+  "nbd_wired_25_5" = "NBD: 1 if wired >= 25/5 Mbps available, else 0",
+  "nbd_wired_10_2" = "NBD: 1 if wired >= 10/2 Mbps available, else 0",
+  "nbd_wired_5_1" = "NBD: 1 if wired >= 5/1 Mbps available, else 0",
+  "nbd_wired_lt5_1" = "NBD: 1 if wired < 5/1 Mbps (below threshold)",
+  "nbd_wireless_50_10" = "NBD: 1 if wireless >= 50/10 Mbps available, else 0",
+  "nbd_wireless_25_5" = "NBD: 1 if wireless >= 25/5 Mbps available, else 0",
+  "nbd_wireless_10_2" = "NBD: 1 if wireless >= 10/2 Mbps available, else 0",
+  "nbd_wireless_5_1" = "NBD: 1 if wireless >= 5/1 Mbps available, else 0",
+  "nbd_wireless_lt5_1" = "NBD: 1 if wireless < 5/1 Mbps (below threshold)",
+  "nbd_combined_50_10" = "NBD: 1 if either wired or wireless >= 50/10 Mbps available, else 0",
+  "nbd_combined_25_5" = "NBD: 1 if either wired or wireless >= 25/5 Mbps available, else 0",
+  "nbd_combined_10_2" = "NBD: 1 if either wired or wireless >= 10/2 Mbps available, else 0",
+  "nbd_combined_5_1" = "NBD: 1 if either wired or wireless >= 5/1 Mbps available, else 0",
+  "nbd_combined_lt5_1" = "NBD: 1 if both wired and wireless < 5/1 Mbps (below threshold)",
+  "nbd_lte_mobile" = "NBD: 1 if LTE mobile available, else 0",
+  "nbd_combined_max" = "NBD: Maximum combined threshold category",
+  "nbd_combined_max_numeric" = "NBD: Numeric version of combined max threshold"
 )
 nbd_clean |> glimpse()
 nbd_dict <- create_dictionary(nbd_clean, var_labels = nbd_labels)
@@ -889,7 +1051,7 @@ write.csv(
 citz_clean |> glimpse()
 # ---- CITZ clean dictionary ----
 citz_labels <- list(
-  "PHH_ID" = "Pseudo-household ID (unique identifier in both PHH and CITZ)",
+  "PHH_ID" = "Pseudo-household ID (unique identifier in both NBD and CITZ)",
   "db_code" = "Dissemination Block code (11-digit, zero-padded)",
   "da_code" = "Dissemination Area code",
   "csd_code" = "Census Subdivision code",
@@ -932,24 +1094,24 @@ comp_labels <- list(
   "csd_name" = "Census Subdivision name",
   "da_code" = "Dissemination Area code",
   "TDwell2021" = "2021 dwelling count (weight for aggregation)",
-  "phh_wired_50_10" = "PHH: 1 if wired >= 50/10 Mbps available, else 0",
-  "phh_wired_25_5" = "PHH: 1 if wired >= 25/5 Mbps available, else 0",
-  "phh_wired_10_2" = "PHH: 1 if wired >= 10/2 Mbps available, else 0",
-  "phh_wired_5_1" = "PHH: 1 if wired >= 5/1 Mbps available, else 0",
-  "phh_wired_lt5_1" = "PHH: 1 if wired < 5/1 Mbps (below threshold)",
-  "phh_wireless_50_10" = "PHH: 1 if wireless >= 50/10 Mbps available, else 0",
-  "phh_wireless_25_5" = "PHH: 1 if wireless >= 25/5 Mbps available, else 0",
-  "phh_wireless_10_2" = "PHH: 1 if wireless >= 10/2 Mbps available, else 0",
-  "phh_wireless_5_1" = "PHH: 1 if wireless >= 5/1 Mbps available, else 0",
-  "phh_wireless_lt5_1" = "PHH: 1 if wireless < 5/1 Mbps (below threshold)",
-  "phh_combined_50_10" = "PHH: 1 if either wired or wireless >= 50/10 Mbps available, else 0",
-  "phh_combined_25_5" = "PHH: 1 if either wired or wireless >= 25/5 Mbps available, else 0",
-  "phh_combined_10_2" = "PHH: 1 if either wired or wireless >= 10/2 Mbps available, else 0",
-  "phh_combined_5_1" = "PHH: 1 if either wired or wireless >= 5/1 Mbps available, else 0",
-  "phh_combined_lt5_1" = "PHH: 1 if both wired and wireless < 5/1 Mbps (below threshold)",
-  "phh_lte_mobile" = "PHH: 1 if LTE mobile available, else 0",
-  "phh_combined_max" = "PHH: Maximum combined threshold category",
-  "phh_combined_max_numeric" = "PHH: Numeric version of combined max threshold",
+  "nbd_wired_50_10" = "NBD: 1 if wired >= 50/10 Mbps available, else 0",
+  "nbd_wired_25_5" = "NBD: 1 if wired >= 25/5 Mbps available, else 0",
+  "nbd_wired_10_2" = "NBD: 1 if wired >= 10/2 Mbps available, else 0",
+  "nbd_wired_5_1" = "NBD: 1 if wired >= 5/1 Mbps available, else 0",
+  "nbd_wired_lt5_1" = "NBD: 1 if wired < 5/1 Mbps (below threshold)",
+  "nbd_wireless_50_10" = "NBD: 1 if wireless >= 50/10 Mbps available, else 0",
+  "nbd_wireless_25_5" = "NBD: 1 if wireless >= 25/5 Mbps available, else 0",
+  "nbd_wireless_10_2" = "NBD: 1 if wireless >= 10/2 Mbps available, else 0",
+  "nbd_wireless_5_1" = "NBD: 1 if wireless >= 5/1 Mbps available, else 0",
+  "nbd_wireless_lt5_1" = "NBD: 1 if wireless < 5/1 Mbps (below threshold)",
+  "nbd_combined_50_10" = "NBD: 1 if either wired or wireless >= 50/10 Mbps available, else 0",
+  "nbd_combined_25_5" = "NBD: 1 if either wired or wireless >= 25/5 Mbps available, else 0",
+  "nbd_combined_10_2" = "NBD: 1 if either wired or wireless >= 10/2 Mbps available, else 0",
+  "nbd_combined_5_1" = "NBD: 1 if either wired or wireless >= 5/1 Mbps available, else 0",
+  "nbd_combined_lt5_1" = "NBD: 1 if both wired and wireless < 5/1 Mbps (below threshold)",
+  "nbd_lte_mobile" = "NBD: 1 if LTE mobile available, else 0",
+  "nbd_combined_max" = "NBD: Maximum combined threshold category",
+  "nbd_combined_max_numeric" = "NBD: Numeric version of combined max threshold",
   "citz_wired_50_10" = "CITZ: 1 if wired >= 50/10 Mbps available, else 0",
   "citz_wired_25_5" = "CITZ: 1 if wired >= 25/5 Mbps available, else 0",
   "citz_wired_10_2" = "CITZ: 1 if wired >= 10/2 Mbps available, else 0",
@@ -970,40 +1132,40 @@ comp_labels <- list(
   "citz_wired_max" = "CITZ: Wired maximum threshold (string)",
   "citz_wireless_max" = "CITZ: Wireless maximum threshold (string)",
   "connectivity_status" = "CITZ: Overall connectivity status",
-  "delta_wired_50_10" = "Difference: CITZ - PHH (wired 50/10 Mbps)",
-  "delta_wired_25_5" = "Difference: CITZ - PHH (wired 25/5 Mbps)",
-  "delta_wired_10_2" = "Difference: CITZ - PHH (wired 10/2 Mbps)",
-  "delta_wired_5_1" = "Difference: CITZ - PHH (wired 5/1 Mbps)",
+  "delta_wired_50_10" = "Difference: CITZ - NBD (wired 50/10 Mbps)",
+  "delta_wired_25_5" = "Difference: CITZ - NBD (wired 25/5 Mbps)",
+  "delta_wired_10_2" = "Difference: CITZ - NBD (wired 10/2 Mbps)",
+  "delta_wired_5_1" = "Difference: CITZ - NBD (wired 5/1 Mbps)",
 
-  "delta_wireless_50_10" = "Difference: CITZ - PHH (wireless 50/10 Mbps)",
-  "delta_wireless_25_5" = "Difference: CITZ - PHH (wireless 25/5 Mbps)",
-  "delta_wireless_10_2" = "Difference: CITZ - PHH (wireless 10/2 Mbps)",
-  "delta_wireless_5_1" = "Difference: CITZ - PHH (wireless 5/1 Mbps)",
+  "delta_wireless_50_10" = "Difference: CITZ - NBD (wireless 50/10 Mbps)",
+  "delta_wireless_25_5" = "Difference: CITZ - NBD (wireless 25/5 Mbps)",
+  "delta_wireless_10_2" = "Difference: CITZ - NBD (wireless 10/2 Mbps)",
+  "delta_wireless_5_1" = "Difference: CITZ - NBD (wireless 5/1 Mbps)",
 
-  "delta_combined_50_10" = "Difference: CITZ - PHH (combined 50/10 Mbps)",
-  "delta_combined_25_5" = "Difference: CITZ - PHH (combined 25/5 Mbps)",
-  "delta_combined_10_2" = "Difference: CITZ - PHH (combined 10/2 Mbps)",
-  "delta_combined_5_1" = "Difference: CITZ - PHH (combined 5/1 Mbps)",
+  "delta_combined_50_10" = "Difference: CITZ - NBD (combined 50/10 Mbps)",
+  "delta_combined_25_5" = "Difference: CITZ - NBD (combined 25/5 Mbps)",
+  "delta_combined_10_2" = "Difference: CITZ - NBD (combined 10/2 Mbps)",
+  "delta_combined_5_1" = "Difference: CITZ - NBD (combined 5/1 Mbps)",
 
-  "outlier_wired_50_10" = "Outlier flag: OK, CITZ >> PHH, PHH >> CITZ, or NA (wired 50/10 Mbps)",
-  "outlier_wired_25_5" = "Outlier flag: OK, CITZ >> PHH, PHH >> CITZ, or NA (wired 25/5 Mbps)",
-  "outlier_wired_10_2" = "Outlier flag: OK, CITZ >> PHH, PHH >> CITZ, or NA (wired 10/2 Mbps)",
-  "outlier_wired_5_1" = "Outlier flag: OK, CITZ >> PHH, PHH >> CITZ, or NA (wired 5/1 Mbps)",
-  "outlier_wireless_50_10" = "Outlier flag: OK, CITZ >> PHH, PHH >> CITZ, or NA (wireless 50/10 Mbps)",
-  "outlier_wireless_25_5" = "Outlier flag: OK, CITZ >> PHH, PHH >> CITZ, or NA (wireless 25/5 Mbps)",
-  "outlier_wireless_10_2" = "Outlier flag: OK, CITZ >> PHH, PHH >> CITZ, or NA (wireless 10/2 Mbps)",
-  "outlier_wireless_5_1" = "Outlier flag: OK, CITZ >> PHH, PHH >> CITZ, or NA (wireless 5/1 Mbps)",
-  "outlier_combined_50_10" = "Outlier flag: OK, CITZ >> PHH, PHH >> CITZ, or NA (combined 50/10 Mbps)",
-  "outlier_combined_25_5" = "Outlier flag: OK, CITZ >> PHH, PHH >> CITZ, or NA (combined 25/5 Mbps)",
-  "outlier_combined_10_2" = "Outlier flag: OK, CITZ >> PHH, PHH >> CITZ, or NA (combined 10/2 Mbps)",
-  "outlier_combined_5_1" = "Outlier flag: OK, CITZ >> PHH, PHH >> CITZ, or NA (combined 5/1 Mbps)"
+  "outlier_wired_50_10" = "Outlier flag: OK, CITZ >> NBD, NBD >> CITZ, or NA (wired 50/10 Mbps)",
+  "outlier_wired_25_5" = "Outlier flag: OK, CITZ >> NBD, NBD >> CITZ, or NA (wired 25/5 Mbps)",
+  "outlier_wired_10_2" = "Outlier flag: OK, CITZ >> NBD, NBD >> CITZ, or NA (wired 10/2 Mbps)",
+  "outlier_wired_5_1" = "Outlier flag: OK, CITZ >> NBD, NBD >> CITZ, or NA (wired 5/1 Mbps)",
+  "outlier_wireless_50_10" = "Outlier flag: OK, CITZ >> NBD, NBD >> CITZ, or NA (wireless 50/10 Mbps)",
+  "outlier_wireless_25_5" = "Outlier flag: OK, CITZ >> NBD, NBD >> CITZ, or NA (wireless 25/5 Mbps)",
+  "outlier_wireless_10_2" = "Outlier flag: OK, CITZ >> NBD, NBD >> CITZ, or NA (wireless 10/2 Mbps)",
+  "outlier_wireless_5_1" = "Outlier flag: OK, CITZ >> NBD, NBD >> CITZ, or NA (wireless 5/1 Mbps)",
+  "outlier_combined_50_10" = "Outlier flag: OK, CITZ >> NBD, NBD >> CITZ, or NA (combined 50/10 Mbps)",
+  "outlier_combined_25_5" = "Outlier flag: OK, CITZ >> NBD, NBD >> CITZ, or NA (combined 25/5 Mbps)",
+  "outlier_combined_10_2" = "Outlier flag: OK, CITZ >> NBD, NBD >> CITZ, or NA (combined 10/2 Mbps)",
+  "outlier_combined_5_1" = "Outlier flag: OK, CITZ >> NBD, NBD >> CITZ, or NA (combined 5/1 Mbps)"
 )
 
 
 comp_dict <- create_dictionary(comparison, var_labels = comp_labels)
 write.csv(
   comp_dict,
-  file.path(output_path, "nbd_comparison_dict.csv"),
+  file.path(output_path, "phh_comparison_dict.csv"),
   row.names = FALSE
 )
 
@@ -1014,9 +1176,9 @@ log_info("Data dictionaries saved")
 # =============================================================================
 log_info("==== SUMMARY ====")
 log_info("Files created:")
-log_info("  1. nbd_clean.csv - PHH data at PHH_ID level")
+log_info("  1. nbd_clean.csv - NBD data at PHH_ID level")
 log_info("  2. citz_clean.csv - CITZ data at PHH_ID level")
-log_info("  3. nbd_comparison.csv - Direct PHH_ID to PHH_ID comparison")
+log_info("  3. phh_comparison.csv - Direct PHH_ID to PHH_ID comparison")
 log_info("  4. db_comparison.csv - DB-level summary")
 log_info("  5. da_comparison.csv - DA-level summary")
 log_info("  6. csd_comparison.csv - CSD-level summary")
