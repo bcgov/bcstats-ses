@@ -40,6 +40,11 @@ source("./src/utils.R")
 # Load configuration
 config <- config::get()
 
+cancensus::set_cancensus_cache_path(
+  config$file_path$cancensus_cache_path
+)
+
+
 #-------------------------------------------------------------------------------------------
 # 1. SET PATHS
 #-------------------------------------------------------------------------------------------
@@ -47,13 +52,7 @@ config <- config::get()
 # Output path for data catalogue products
 output_year <- 2023 # Set year parameter here
 
-output_path <- file.path(
-  config$lan_path,
-  "2024 SES Index",
-  "bc data catalogue",
-  "Data Catalogue final products",
-  as.character(output_year)
-)
+
 output_path <- file.path(
   config$lan_path,
   "2024 SES Index",
@@ -82,43 +81,6 @@ cat("========================================\n\n")
 cat("Downloading StatsCan Geographic Attribute File for BC CSDs...\n")
 
 geo_attr <- cancensus::get_statcan_geographic_attributes('2021')
-# the file is downloaded, but is not able to be unzipped.
-
-# the geographic attribute file
-# geo_attr_url <- 'https://www12.statcan.gc.ca/census-recensement/2021/geo/aip-pia/attribute-attribs/files-fichiers/2021_92-151_X.zip'
-# zip_path <- tempfile(fileext = ".zip")
-
-# # Download with timeout
-# tryCatch(
-#   {
-#     download.file(geo_attr_url, zip_path, mode = "wb", quiet = TRUE)
-
-#     # Create temp directory for unzip (this is the fix)
-#     unzip_dir <- file.path(tempdir(), "geo_attr")
-#     if (!dir.exists(unzip_dir)) {
-#       dir.create(unzip_dir, recursive = TRUE)
-#     }
-
-#     # Unzip to temp directory
-#     unzip(zip_path, exdir = unzip_dir)
-
-#     # Find the CSV file (usually only one)
-#     csv_files <- list.files(unzip_dir, pattern = "\\.csv$", full.names = TRUE)
-#     geo_attr_file <- csv_files[1]
-#     # The Byte: \xc9 is the hexadecimal value for É in the Latin-1 character set.
-#     # The Mismatch: R (especially on modern systems) often expects UTF-8, where É is represented by two bytes (\xc3\xa9).
-#     geo_attr <- read_csv(
-#       geo_attr_file,
-#       show_col_types = FALSE,
-#       locale = locale(encoding = "Latin1")
-#     )
-#     cat("Successfully downloaded and extracted geographic attribute file\n")
-#   },
-#   error = function(e) {
-#     cat("Warning: Download/extraction failed:", conditionMessage(e), "\n")
-#     geo_attr <<- NULL
-#   }
-# )
 geo_attr |> glimpse()
 colnames(geo_attr)
 # this table has name, type, id for db, da, population center, ct, cma, csd, er,ccs,sac,dpl,fed, cd, province,
@@ -215,8 +177,15 @@ cat("Sample:\n")
 print(head(bc_indig_csds, 10))
 
 # Convert CSD_UID to short format: remove non-digit characters and leading '2021A0005'
-csd_to_remove <- bc_indig_csds$CSD_UID %>%
-  gsub("^2021A0005", "", .) %>%
+csd_to_remove <- bc_indig_csds$CSD_UID |>
+  gsub("^2021A0005", "", .) |>
+  as.character()
+
+csd_to_keep <- bc_csds |>
+  filter(!CSDTYPE %in% indig_csd_types) |>
+  arrange(CSD_UID) |>
+  pull(CSD_UID) |>
+  stringr::str_remove("^2021A0005") |>
   as.character()
 
 # If no CSDs found from download, try database query as fallback
@@ -451,9 +420,10 @@ if (length(csd_to_remove) > 0) {
     geo_codes_to_remove = csd_to_remove,
     geo_type = "CSD"
   )
-  # remove masked rows
+  # remove masked rows and only keep the CSDs that are available in 2021 census (to be consistent with the long format file)
   sei_det_csd_filtered <- sei_det_csd_filtered |>
-    filter(!TOTAL_INDEX_0_100 == "masked")
+    filter(!TOTAL_INDEX_0_100 == "masked") |>
+    filter(CSD_UID %in% csd_to_keep)
 
   output_file <- file.path(
     output_path,
@@ -485,9 +455,10 @@ if (length(csd_to_remove) > 0) {
     "records\n"
   )
 
-  # remove masked rows
+  # remove masked rows and only keep the CSDs that are available in 2021 census
   sei_long_csd_filtered <- sei_long_csd_filtered |>
-    filter(!TOTAL_INDEX_0_100 == "masked")
+    filter(!TOTAL_INDEX_0_100 == "masked") |>
+    filter(CSD_UID %in% csd_to_keep)
 
   output_file <- file.path(
     output_path,
