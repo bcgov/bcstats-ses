@@ -315,8 +315,11 @@ log_info(glue::glue(
 # Data Dictionary
 #############################################################
 
+# Derive the end year from the data itself so the description never goes stale.
+crime_data_end_year <- max(as.numeric(bc_da_crime_stats_year_weighted_by_pop$REF_DATE), na.rm = TRUE)
+
 crime_rate_dict_labels <- c(
-  "REF_DATE" = "The year of the observation (in '%Y' format): from 2000 to 2023",
+  "REF_DATE" = glue::glue("The year of the observation (in '%Y' format): from {crime_start_year} to {crime_data_end_year}"),
   "VIOLATIONS" = "Violation type and classification, such as violent criminal code violations|homicide|attempted murder|assault|breaking|entering|",
   "CLASSIFICATION_CODE_FOR_VIOLATIONS" = "The classification code for the violation",
   "STATISTICS" = "The statistic being measured, including Rate per 100,000 population, Percentage change in rate",
