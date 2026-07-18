@@ -1,3 +1,26 @@
 INFO [2026-07-17 14:58:24] Connected to SQL Server database
 INFO [2026-07-17 17:54:43] Computed population-weighted DA crime rates: 1025550 rows
 INFO [2026-07-17 17:54:48] Wrote DA crime rate output to C:/Users/JDUAN/Downloads/project/r/bcgov/bcstats-ses/out/BC_DA_Crime_Rate_DIP.csv
+INFO [2026-07-17 22:03:03] Connected to SQL Server database
+INFO [2026-07-17 22:11:45] Wrote TMF DIP output to C:/Users/JDUAN/Downloads/project/r/bcgov/bcstats-ses/out/Translation_Master_File_DIP_2026.csv
+INFO [2026-07-17 22:16:09] Connected to SQL Server database
+INFO [2026-07-17 22:16:11] Loading TMF (GCS) from prod.FCT_GCS_202606...
+INFO [2026-07-17 22:17:54] TMF loaded and column names standardized
+INFO [2026-07-17 22:19:08] Built TMF_dict_detail: 35 rows, all mapped to item_short
+INFO [2026-07-17 22:19:21] Wrote TMF data dictionary DIP output
+INFO [2026-07-17 22:20:36] Found 39 lookup sheets in GCS_Lookup_Table.xlsx: CD_2021, CDCSD_2021, CMCMA_2021, DR_2021, DPL_2021, FED_2021, POPCTR_2021, CD_2016, CDCSD_2016, CMACA_2016, DR_2016, DPL_2016, FED_2016, POPCTR_2016, CD_2011, CDCSD_2011, CMACA_2011, DR_2011, DPL_2011, FED_2011, CHSA_PRE_2023, CHSA, LHA, HSDA, HA, LHA_PRE_2018, MCFD, MCFD_SDA, MCFD_LSA, PED_1999, PED_2009, PED_2015, SD, CR, TOURISM, SBC, TSA, GZ, WorkBC
+INFO [2026-07-17 22:35:55] Loading LFS data from StatsCan table 14-10-0457-01...
+INFO [2026-07-17 22:35:57] Loaded LFS raw data: 290568 rows
+INFO [2026-07-17 22:35:57] Filtered to BC: 42360 rows
+INFO [2026-07-17 22:35:57] Filtered to estimates only: 10590 rows
+INFO [2026-07-17 22:35:57] LFS cleaned: 10590 rows, 6 columns
+INFO [2026-07-17 22:35:57] Loading SLA linkage file from: \\SFP.idir.bcgov\S152\S52005\Data Science and Analytics/2024 SES Index/data/StatsCanLFS/SLA2016_FinalClassification.xlsx
+INFO [2026-07-17 22:36:06] Loaded SLA raw data: 5162 rows
+INFO [2026-07-17 22:36:06] SLA lookup complete: 737 records, no missing values
+INFO [2026-07-17 22:36:06] Joining LFS with SLA geography lookup...
+INFO [2026-07-17 22:36:06] LFS joined with SLA: 83316 rows
+INFO [2026-07-17 22:36:06] Writing LFS output to: C:/Users/JDUAN/Downloads/project/r/bcgov/bcstats-ses/out/Labour_Force_Survey_DIP_2024_2026.csv
+INFO [2026-07-17 22:36:08] LFS output written successfully
+INFO [2026-07-17 22:36:08] Creating LFS data dictionary...
+INFO [2026-07-17 22:36:08] Writing LFS dictionary to: C:/Users/JDUAN/Downloads/project/r/bcgov/bcstats-ses/out/Labour_Force_Survey_Dict_DIP_2024_2026.csv
+INFO [2026-07-17 22:36:08] LFS dictionary written successfully
