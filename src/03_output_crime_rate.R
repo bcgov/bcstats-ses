@@ -84,12 +84,12 @@ cansim_id <- "35-10-0184-01"
 #   use_network_path("data/cansim_cache/35100184-eng.sqlite"),
 #   "./data/35100184-eng.sqlite"
 # )
-Sys.getenv("CANSIM_CACHE_PATH")
+cansim_cache_path <- year_config$cansim_cache_path
 Sys.unsetenv("CANSIM_CACHE_PATH")
-if (!dir.exists("c:/Temp/cansim_cache")) {
-  dir.create("c:/Temp/cansim_cache")
+if (!dir.exists(cansim_cache_path)) {
+  dir.create(cansim_cache_path, recursive = TRUE)
 }
-Sys.setenv(CANSIM_CACHE_PATH = "c:/Temp/cansim_cache")
+Sys.setenv(CANSIM_CACHE_PATH = cansim_cache_path)
 # options(cansim.cache_path = "./data")
 # getOption("cansim.cache_path")
 log_info(glue::glue("Opening cansim connection for table {cansim_id}..."))
