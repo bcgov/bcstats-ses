@@ -57,14 +57,42 @@ library(readxl)
 # The GCS 202406 csv file is provided by Econ team and saved in LAN. Need safe network path to get it.
 stopifnot(Sys.getenv("SAFEPATHS_NETWORK_PATH") != "")
 
-TMF_file <- use_network_path("2024 SES Index/data/raw_data/TMF/GCS_202406.csv")
+# TMF_file <- use_network_path("2024 SES Index/data/raw_data/TMF/GCS_202406.csv")
 
-TMF <- read_csv(TMF_file)
+# TMF <- read_csv(TMF_file)
 
+# use the GCS file in the decimal/unary database
+
+db_config <- config::get("data_server")
+my_schema <- db_config$myschema
+
+con <- DBI::dbConnect(
+  odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "Yes"
+)
+
+log_info("Connected to SQL Server database")
+
+
+# TMF <- read_csv(TMF_file)
+TMF <- tbl(
+  con,
+  Id(schema = year_config$gcs$schema, name = year_config$gcs$table)
+)
+# standardize the DA number, append the prefix BC code 59, so it is easy to join to other tables.
+# Kept as character since it is an identifier, not a quantity. Coerce inputs to
+# character first so leading zeros in CD_2021/DA_2021 are preserved.
+TMF <- TMF %>%
+  mutate(
+    DA_NUM = str_c("59", as.character(CD_2021), as.character(DA_2021), sep = "")
+  )
 
 # standardize the DA number, append the prefix BC code 59, so it is easy to join to other tables.
-TMF <- TMF %>%
-  mutate(DA_NUM = as.numeric(str_c("59", CD_2021, DA_2021, sep = "")))
+# TMF <- TMF %>%
+#   mutate(DA_NUM = as.numeric(str_c("59", CD_2021, DA_2021, sep = "")))
 
 # TMF_names = TMF %>% names() %>% paste(collapse = ",")
 
@@ -73,8 +101,15 @@ TMF <-
   TMF %>%
   janitor::clean_names(case = "screaming_snake")
 
+# get current year
+current_year <- format(Sys.Date(), "%Y")
+
 # 1. BC Translation_Master_File
-TMF %>% readr::write_csv(here::here("out", "Translation_Master_File_DIP.csv"))
+TMF %>%
+  readr::write_csv(here::here(
+    "out",
+    paste0("Translation_Master_File_DIP_", current_year, ".csv")
+  ))
 
 #################################################################################################
 # Data dictionary
@@ -91,7 +126,7 @@ TMF <- TMF %>%
     .fns = as.factor
   ))
 
-TMF_dict = create_dictionary(TMF, id_var = "POSTALCODE", var_labels = NULL)
+TMF_dict <- create_dictionary(TMF, id_var = "POSTALCODE", var_labels = NULL)
 
 # f2 <- "https://www2.gov.bc.ca/assets/gov/health/forms/5512datadictionary.pdf"
 # a better data dictionary in Geocoding Self-Service (GCS) User Guide Prepared by BC Stats March 2020, not online, provided by Econ team
@@ -167,7 +202,10 @@ TMF_dict <- TMF_dict %>%
 
 
 TMF_dict %>%
-  readr::write_csv(here::here("out", "Translation_Master_File_Dict_DIP.csv"))
+  readr::write_csv(here::here(
+    "out",
+    paste0("Translation_Master_File_Dict_DIP_", current_year, ".csv")
+  ))
 
 
 #################################################################################################
@@ -178,7 +216,7 @@ TMF_dict %>%
 file_path <- use_network_path("data/raw_data/TMF/GCS_Lookup_Table.xlsx")
 
 # Specify the prefix for the CSV files
-prefix <- "Translation_Master_File_Lookup_"
+prefix <- paste0("Translation_Master_File_Lookup_", current_year, "_")
 
 # Get the sheet names
 sheet_names <- excel_sheets(file_path)
