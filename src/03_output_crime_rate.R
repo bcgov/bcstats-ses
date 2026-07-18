@@ -109,17 +109,11 @@ connection <- cansim::get_cansim_connection(
   refresh = TRUE # only occasionally refresh since this table was updated in Frequency: Annual Table: 35-10-0184-01 (formerly CANSIM 252-0081) Release date: 2025-07-22
 )
 log_info("cansim connection established")
-# ignore the warning, the cache does not have the date right. It is retrieved in July 30th 2024, so it is updated.
-#
-connection %>%
-  glimpse()
 
-connection %>%
-  count(GEO)
-
-available_years <- connection %>%
-  count(REF_DATE) |>
-  collect()
+# --- Exploration / sanity-check prints (unused downstream; kept commented) ---
+# connection %>% glimpse()
+# connection %>% count(GEO)
+# available_years <- connection %>% count(REF_DATE) |> collect()
 
 violations_list <- connection %>%
   count(Violations) %>%
@@ -146,17 +140,12 @@ log_info(glue::glue(
 ))
 
 
-crime_GEO_list <- connection %>%
-  count(GEO) %>%
-  collect()
-# # 237 regions: Policing district/zone. id Police Services Respondent Codes: RESP like 59774
-#  [59774] need to parse out and join to TMF RESP
+# Distinct geographies in the cansim table (exploration; unused downstream).
+# crime_GEO_list <- connection %>% count(GEO) %>% collect()
+# crime_GEOUID_list <- connection %>% count(GeoUID) %>% collect()
 
-crime_GEOUID_list <- connection %>%
-  count(GeoUID) %>%
-  collect()
-# 238 GEOUIDs: Policing district/zone. id Police Services Respondent Codes: RESP like 59774 or 59926
-# Only look at data after 2000
+# Pull crime stats: restrict to the data window, the selected violation types,
+# and the two statistics we report (rate per 100k, and pct change in rate).
 bc_crime_stats <- connection %>%
   filter(
     # GEO=="British Columbia",
@@ -172,14 +161,18 @@ bc_crime_stats <- connection %>%
 bc_crime_stats <- bc_crime_stats %>%
   janitor::clean_names(case = "screaming_snake") # clean the names. We prefer all uppercase
 
+# Distinct RESP (police-service respondent) geography lookup from the pulled data.
+#  RESP stands for Respondent Codes (specifically referred to in the comments as "Police Services Respondent Codes").
+# These codes represent the different policing jurisdictions or "respondents" (such as a municipal police force or a specific RCMP detachment)
+# that provide the crime statistics.
+# The script uses these codes to link crime data from these specific respondents to broader geographic areas like Dissemination Areas (DAs).
+bc_resp_lookup <- bc_crime_stats %>%
+  count(GEO, GEO_UID)
+
 log_info(glue::glue(
   "Loaded BC crime stats: {nrow(bc_crime_stats)} rows across ",
   "{nrow(bc_resp_lookup)} RESPs"
 ))
-
-bc_resp_lookup <- bc_crime_stats %>%
-  count(GEO, GEO_UID)
-# 238 resps
 
 # policy zone is like: Colwood, British Columbia, Royal Canadian Mounted Police, municipal [59819]
 
@@ -204,12 +197,9 @@ log_info(glue::glue(
   "Loaded DA-RESP lookup: {nrow(DA_RESP_lookup)} rows"
 ))
 
-DA_RESP_lookup %>%
-  count(DA_2021)
-# 7010
-# some DAs cover multiple RESP
-# ? this DA_2021 only 4 digits long, so it is not the same as the DA_2021 in the census data
-# solution is to get the unique combination of short DA_2021 and RESP from TMF table which also has the long DA_NUM
+# DA_2021 here is only 4 digits; it is not the full census DA UID. It is
+# resolved to the long DA_NUM below via the TMF (GCS) table.
+# DA_RESP_lookup %>% count(DA_2021)  # exploration
 # TMF_file <- use_network_path("2024 SES Index/data/raw_data/TMF/GCS_202406.csv")
 # use the GCS file in the decimal/unary database
 
@@ -233,8 +223,12 @@ TMF <- tbl(
   Id(schema = year_config$gcs$schema, name = year_config$gcs$table)
 )
 # standardize the DA number, append the prefix BC code 59, so it is easy to join to other tables.
+# Kept as character since it is an identifier, not a quantity. Coerce inputs to
+# character first so leading zeros in CD_2021/DA_2021 are preserved.
 TMF <- TMF %>%
-  mutate(DA_NUM = as.numeric(str_c("59", CD_2021, DA_2021, sep = "")))
+  mutate(
+    DA_NUM = str_c("59", as.character(CD_2021), as.character(DA_2021), sep = "")
+  )
 
 TMF_CR <-
   TMF %>%
@@ -250,16 +244,15 @@ DA_RESP_lookup_long <- DA_RESP_lookup %>%
     by = c("DA_2021" = "DA_2021", "RESP" = "RESP") # the combination of short DA_2021 and RESP is unique, which gives us the unique long DA_NUM
   )
 
-DA_RESP_lookup_long %>%
-  count(RESP)
-# # 195 RESPs in the lookup table which is close to the number of 193 RESPs in Crime rate data table
+# DA_RESP_lookup_long %>% count(RESP)  # exploration
 
 # create a table with all possible combinations of REF_DATE, VIOLATIONS, STATISTICS for each RESP and DA.
 DA_RESP_lookup_with_year <- bc_crime_stats %>%
   distinct(REF_DATE, VIOLATIONS, STATISTICS) %>%
   cross_join(DA_RESP_lookup_long %>% select(RESP, DA_NUM, POP_CNT, PC_CNT))
 
-# one option is to join to da table
+# Build the complete grid of (year x violation x statistic) for every RESP/DA,
+# then attach the actual crime values from the cansim pull.
 bc_da_crime_stats_year <- DA_RESP_lookup_with_year %>%
   left_join(
     bc_crime_stats %>%
@@ -275,10 +268,9 @@ bc_da_crime_stats_year <- DA_RESP_lookup_with_year %>%
     by = join_by("REF_DATE", "VIOLATIONS", "STATISTICS", "RESP" == "GEO_UID")
   )
 
-# to eliminate the duplicated RESP rate within DAs in which one DAs have multiple RESP rates,
-# we use number of postal code regions or population as weights to get weighted average crime rate for each DA
-
-# bc_da_crime_stats_year %>% names %>% paste(collapse = ",")
+# Collapse multiple RESPs within a DA to a single DA-level rate, weighting each
+# RESP's value by its population so larger police jurisdictions count more.
+# bc_da_crime_stats_year %>% names %>% paste(collapse = ",")  # exploration
 
 bc_da_crime_stats_year_weighted_by_pop <- bc_da_crime_stats_year %>%
   group_by(
@@ -290,16 +282,26 @@ bc_da_crime_stats_year_weighted_by_pop <- bc_da_crime_stats_year %>%
   ) %>% # now only group by DA and year without RESP
   summarise(VALUE = weighted.mean(VALUE, w = POP_CNT))
 
+
 log_info(glue::glue(
   "Computed population-weighted DA crime rates: ",
   "{nrow(bc_da_crime_stats_year_weighted_by_pop)} rows"
 ))
+
+# Derive the end year from the data itself so the description never goes stale.
+crime_data_end_year <- max(
+  as.numeric(bc_da_crime_stats_year_weighted_by_pop$REF_DATE),
+  na.rm = TRUE
+)
+
 # since the data has ',' in the cells, we use write.csv2
 if (!dir.exists("out")) {
   dir.create("out")
 }
 
-crime_rate_output_file <- here::here("out/BC_DA_Crime_Rate_DIP_2024.csv")
+crime_rate_output_file <- here::here(glue::glue(
+  "out/BC_DA_Crime_Rate_DIP_{crime_data_end_year}.csv"
+))
 
 write_csv2(bc_da_crime_stats_year_weighted_by_pop, crime_rate_output_file)
 
@@ -316,11 +318,10 @@ log_info(glue::glue(
 # Data Dictionary
 #############################################################
 
-# Derive the end year from the data itself so the description never goes stale.
-crime_data_end_year <- max(as.numeric(bc_da_crime_stats_year_weighted_by_pop$REF_DATE), na.rm = TRUE)
-
 crime_rate_dict_labels <- c(
-  "REF_DATE" = glue::glue("The year of the observation (in '%Y' format): from {crime_start_year} to {crime_data_end_year}"),
+  "REF_DATE" = glue::glue(
+    "The year of the observation (in '%Y' format): from {crime_start_year} to {crime_data_end_year}"
+  ),
   "VIOLATIONS" = "Violation type and classification, such as violent criminal code violations|homicide|attempted murder|assault|breaking|entering|",
   "CLASSIFICATION_CODE_FOR_VIOLATIONS" = "The classification code for the violation",
   "STATISTICS" = "The statistic being measured, including Rate per 100,000 population, Percentage change in rate",

@@ -14,3 +14,5 @@ default:
   # Local cansim sqlite cache directory. Referenced every run; not year-sensitive
   # but centralized here so the cache path is not repeated as a literal in scripts.
   cansim_cache_path: "C:/Temp/cansim_cache"
+  cancensus_cache_path: "C:/Temp/census_cache"
+
