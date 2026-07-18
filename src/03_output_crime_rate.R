@@ -299,11 +299,12 @@ if (!dir.exists("out")) {
   dir.create("out")
 }
 
-bc_da_crime_stats_year_weighted_by_pop %>%
-  write_csv2(here::here("out/BC_DA_Crime_Rate_DIP_2024.csv"))
+crime_rate_output_file <- here::here("out/BC_DA_Crime_Rate_DIP_2024.csv")
+
+write_csv2(bc_da_crime_stats_year_weighted_by_pop, crime_rate_output_file)
 
 log_info(glue::glue(
-  "Wrote DA crime rate output to {here::here('out/BC_DA_Crime_Rate_DIP.csv')}"
+  "Wrote DA crime rate output to {crime_rate_output_file}"
 ))
 # write.csv2(use_network_path(
 #   "2024 SES Index/data/output/BC_DA_Crime_Rate_DIP.csv"

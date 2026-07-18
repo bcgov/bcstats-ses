@@ -29,14 +29,9 @@ project_root <- here::here()
 snapshot_dir <- file.path(project_root, "test", "snapshots")
 snapshot_file <- file.path(snapshot_dir, "BC_DA_Crime_Rate_golden.csv")
 
-# Locate the pipeline's current output. The script writes a year-suffixed CSV to
-# out/, so we match by pattern and take the most recently modified match.
+# The pipeline writes a year-suffixed CSV to out/; read_output() locates the
+# most recently written match by pattern when comparing.
 out_dir <- file.path(project_root, "out")
-output_candidates <- list.files(
-  out_dir,
-  pattern = "^BC_DA_Crime_Rate_DIP.*\\.csv$",
-  full.names = TRUE
-)
 
 run_pipeline <- function() {
   cat("Running src/03_output_crime_rate.R...\n")
@@ -91,9 +86,9 @@ if (!dir.exists(snapshot_dir)) {
 if (!file.exists(snapshot_file)) {
   # ---------------- RECORD MODE ----------------
   cat("No golden snapshot found. RECORDING a new baseline.\n")
-  if (length(output_candidates) == 0) {
-    run_pipeline()
-  }
+  # Always run a fresh pipeline so the baseline reflects the current code,
+  # not a possibly-stale CSV left over in out/.
+  run_pipeline()
   current <- read_output()
   readr::write_excel_csv2(current, snapshot_file)
   cat("RECORDED baseline:", snapshot_file, "\n")
