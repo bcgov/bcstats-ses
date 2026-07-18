@@ -37,6 +37,15 @@ lan_path <- config::get("lan_path")
 # Update values in config_year.yml at each annual refresh.
 year_config <- config::get(file = "config_year.yml")
 
+# ---------------------------------------------------------------------------
+# ANNUAL REFRESH PARAMETER
+# ---------------------------------------------------------------------------
+# Start year of the crime data window pulled from cansim. Adjust each refresh
+# to widen/narrow the historical window (mirrors the output_year convention in
+# script 15). The comparison against REF_DATE is kept as a string to preserve
+# the existing filtering semantics.
+crime_start_year <- 2000
+
 ## -------------------------- Logging Setup -------------------------------------------------------
 ## -----------------------------------------------------------------------------------------------
 log_file <- "./R/execution_log.txt"
@@ -152,7 +161,7 @@ bc_crime_stats <- connection %>%
   filter(
     # GEO=="British Columbia",
     # str_starts( GEOUID, "59"),
-    REF_DATE >= "2000", # focus on most recent years
+    REF_DATE >= as.character(crime_start_year), # focus on most recent years
     Violations %in% violations_selected_list$VIOLATIONS, #c("Assault, level 1 [1430]"   ,"Assault, level 2, weapon or bodily harm [1420]"   ) ,  #  ,
     Statistics %in%
       c("Rate per 100,000 population", "Percentage change in rate")
