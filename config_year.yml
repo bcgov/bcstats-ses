@@ -1,0 +1,16 @@
+default:
+  # ---------------------------------------------------------------------------
+  # Year-sensitive, NON-SECRET refresh parameters for the SES Index pipelines.
+  # This file is tracked in git (unlike config.yml, which holds secrets).
+  # Update the values below at each annual refresh.
+  # ---------------------------------------------------------------------------
+
+  # GCS (Translation Master File) snapshot used to resolve DA -> RESP.
+  # Update `table` each refresh to the current GCS snapshot table name.
+  gcs:
+    schema: "prod"
+    table: "FCT_GCS_202606"
+
+  # Local cansim sqlite cache directory. Referenced every run; not year-sensitive
+  # but centralized here so the cache path is not repeated as a literal in scripts.
+  cansim_cache_path: "C:/Temp/cansim_cache"
