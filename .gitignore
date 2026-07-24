@@ -49,4 +49,6 @@ my_database.duckdb.wal
 bcstats-ses.Rproj
 *.log
 test/
+.RDataTmp1
+lower_mainland_chsa.geojson
 CONTEXT.md

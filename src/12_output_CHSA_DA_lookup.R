@@ -9,6 +9,60 @@
 # Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
+#################################################################################################
+# SCRIPT SUMMARY: CHSA-DA Lookup Table Creation
+#################################################################################################
+#
+# Purpose: Creates a comprehensive lookup table linking Community Health Service Areas (CHSA), 
+#          Dissemination Areas (DA), and Dissemination Blocks (DB) with population weights 
+#          for geographic data aggregation and disaggregation in the BC Socio-Economic Index.
+#
+# Key Outputs:
+# 1. db_to_da_chsa_pop_cnt.csv - Main crosswalk table with population-based weights
+# 2. da_chsa_data_dict.csv - Data dictionary for the crosswalk table
+#
+# Main Processing Steps:
+# 1. Database Connection & Data Retrieval:
+#    - Connects to database using config.yml settings
+#    - Retrieves CHSA reference data from database
+#    - Downloads CHSA boundary data from BC Data Catalogue
+#    - Extracts GCS (Geographic Correspondence System) postal code data
+#
+# 2. Geographic Crosswalk Creation:
+#    - Creates DB-CHSA lookup for 2016-2018 (using 2016 census boundaries)
+#    - Creates DB-CHSA lookup for 2019-2023 (using 2021 census boundaries)
+#    - Integrates Jonathan's Translation Master File for additional DB coverage
+#    - Combines datasets to maximize geographic coverage (52,423 DBs total)
+#
+# 3. Population Data Integration:
+#    - Loads BC Stats population estimates by DB for 2016-2023
+#    - Validates geographic relationships (no DB spans multiple DAs)
+#    - Handles edge cases where DBs span multiple CHSAs (splits population 50/50)
+#
+# 4. Weight Calculation for Geographic Aggregation:
+#    - Creates CHSADA units (intersection of CHSA and DA boundaries)
+#    - Calculates population-based weights for:
+#      * DA to CHSA aggregation: chsada_to_chsa_pop_ratio
+#      * CHSA to DA disaggregation: chsada_to_da_pop_ratio
+#    - Handles 1,770 DA-YEAR combinations that span multiple CHSAs
+#
+# 5. Data Validation & Quality Checks:
+#    - Validates geographic hierarchy (DB → DA → CHSA)
+#    - Identifies and reports boundary overlaps
+#    - Ensures population totals are consistent
+#
+# Key Statistics:
+# - 52,423 Dissemination Blocks
+# - 8,182 Dissemination Areas  
+# - 231 Community Health Service Areas
+# - 8,084 CHSADA intersection units
+# - Years covered: 2016-2023
+#
+# Usage: This crosswalk enables aggregation of DA-level socio-economic indicators 
+#        to CHSA level using population-weighted averages, critical for health 
+#        service planning and regional analysis.
+#
+#################################################################################################
 
 library(tidyverse)
 library(DBI)
@@ -222,6 +276,8 @@ db_da_chsa_2016_2023_jonathan |> glimpse()
 db_da_chsa_lookup_2016_2023 <- gcs_chsa_db_lookup_2016_2023 |>
   bind_rows(db_da_chsa_2016_2023_jonathan) |>
   distinct()
+# distinct is important here to remove duplicated rows, since we have two sources of data, one is from GCS and the other is from Jonathan's TMF.
+
 
 db_da_chsa_lookup_2016_2023 |>
   glimpse()
@@ -230,6 +286,8 @@ db_da_chsa_lookup_2016_2023 |>
 
 #################################################################
 # DB population from Jonathan
+# use the population estimates from BC Stats as weights for CHSA and DA crosswalk
+# The population estimates are from 2016 to 2023, and the population estimates are used to create the crosswalk of CHSA and DA.
 #################################################################
 #Setting paths
 bc_stats_project_lan <- config$file_path$bc_stats_project
