@@ -17,26 +17,27 @@ A regression-safe, annually-refreshable data-cleaning pipeline: the existing num
 
 <!-- one line per closed ticket: gist + link -->
 
-(none yet)
+- [#1 Testability audit](tickets/01-testability-audit.md) — ~10% of pipeline logic is CI-testable (it's I/O-bound); existing crime-rate test is a local-only snapshot, not testthat; top unit-test candidates are `parse_speed`/`compute_combined_max` (`14_connectivity.R`) and `remove_geographies` (`15_…`); `utils.R` has zero testable functions.
+- [#8 Secrets/reproducibility audit](tickets/08-secrets-reproducibility-audit.md) — clean bill: no secrets tracked (`Trusted_Connection=Yes` is non-secret Windows auth); `.Renviron` + `config.yml` gitignored; `config_year.yml` non-secret; `safepaths` used consistently. Minor: machine-specific cache paths in tracked config (defer to #4).
 
 ## Ticket index
 
 | # | Title | Type | Status | Blocked by |
 |---|-------|------|--------|-----------|
-| 1 | [Testability audit](tickets/01-testability-audit.md) | research | open | — |
-| 2 | [Config audit](tickets/02-config-audit.md) | research | open | — |
-| 3 | [Testing strategy](tickets/03-testing-strategy.md) | grilling | open | 1 |
+| 1 | [Testability audit](tickets/01-testability-audit.md) | research | **resolved** | — |
+| 2 | [Config audit](tickets/02-config-audit.md) | research | open *(in-flight)* | — |
+| 3 | [Testing strategy](tickets/03-testing-strategy.md) | grilling | open | ~~1~~ unblocked |
 | 4 | [Config architecture & annual-refresh contract](tickets/04-config-architecture.md) | grilling | open | 2 |
-| 5 | [CI design](tickets/05-ci-design.md) | grilling | open | 1 |
+| 5 | [CI design](tickets/05-ci-design.md) | grilling | open | ~~1~~ unblocked |
 | 6 | [lint/format adoption](tickets/06-lint-format-adoption.md) | grilling | open | — |
-| 7 | [Modularization scope](tickets/07-modularization-scope.md) | grilling | open | 1 |
-| 8 | [Secrets/reproducibility audit](tickets/08-secrets-reproducibility-audit.md) | task | open | — |
+| 7 | [Modularization scope](tickets/07-modularization-scope.md) | grilling | open | ~~1~~ unblocked |
+| 8 | [Secrets/reproducibility audit](tickets/08-secrets-reproducibility-audit.md) | task | **resolved** | — |
 
-**Frontier (open · unblocked · unclaimed):** 1, 2, 6, 8.
+**Frontier (open · unblocked · unclaimed):** #3, #5, #6, #7. (#2 research in-flight; #4 blocked by #2.)
 
 ## Not yet specified
 
-- **How DB-coupled logic ever gets test coverage.** Can't ticket sharply until the testability audit (#1) reports how much of the pipeline is pure vs. DB/LAN-bound. May graduate into a real testing approach, or dissolve entirely (if little is testable). Fog, toward the destination — not a scope boundary.
+- The earlier fog — *"how DB-coupled logic ever gets test coverage"* — has **graduated** into #3 (testing strategy), now that #1 established only ~10% of the pipeline is pure/testable. #3 will decide whether the remaining ~90% gets any coverage (mocks? LAN-only integration?) or is accepted as untested. No new fog yet.
 
 ## Out of scope
 
