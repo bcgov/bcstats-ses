@@ -40,12 +40,11 @@ renv/
 # data file
 *.duckdb
 *.parquet
-*.csv
 *.db
 data/
 out/
 src/scratch/
-test/
+
 my_database.duckdb.wal
 bcstats-ses.Rproj
 *.log
