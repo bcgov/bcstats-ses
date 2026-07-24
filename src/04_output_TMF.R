@@ -21,7 +21,7 @@ pacman::p_load(
   bcdata,
   janitor,
   cansim,
-  safepaths,
+  # safepaths,
   arrow,
   duckdb
 )
@@ -29,6 +29,17 @@ library(dplyr)
 library(datadictionary)
 library(readr)
 library(readxl)
+
+## -------------------------- Logging Setup ------------------------------------------------------
+## -----------------------------------------------------------------------------------------------
+log_file <- "./R/execution_log.txt"
+flog.appender(appender.file(log_file), name = "file_logger")
+flog.threshold(INFO, name = "file_logger")
+
+log_info <- function(msg) {
+  flog.info(msg, name = "file_logger")
+  print(paste(Sys.time(), "|", msg))
+}
 ######################################################################################
 #
 # Translation Master File: a table with different levels of geography to link the data
@@ -55,33 +66,83 @@ library(readxl)
 ######################################################################################
 
 # The GCS 202406 csv file is provided by Econ team and saved in LAN. Need safe network path to get it.
-stopifnot(Sys.getenv("SAFEPATHS_NETWORK_PATH") != "")
+# stopifnot(Sys.getenv("SAFEPATHS_NETWORK_PATH") != "")
 
-TMF_file <- use_network_path("2024 SES Index/data/raw_data/TMF/GCS_202406.csv")
+# TMF_file <- use_network_path("2024 SES Index/data/raw_data/TMF/GCS_202406.csv")
 
-TMF <- read_csv(TMF_file)
+# TMF <- read_csv(TMF_file)
+
+# use the GCS file in the decimal/unary database
+
+db_config <- config::get("data_server")
+# my_schema <- db_config$myschema  # unused in this script
+
+con <- DBI::dbConnect(
+  odbc::odbc(),
+  Driver = db_config$driver,
+  Server = db_config$server,
+  Database = db_config$database,
+  Trusted_Connection = "Yes"
+)
+
+log_info("Connected to SQL Server database")
+
+lan_path <- config::get("lan_path")
+
+# Year-sensitive, non-secret refresh parameters (git-tracked).
+# Update values in config_year.yml at each annual refresh.
+year_config <- config::get(file = "config_year.yml")
 
 
+# TMF <- read_csv(TMF_file)
+log_info(glue::glue(
+  "Loading TMF (GCS) from {year_config$gcs$schema}.{year_config$gcs$table}..."
+))
+TMF <- tbl(
+  con,
+  Id(schema = year_config$gcs$schema, name = year_config$gcs$table)
+)
 # standardize the DA number, append the prefix BC code 59, so it is easy to join to other tables.
+# Kept as character since it is an identifier, not a quantity. Coerce inputs to
+# character first so leading zeros in CD_2021/DA_2021 are preserved.
 TMF <- TMF %>%
-  mutate(DA_NUM = as.numeric(str_c("59", CD_2021, DA_2021, sep = "")))
+  mutate(
+    DA_NUM = str_c("59", as.character(CD_2021), as.character(DA_2021), sep = "")
+  )
 
-# TMF_names = TMF %>% names() %>% paste(collapse = ",")
+# Previous numeric version (kept for reference; DA_NUM is now character).
+# TMF <- TMF %>%
+#   mutate(DA_NUM = as.numeric(str_c("59", CD_2021, DA_2021, sep = "")))
+
+# TMF_names = TMF %>% names() %>% paste(collapse = ",")  # exploration
 
 # clean the names, one name is not upper-cased. We prefer all uppercase
 TMF <-
-  TMF %>%
+  TMF |>
+  collect() %>%
   janitor::clean_names(case = "screaming_snake")
 
+log_info("TMF loaded and column names standardized")
+
+# get current year
+current_year <- format(Sys.Date(), "%Y")
+
 # 1. BC Translation_Master_File
-TMF %>% readr::write_csv(here::here("out", "Translation_Master_File_DIP.csv"))
+tmf_output_file <- here::here(
+  "out",
+  paste0("Translation_Master_File_DIP_", current_year, ".csv")
+)
+
+TMF |> readr::write_csv(tmf_output_file)
+
+log_info(glue::glue("Wrote TMF DIP output to {tmf_output_file}"))
 
 #################################################################################################
 # Data dictionary
 #################################################################################################
 # 2. Create a dictionary for BC Translation_Master_File
 
-TMF <- TMF %>%
+TMF <- TMF |>
   mutate(across(
     .cols = c(
       PROV,
@@ -91,7 +152,7 @@ TMF <- TMF %>%
     .fns = as.factor
   ))
 
-TMF_dict = create_dictionary(TMF, id_var = "POSTALCODE", var_labels = NULL)
+TMF_dict <- create_dictionary(TMF, id_var = "POSTALCODE", var_labels = NULL)
 
 # f2 <- "https://www2.gov.bc.ca/assets/gov/health/forms/5512datadictionary.pdf"
 # a better data dictionary in Geocoding Self-Service (GCS) User Guide Prepared by BC Stats March 2020, not online, provided by Econ team
@@ -99,9 +160,10 @@ TMF_dict = create_dictionary(TMF, id_var = "POSTALCODE", var_labels = NULL)
 
 # manually create a item field in this detail dataframe to join the TMF_dict dataframe
 
-TMF_dict_detail <- read_csv(use_network_path("docs/TMF_data_dict.csv"))
-View(TMF_dict_detail)
-
+TMF_dict_detail <- read_csv(glue::glue(
+  "{lan_path}/2024 SES Index/docs/TMF_data_dict.csv"
+))
+# View(TMF_dict_detail)  # interactive exploration
 
 create_item <- function(x) {
   # Use case_match for value mapping
@@ -153,6 +215,9 @@ TMF_dict_detail <- TMF_dict_detail %>%
   mutate(item_short = create_item(`Field Name`))
 
 stopifnot(sum(is.na(TMF_dict_detail$item_short)) == 0)
+log_info(glue::glue(
+  "Built TMF_dict_detail: {nrow(TMF_dict_detail)} rows, all mapped to item_short"
+))
 
 # for the datadictionary created from datadictionary function, we also need to create a shorten item name since some items have year as sufix such as CD_2021.
 TMF_dict <- TMF_dict %>%
@@ -167,7 +232,12 @@ TMF_dict <- TMF_dict %>%
 
 
 TMF_dict %>%
-  readr::write_csv(here::here("out", "Translation_Master_File_Dict_DIP.csv"))
+  readr::write_csv(here::here(
+    "out",
+    paste0("Translation_Master_File_Dict_DIP_", current_year, ".csv")
+  ))
+
+log_info("Wrote TMF data dictionary DIP output")
 
 
 #################################################################################################
@@ -175,13 +245,19 @@ TMF_dict %>%
 #################################################################################################
 
 # Path to the Excel file
-file_path <- use_network_path("data/raw_data/TMF/GCS_Lookup_Table.xlsx")
+file_path <- glue::glue(
+  "{lan_path}/2024 SES Index/data/raw_data/TMF/GCS_Lookup_Table.xlsx"
+)
 
 # Specify the prefix for the CSV files
-prefix <- "Translation_Master_File_Lookup_"
+prefix <- paste0("Translation_Master_File_Lookup_", current_year, "_")
 
 # Get the sheet names
 sheet_names <- excel_sheets(file_path)
+log_info(glue::glue(
+  "Found {length(sheet_names)} lookup sheets in GCS_Lookup_Table.xlsx: ",
+  "{paste(sheet_names, collapse = ', ')}"
+))
 
 # Loop through each sheet and save as CSV with a prefix
 for (sheet in sheet_names) {
@@ -194,6 +270,7 @@ for (sheet in sheet_names) {
   # Save the sheet as a CSV file
   write.csv(data, csv_file_name, row.names = FALSE)
 
-  # Print message for confirmation
-  message(paste("Saved:", csv_file_name))
+  log_info(glue::glue("Saved lookup sheet '{sheet}' to {csv_file_name}"))
 }
+
+log_info("04_output_TMF.R completed successfully")
