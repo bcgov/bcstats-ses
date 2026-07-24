@@ -37,7 +37,9 @@ The pipeline cleans and processes external data sources from Statistics Canada a
 
 ## Processing Scripts
 
-### Core Data Processing (in order)
+Scripts are numbered by pipeline stage. See [`../CONTEXT.md`](../CONTEXT.md) for domain terms and [`../docs/adr/`](../docs/adr/) for architectural decisions.
+
+### Cleaning (01–14) — per-source datasets
 
 | Script | Description |
 |--------|-------------|
@@ -45,20 +47,30 @@ The pipeline cleans and processes external data sources from Statistics Canada a
 | `03_output_crime_rate.R` | Processes BC crime statistics |
 | `04_output_TMF.R` | Creates Translation Master File |
 | `05_output_LFS.R` | Processes Labour Force Survey data |
-| `06_output_wildfire.R` | Processes wildfire data |
+| `06a_output_wildfire.R` / `06b_output_wildfire.R` | Processes wildfire data (two parts) |
 | `07_SLA.R` | Processes SLA education data |
 | `08_BC_population_estimates.R` | Creates population estimates |
 | `09_output_remoteness.R` | Calculates remoteness indices |
 | `10_output_housing_value.R` | Processes housing value data |
 | `11_output_CISV_CISR_CIMD.R` | Processes vulnerability indices |
 | `12_output_CHSA_DA_lookup.R` | Creates CHSA-DA geographic crosswalk |
-| `14_bc_connectivity_data.R` | Processes internet connectivity data |
+| `13_BC_DA_population_estimates.R` | BC DA-level population estimates |
+| `14_connectivity.R` | Processes internet connectivity data |
 
-### Geographic Suppression (Final Step)
+### Suppression (15) — disclosure control
 
 | Script | Description |
 |--------|-------------|
 | `15_remove_geo_suppression_ids.R` | Removes indigenous geographies from final outputs |
+
+### Delivery (17–18) — catalogue / PowerBI-ready output
+
+| Script | Description |
+|--------|-------------|
+| `17_data_preparation_for_powerbi.R` | Prepares PowerBI-ready datasets |
+| `18_trend_ses.R` | SES trend (long-format) output |
+
+> Exploratory analysis and demo apps are kept **outside** the pipeline, in [`../analysis/`](../analysis/) and [`../apps/experimental/`](../apps/experimental/). The canonical Shiny app is [`../app.R`](../app.R).
 
 ---
 
@@ -116,14 +128,14 @@ The script uses official Statistics Canada CSD type codes:
    - Network access to LAN data paths
 
 3. **Configuration**
-   - Update `config.yml` with current year settings
+   - Update `config_year.yml` with the current year's refresh values (e.g. GCS snapshot table); secrets stay in gitignored `config.yml`
    - Verify data paths in `.Renviron`
 
 ### Step-by-Step Instructions
 
 #### Step 1: Update Configuration
 
-Edit `config.yml` to set the current year:
+Edit `config_year.yml` to update the year-sensitive refresh values (GCS snapshot table, cache paths):
 
 ```yaml
 # Example configuration
@@ -165,8 +177,11 @@ Run scripts in numerical order:
 # Run each script sequentially
 source("src/01_output_statscan_census.R")
 source("src/03_output_crime_rate.R")
-# ... continue through pipeline
-source("src/14_bc_connectivity_data.R")
+# ... continue through 14_connectivity.R
+source("src/14_connectivity.R")
+source("src/15_remove_geo_suppression_ids.R")   # suppression
+source("src/17_data_preparation_for_powerbi.R") # delivery (optional)
+source("src/18_trend_ses.R")                    # delivery (optional)
 ```
 
 #### Step 4: Run Geographic Suppression
