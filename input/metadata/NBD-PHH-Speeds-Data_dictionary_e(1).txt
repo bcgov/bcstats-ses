@@ -1,0 +1,62 @@
+------------------------------------------+---------------------------------------------------------------------------------
+Field                                     | Description
+------------------------------------------+---------------------------------------------------------------------------------
+PHH_ID                                    | Unique identifier for pseudo-household (PHH) representative point
+Combined_lt5_1_Combine                    | Boolean value indicating if speeds smaller than 5/1 Mbps Download/Upload (DL/UL)
+                                              are available considering all wired and wireless technologies
+Wired_lt5_1_Filaire                       | Boolean value indicating if speeds smaller than 5/1 Mbps DL/UL
+                                              are available looking at wired technologies only
+Wireless_lt5_Sans_fil                     | Boolean value indicating if speeds smaller than 5/1 Mbps DL/UL
+                                              are available looking at wireless technologies only
+Combined_5_1_Combine                      | Boolean value indicating if 5/1 Mbps DL/UL speeds
+                                              are available considering all wired and wireless technologies
+Wired_5_1_Filaire                         | Boolean value indicating if 5/1 Mbps DL/UL speeds
+                                              are available looking at wired technologies only
+Wireless_5_1_Sans_fil                     | Boolean value indicating if 5/1 Mbps DL/UL speeds
+                                              are available looking at wireless technologies only
+Combined_10_2_Combine                     | Boolean value indicating if 10/2 Mbps DL/UL speeds
+                                              are available considering all wired and wireless technologies
+Wired_10_2_Filaire                        | Boolean value indicating if 10/2 Mbps DL/UL speeds
+                                              are available looking at wired technologies only
+Wireless_10_2_Sans_fil                    | Boolean value indicating if 10/2 Mbps DL/UL speeds
+                                              are available looking at wireless technologies only
+Combined_25_5_Combine                     | Boolean value indicating if 25/5 Mbps DL/UL speeds
+                                              are available considering all wired and wireless technologies
+Wired_25_5_Filaire                        | Boolean value indicating if 25/5 Mbps DL/UL speeds
+                                              are available looking at wired technologies only
+Wireless_25_5_Sans_fil                    | Boolean value indicating if 25/5 Mbps DL/UL speeds
+                                              are available looking at wireless technologies only
+Combined_50_10_Combine                    | Boolean value indicating if 50/10 Mbps DL/UL speeds
+                                              are available considering all wired and wireless technologies
+Wired_50_10_Filaire                       | Boolean value indicating if 50/10 Mbps DL/UL speeds
+                                              are available looking at wired technologies only
+Wireless_50_10_Sans_fil                   | Boolean value indicating if 50/10 Mbps DL/UL speeds
+                                              are available looking at wireless technologies only
+Combined_Max_Threshold-Combine_Seuil_Max  | Enum value indicating the top speed threshold that is reached
+                                              considering all wired and wireless technologies
+Wired_Max_Threshold-Filaire_Seuil_Max     | Enum value indicating the top speed threshold that is reached
+                                              looking at wired technologies only
+Wireless_Max_Threshold-Sans_fil_Seuil_Max | Enum value indicating the top speeds threshold that is reached
+                                              looking at wireless technologies only
+Avail_LTE_Mobile_Dispo                    | Boolean value indicating if LTE Mobile service is available
+------------------------------------------+---------------------------------------------------------------------------------
+
+------------------------------------------+---------------------------------------------------------------------------------
+Data Type                                 | Values
+------------------------------------------+---------------------------------------------------------------------------------
+Boolean                                   | 0 = False/No, 1 = True/Yes
+Enum                                      | String values within {"","<5_1","5_1","10_2","25_5","50_10"}
+                                          |   "50_10" being the highest threshold, it does not preclude the possibility
+                                          |   of higher speeds from being available
+                                          |   E.g.1: A speed of 400/100 Mbps meats the 50_10 threshold (falls in that category)
+                                          |   E.g.2: A speed of 50/5 Mbps falls under the 25_5 category because this is where
+                                          |            both download and upload criteria are met
+                                          |   E.g.3: A speed of 4/1 Mbps falls under the <5_1 category										  
+------------------------------------------+---------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------------------------------------------------------
+Additional Notes:
+  All entries represent values evaluated at the PHH locations.
+  Consult the PHH dataset to retrieve corresponding coordinates:
+  https://open.canada.ca/data/en/dataset/b3a1d603-19ca-466c-ae95-b5185e56addf
+----------------------------------------------------------------------------------------------------------------------------
