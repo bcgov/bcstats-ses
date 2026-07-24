@@ -27,8 +27,7 @@ vignettes/*.pdf
 *.knit.md
 # R Environment Variables
 .Renviron
-# pkgdown site
-docs/
+# docs/ holds ADRs (no pkgdown site in this repo) — tracked
 # translation temp files
 po/*~
 # RStudio Connect folder
@@ -40,6 +39,7 @@ renv/
 # data file
 *.duckdb
 *.parquet
+*.csv
 *.db
 data/
 out/
@@ -51,4 +51,5 @@ bcstats-ses.Rproj
 test/
 .RDataTmp1
 lower_mainland_chsa.geojson
-CONTEXT.md
+# runtime log (regenerated each run) — do not track
+R/execution_log.txt
