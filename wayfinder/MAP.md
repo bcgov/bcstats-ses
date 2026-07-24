@@ -18,6 +18,7 @@ A regression-safe, annually-refreshable data-cleaning pipeline: the existing num
 <!-- one line per closed ticket: gist + link -->
 
 - [#1 Testability audit](tickets/01-testability-audit.md) — ~10% of pipeline logic is CI-testable (it's I/O-bound); existing crime-rate test is a local-only snapshot, not testthat; top unit-test candidates are `parse_speed`/`compute_combined_max` (`14_connectivity.R`) and `remove_geographies` (`15_…`); `utils.R` has zero testable functions.
+- [#2 Config audit](tickets/02-config-audit.md) — 64 hardcoded values across 17 scripts (46 → `config_year.yml`, 3 → `config.yml`, 15 inline); only `03`/`04` read `config_year.yml` today; **critical:** `06b` uses a stale GCS snapshot (`FCT_GCS_202509` vs configured `FCT_GCS_202606`) → spun off as #9; no secrets exposed.
 - [#8 Secrets/reproducibility audit](tickets/08-secrets-reproducibility-audit.md) — clean bill: no secrets tracked (`Trusted_Connection=Yes` is non-secret Windows auth); `.Renviron` + `config.yml` gitignored; `config_year.yml` non-secret; `safepaths` used consistently. Minor: machine-specific cache paths in tracked config (defer to #4).
 
 ## Ticket index
@@ -25,19 +26,20 @@ A regression-safe, annually-refreshable data-cleaning pipeline: the existing num
 | # | Title | Type | Status | Blocked by |
 |---|-------|------|--------|-----------|
 | 1 | [Testability audit](tickets/01-testability-audit.md) | research | **resolved** | — |
-| 2 | [Config audit](tickets/02-config-audit.md) | research | open *(in-flight)* | — |
-| 3 | [Testing strategy](tickets/03-testing-strategy.md) | grilling | open | ~~1~~ unblocked |
-| 4 | [Config architecture & annual-refresh contract](tickets/04-config-architecture.md) | grilling | open | 2 |
-| 5 | [CI design](tickets/05-ci-design.md) | grilling | open | ~~1~~ unblocked |
+| 2 | [Config audit](tickets/02-config-audit.md) | research | **resolved** | — |
+| 3 | [Testing strategy](tickets/03-testing-strategy.md) | grilling | open | — |
+| 4 | [Config architecture & annual-refresh contract](tickets/04-config-architecture.md) | grilling | open | ~~2~~ unblocked |
+| 5 | [CI design](tickets/05-ci-design.md) | grilling | open | — |
 | 6 | [lint/format adoption](tickets/06-lint-format-adoption.md) | grilling | open | — |
-| 7 | [Modularization scope](tickets/07-modularization-scope.md) | grilling | open | ~~1~~ unblocked |
+| 7 | [Modularization scope](tickets/07-modularization-scope.md) | grilling | open | — |
 | 8 | [Secrets/reproducibility audit](tickets/08-secrets-reproducibility-audit.md) | task | **resolved** | — |
+| 9 | [Fix 06b stale GCS snapshot (correctness)](tickets/09-fix-06b-stale-gcs-snapshot.md) | task | open *(high priority)* | — |
 
-**Frontier (open · unblocked · unclaimed):** #3, #5, #6, #7. (#2 research in-flight; #4 blocked by #2.)
+**Frontier (open · unblocked · unclaimed):** #3, #4, #5, #6, #7, #9.
 
 ## Not yet specified
 
-- The earlier fog — *"how DB-coupled logic ever gets test coverage"* — has **graduated** into #3 (testing strategy), now that #1 established only ~10% of the pipeline is pure/testable. #3 will decide whether the remaining ~90% gets any coverage (mocks? LAN-only integration?) or is accepted as untested. No new fog yet.
+- The earlier fog — *"how DB-coupled logic ever gets test coverage"* — **graduated** into #3 (testing strategy) once #1 established only ~10% is pure/testable. #3 will decide whether the remaining ~90% gets coverage (mocks? LAN-only integration?) or is accepted as untested. No new fog yet.
 
 ## Out of scope
 
