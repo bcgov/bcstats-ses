@@ -55,6 +55,9 @@ source("./src/utils.R") # get the functions for plotting maps
 config <- config::get()
 # use this config <- config::get(config = "development" ) to switch to development environment.
 
+# Shared DB helper (ADR-0009)
+source("R/db.R")
+
 # Extract settings from config
 bca_addresses_table <- config$tables$bca_addresses
 
@@ -67,22 +70,8 @@ bca_property_values_table <- config$tables$bca_property_values
 gcs_table <- config$tables$gcs
 income_table <- config$tables$income
 
-# Establish database connection using config values
-tryCatch(
-  {
-    con <- dbConnect(
-      odbc(),
-      Driver = config$database$driver,
-      Server = config$database$server,
-      Database = config$database$database,
-      trusted_connection = config$database$trusted_connection
-    )
-    cat("Successfully connected to the database\n")
-  },
-  error = function(e) {
-    stop(glue("Failed to connect to database: {e$message}"))
-  }
-)
+# Establish database connection using shared helper (ADR-0009)
+con <- connect_db(config)
 
 # Validate tables exist before proceeding
 check_table <- function(table_name) {

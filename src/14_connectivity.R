@@ -73,6 +73,8 @@ library(ggplot2)
 
 # Source utility functions
 source("./src/utils.R")
+# Shared pure transformations: parse_speed(), compute_combined_max() (ADR-0009)
+source("R/transformations.R")
 
 # ---- Configuration ----
 config <- config::get()
@@ -123,27 +125,10 @@ log_info(
 # =============================================================================
 
 # ---- Helper: Parse speed strings (from script 16) ----
-#' Parse CITZ speed threshold strings into numeric values
-#' @param speed_str Character vector of speed labels (e.g., "50_10", "<5_1")
-#' @return Data frame with down, up, is_lt5_1 columns
-parse_speed <- function(speed_str) {
-  is_lt <- !is.na(speed_str) & str_detect(speed_str, "^<")
-  ok <- !is.na(speed_str) & str_detect(speed_str, "^[0-9]+_[0-9]+$")
+#' parse_speed() and compute_combined_max() relocated to R/transformations.R
+#' (ADR-0009) so tests/testthat/ can source them; sourced above.
 
-  data.frame(
-    down = suppressWarnings(as.numeric(ifelse(
-      ok,
-      str_extract(speed_str, "^[0-9]+(?=_)"),
-      ifelse(is_lt, 0, NA)
-    ))),
-    up = suppressWarnings(as.numeric(ifelse(
-      ok,
-      str_extract(speed_str, "(?<=_)[0-9]+$"),
-      ifelse(is_lt, 0, NA)
-    ))),
-    is_lt5_1 = is_lt
-  )
-}
+# ---- Helper: Convert threshold to numeric value ----
 
 # ---- Helper: Flag all tiers for a speed column ----
 #' Create boolean flags for each speed tier
@@ -168,40 +153,10 @@ flag_all_tiers <- function(parsed, prefix) {
 }
 
 # ---- Helper: Compute combined max threshold from wired and wireless ----
-#' Compute combined max threshold = the higher of wired or wireless
-#' This mimics NBD's "combined" approach (wired OR wireless)
-#' @param wired_max Character: wired max threshold (e.g., "50_10", "25_5", "<5_1")
-#' @param wireless_max Character: wireless max threshold
-#' @return Character: the higher of the two (NA if both are NA)
-compute_combined_max <- function(wired_max, wireless_max) {
-  # Define tier hierarchy (higher index = higher speed)
-  tier_order <- c("", "<5_1", "5_1", "10_2", "25_5", "50_10")
+#' compute_combined_max() relocated to R/transformations.R (ADR-0009);
+#' sourced near the top of this script.
 
-  # Helper to get tier rank
-  get_rank <- function(x) {
-    if (is.na(x) || x == "") {
-      return(0)
-    }
-    which(tier_order == x)
-  }
-
-  wired_rank <- get_rank(wired_max)
-  wireless_rank <- get_rank(wireless_max)
-
-  # If both NA, return NA
-  if (wired_rank == 0 && wireless_rank == 0) {
-    return(NA_character_)
-  }
-
-  # Return the higher tier
-  if (wired_rank >= wireless_rank) {
-    return(wired_max)
-  } else {
-    return(wireless_max)
-  }
-}
-
-# ---- Helper: Convert threshold to numeric value ----
+# ---- (next helper) ----
 #' Convert speed threshold string to numeric for regression/analysis
 #' @param threshold Character: speed threshold (e.g., "50_10", "25_5", "<5_1", NA)
 #' @return Numeric: 5=50_10, 4=25_5, 3=10_2, 2=5_1, 1=<5_1, 0=NA/empty

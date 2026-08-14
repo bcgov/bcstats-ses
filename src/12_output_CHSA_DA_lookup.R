@@ -80,26 +80,16 @@ province = "British Columbia"
 config <- config::get()
 # use this config <- config::get(config = "development" ) to switch to development environment.
 
+# Shared helpers (ADR-0009): connect_db + the extracted CHSADA weighting
+source("R/db.R")
+source("R/transformations.R")
+
 # Extract settings from config
 gcs_table <- config$tables$gcs
 chsa_table <- config$tables$chsa
 
-# Establish database connection using config values
-tryCatch(
-  {
-    con <- dbConnect(
-      odbc(),
-      Driver = config$database$driver,
-      Server = config$database$server,
-      Database = config$database$database,
-      trusted_connection = config$database$trusted_connection
-    )
-    cat("Successfully connected to the database\n")
-  },
-  error = function(e) {
-    stop(glue("Failed to connect to database: {e$message}"))
-  }
-)
+# Establish database connection using shared helper (ADR-0009)
+con <- connect_db(config)
 
 #####################################################################
 # CHSA
@@ -498,49 +488,9 @@ if (nrow(da_multiple_chsa) > 0) {
 
 # Now we have a DB level table
 # Creating population adjusted weights to distribute CHSAs
-db_to_da_chsa_pop_cnt <- bc_db_da_chsa_pop %>%
-  group_by(YEAR, CHSA, DAUID) %>%
-  mutate(
-    chsada_pop = sum(POPULATION, na.rm = TRUE),
-    cnt_db_in_chsada = n()
-  ) %>%
-  ungroup() %>%
-  group_by(YEAR, DAUID) %>%
-  mutate(
-    da_pop = sum(POPULATION, na.rm = TRUE),
-    chsada_to_da_pop_ratio = chsada_pop / da_pop,
-    cnt_db_in_da = n() # the same within da
-  ) %>%
-  ungroup() %>%
-  group_by(YEAR, CHSA) %>%
-  mutate(
-    chsa_pop = sum(POPULATION, na.rm = TRUE),
-    chsada_to_chsa_pop_ratio = chsada_pop / chsa_pop,
-    cnt_db_in_chsa = n() # the same within chsa
-  ) %>%
-  ungroup() %>%
-  # start to get the weights. now the table is still in DB level since we only implement mutate operation not summarise operation.
-  # the weights for our purpose (aggregate da value to chsa value) will be chsada_pop/chsa_pop for da value.
-  # the weights for disaggregate chsa value to da value) will be chsada_pop/da_pop for da value, which is the weight/prorate in Jonathan's original code.
-  count(
-    YEAR,
-    chsada_pop,
-    cnt_db_in_chsada,
-    DAUID,
-    da_pop,
-    chsada_to_da_pop_ratio,
-    cnt_db_in_da, # all the same within da
-    CHSA,
-    chsa_pop,
-    chsada_to_chsa_pop_ratio,
-    cnt_db_in_chsa, # all the same within chsa
-    sort = T,
-    name = "cnt_db" # should be the same as cnt_db_in_chsada, remove it later
-  ) %>%
-  mutate(
-    chsada_id = str_c(CHSA, DAUID), # Not work if we have year
-    CHSA = as.character(CHSA)
-  )
+# (extracted to compute_chsada_weights() in R/transformations.R — ADR-0009;
+#  unit-testable, behaviour-identical to the original inline pipe chain)
+db_to_da_chsa_pop_cnt <- compute_chsada_weights(bc_db_da_chsa_pop)
 
 
 db_to_da_chsa_pop_cnt %>% glimpse()

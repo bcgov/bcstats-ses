@@ -63,8 +63,13 @@ options(scipen = 999)
 # This will automatically look for a file named config.yml in the current and parent directory
 config <- config::get()
 
+# Shared helpers (connect_db, load_year_config; ADR-0009)
+source("R/config.R")
+source("R/db.R")
+
 # Year-sensitive refresh parameters (GCS snapshot) — tracked in config_year.yml
-year_config <- config::get(file = "config_year.yml")
+# load_year_config() also validates the GCS table against refresh_year (ADR-0005).
+year_config <- load_year_config()
 
 # see https://catalogue.data.gov.bc.ca/dataset/bc-wildfire-fire-perimeters-historical
 # Load wildfire, DA spatial and cencus income data
@@ -98,26 +103,9 @@ csd <- read_csv(
   col_types = cols(.default = "c")
 )
 
-# Establish database connection using config values
-tryCatch(
-  {
-    con <- dbConnect(
-      odbc(),
-      Driver = config$database$driver,
-      Server = config$database$server,
-      Database = config$database$database,
-      trusted_connection = config$database$trusted_connection
-    )
-    cat("Successfully connected to the database\n")
-  },
-  error = function(e) {
-    stop(glue("Failed to connect to database: {e$message}"))
-  }
-)
-
-
-# TODO [MISSING ERROR HANDLING]: Database connection should be wrapped in tryCatch
-# TODO: Also ensure connection is properly closed with on.exit() or finally block
+# Establish database connection using shared helper (normalizes the
+# config$database / config$data_server drift; ADR-0009)
+con <- connect_db(config)
 
 income <- dbGetQuery(
   con,
