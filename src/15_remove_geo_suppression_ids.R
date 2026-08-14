@@ -192,13 +192,10 @@ csd_to_keep <- bc_csds |>
 if (length(csd_to_remove) == 0) {
   cat("\nNo CSDs from download. Attempting database query as fallback...\n")
 
-  con <- dbConnect(
-    odbc::odbc(),
-    Driver = config$data_server$driver,
-    Server = config$data_server$server,
-    Database = config$data_server$database,
-    Trusted_Connection = "Yes"
-  )
+  # Shared helper normalizes the config$database / config$data_server
+  # drift this script previously hardcoded (ADR-0009)
+  source("R/db.R")
+  con <- connect_db(config)
 
   # Programmatically generate the LIKE conditions from the vector
   like_conditions <- paste0(
@@ -302,33 +299,9 @@ sei_files <- list(
 # 5. FUNCTION: REMOVE GEOGRAPHIES
 #-------------------------------------------------------------------------------------------
 
-remove_geographies <- function(
-  sei_data,
-  geo_col,
-  geo_codes_to_remove,
-  geo_type
-) {
-  original_count <- nrow(sei_data)
-
-  # Convert to character for consistent matching
-  sei_data <- sei_data %>%
-    mutate(across(all_of(geo_col), as.character))
-
-  # Filter out specified geographies
-  sei_filtered <- sei_data %>%
-    filter(!.data[[geo_col]] %in% geo_codes_to_remove)
-
-  removed_count <- original_count - nrow(sei_filtered)
-
-  cat(sprintf(
-    "  %s: Removed %d records (%.2f%%)\n",
-    geo_type,
-    removed_count,
-    (removed_count / original_count) * 100
-  ))
-
-  return(sei_filtered)
-}
+## remove_geographies() relocated to R/transformations.R (ADR-0009) so
+## tests/testthat/ can source it.
+source("R/transformations.R")
 
 #-------------------------------------------------------------------------------------------
 # 6. PROCESS CHSA FILES

@@ -91,7 +91,9 @@ lan_path <- config::get("lan_path")
 
 # Year-sensitive, non-secret refresh parameters (git-tracked).
 # Update values in config_year.yml at each annual refresh.
-year_config <- config::get(file = "config_year.yml")
+# load_year_config() also runs validate_refresh() (ADR-0005).
+source("R/config.R")
+year_config <- load_year_config()
 
 
 # TMF <- read_csv(TMF_file)
