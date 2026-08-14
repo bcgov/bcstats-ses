@@ -63,6 +63,9 @@ options(scipen = 999)
 # This will automatically look for a file named config.yml in the current and parent directory
 config <- config::get()
 
+# Year-sensitive refresh parameters (GCS snapshot) — tracked in config_year.yml
+year_config <- config::get(file = "config_year.yml")
+
 # see https://catalogue.data.gov.bc.ca/dataset/bc-wildfire-fire-perimeters-historical
 # Load wildfire, DA spatial and cencus income data
 
@@ -118,7 +121,7 @@ tryCatch(
 
 income <- dbGetQuery(
   con,
-  statement = "
+  statement = sprintf("
 with geo as
 (
 SELECT distinct
@@ -127,7 +130,7 @@ SELECT distinct
       ,[CMACA_2021]
       ,[DA_2021]
       ,concat('59',[CD_2021],[DA_2021]) as ALT_DA
-  FROM [Population_Labour_Social].[Prod].[FCT_GCS_202509]
+  FROM [Population_Labour_Social].[%s].[%s]
   ),
   income as
   (
@@ -153,7 +156,7 @@ select [MUN_NAME_2021]
       popltn*popltn_sqr_km*1000 as sqr_m
 from income left join geo on [ALT_GEO_CODE]=ALT_DA
 order by [ALT_GEO_CODE]
-"
+", year_config$gcs$schema, year_config$gcs$table)
 )
 
 HECTARES_TO_SQM <- 1000000
