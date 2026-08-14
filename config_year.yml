@@ -3,16 +3,148 @@ default:
   # Year-sensitive, NON-SECRET refresh parameters for the SES Index pipelines.
   # This file is tracked in git (unlike config.yml, which holds secrets).
   # Update the values below at each annual refresh.
+  #
+  # ANNUAL REFRESH CONTRACT (ADR-0005):
+  #   1. Bump refresh_year below.
+  #   2. Update gcs$table so its embedded YYYYMM matches refresh_year — this
+  #      pair is the ONLY automated check (validate_refresh() in R/config.R).
+  #   3. Review every value tagged [year-bearing] at each refresh and update
+  #      as needed (end-years of ranges, release-vintage URLs, output_year).
+  #      NOTE: some legitimately lag refresh_year — e.g. project_folder says
+  #      "2024 SES Index" because the data cycle is 2024 while the work year
+  #      is 2026 (ADR-0001: data year vs work year). Review, don't assume.
+  #   4. Run the pipeline. Nothing else should need editing.
   # ---------------------------------------------------------------------------
+
+  # [year-bearing] The refresh this config is set up for. Every year-bearing
+  # value below must agree with this year (checked by validate_refresh()).
+  refresh_year: 2026
 
   # GCS (Translation Master File) snapshot used to resolve DA -> RESP.
   # Update `table` each refresh to the current GCS snapshot table name.
+  # [year-bearing] embedded YYYYMM must match refresh_year.
   gcs:
     schema: "prod"
     table: "FCT_GCS_202606"
 
-  # Local cansim sqlite cache directory. Referenced every run; not year-sensitive
-  # but centralized here so the cache path is not repeated as a literal in scripts.
+  # Local caches. [stable] Referenced every run; not year-sensitive but
+  # centralized here so the path is not repeated as a literal in scripts.
+  # NOTE (wayfinder #8): machine-specific; candidates to move to .Renviron.
   cansim_cache_path: "C:/Temp/cansim_cache"
   cancensus_cache_path: "C:/Temp/census_cache"
 
+  # --------------------------------------------------------------------------
+  # Year windows (audit category A)
+  # --------------------------------------------------------------------------
+
+  # [year-bearing] end year; start year is stable.
+  crime:
+    start_year: 2000
+
+  wildfire:
+    min_fire_year: 2000          # [stable]
+    historic_end_year: 2024      # [year-bearing] current/data split boundary
+    summary_year_range: [2011, 2025]  # [year-bearing] final report range
+    test_year_range: [2016, 2025]     # [year-bearing] exploratory check range
+
+  population_estimates:
+    year_range: [2000, 2024]     # [year-bearing] end year
+
+  chsa_lookup:
+    range_2021_census: [2019, 2023]  # [year-bearing] 2021-census-era crosswalk
+    range_2016_census: [2016, 2018]  # [year-bearing] 2016-census-era crosswalk
+    range_db_pop: [2016, 2023]       # [year-bearing] DB population / CHSA lookup
+
+  # [year-bearing] year stamped on BC Data Catalogue output products (script 15).
+  output_year: 2023
+
+  # [stable] census vintage for geographic attributes (moves only when a new
+  # census drops — then update everywhere, not annually).
+  census_vintage: "2021"
+
+  # --------------------------------------------------------------------------
+  # LAN file paths, relative to the lan_path root (audit category C)
+  # --------------------------------------------------------------------------
+
+  # [year-bearing] folder name embeds the data-cycle year.
+  project_folder: "2024 SES Index"
+
+  # 03 — crime rate
+  crime_da_resp_lookup: "data/raw_data/crime_rate/Pop by DA and RESP.xlsx"
+  crime_dict_output: "data/output/Crime_Rate_Dict_DIP.csv"
+
+  # 04 — TMF
+  tmf_data_dict: "docs/TMF_data_dict.csv"
+  tmf_lookup_table: "data/raw_data/TMF/GCS_Lookup_Table.xlsx"
+
+  # 05 — LFS / SLA
+  sla_file: "data/StatsCanLFS/SLA2016_FinalClassification.xlsx"
+
+  # 06a/06b/09 — DA boundary shapefile (shared)
+  da_boundary_shp: "data/other/StatsCAN_sgc/lda_000a21a_e/lda_000b21a_e.shp"
+
+  # 09 — remoteness inputs/outputs
+  remoteness:
+    csd_boundary_shp: "data/raw_data/remoteness/lcsd000b21a_e/lcsd000b21a_e.shp"
+    servicebc_geocoded: "data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250212_150617.zik"
+    hospital_geocoded: "data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_hospitals_20250219_100047.zik"
+    school_geocoded: "data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_schools_20250222_180651.zik"
+    proximity_analysis: "data/raw_data/remoteness/proximity_analysis_route_salvaging"
+    address_with_da_csv: "data/raw_data/remoteness/bc_address_with_da.csv"
+    avg_dist_drvtime_csv: "data/output/remoteness/avg_dist_drvtime_by_da_facility.csv"
+    csd_remoteness_csv: "data/output/remoteness/CSD_REMOTENESS_BY_FACILITY.csv"
+
+  # 11 — CISV/CISR/CIMD
+  cisr_cisv_folder: "data/raw_data/StatsCAN_CISR_CISV_CIMD/CISR_CISV/"
+  cimd_folder: "data/raw_data/StatsCAN_CISR_CISV_CIMD/CIMD/"
+
+  # 12 — CHSA-DA crosswalk
+  chsa_da_crosswalk_folder: "data/raw_data/chsa_da_crosswalk/"
+
+  # 14 — connectivity (CITZ micro-data folder)
+  citz_folder: "data/raw_data/internet_connectivity/CITZ"
+
+  # 15 — BC Data Catalogue output folder (relative to project_folder)
+  data_catalogue_folder: "bc data catalogue/Data Catalogue final products"
+
+  # 17 — PowerBI geo layers
+  chsa_geojson: "data/other/StatsCAN_sgc/chsa_2022_wgs.json"
+  lower_mainland_chsa_json: "data/other/StatsCAN_sgc/lower_mainland_chsa.json"
+  sgc_structure_csv: "data/other/StatsCAN_sgc/sgc_structure_csd_BC.csv"
+
+  # 17/18 — index exports (delivery inputs)
+  index_exports_path: "exports/2025-07-31-initial-index-results"
+
+  # 18 — trend maps
+  csd_boundary_2021_shp: "2021 Census Boundary Files - 2023 Release/csd_2021.shp"
+
+  # --------------------------------------------------------------------------
+  # Download URLs (audit category D) — [year-bearing] where the release
+  # vintage embeds a year; update when StatsCan publishes a new release.
+  # --------------------------------------------------------------------------
+
+  dguid_url: "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/dguid-idugd/files-fichiers/2021_98260004.zip"
+  sgc_structure_url: "https://www.statcan.gc.ca/en/statistical-programs/document/sgc-cgt-2021-structure-eng.csv"
+  da_boundary_url: "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lda_000b21a_e.zip"
+  cisr_url: "https://www150.statcan.gc.ca/pub/45-20-0001/2025001/csv/cisr-eng.zip"
+  cisv_url: "https://www150.statcan.gc.ca/pub/45-20-0001/2025001/csv/cisv-eng.zip"
+  cimd_url: "https://www150.statcan.gc.ca/pub/45-20-0001/2023001/csv/bc_scores_quintiles_csv-eng.zip.zip"
+
+  # --------------------------------------------------------------------------
+  # BC Data Catalogue record IDs (audit category E) — [stable] unless a
+  # dataset is republished under a new record.
+  # --------------------------------------------------------------------------
+
+  bcdc:
+    chha_record_id: "68f2f577-28a7-46b4-bca9-7e9770f2f357"
+    population_record_id: "86839277-986a-4a29-9f70-fa9b1166f6cb"
+    wildfire_historic_record_id: "22c7cb44-1463-48f7-8e47-88857f207702"
+    wildfire_current_record_id: "cdfc2d7b-c046-4bf0-90ac-4897232619e1"
+    population_resource_id: "0e15d04d-127c-457a-b999-20800c929927"
+
+  # --------------------------------------------------------------------------
+  # Disclosure-control codes (audit category F) — [stable]; review annually
+  # against StatsCan CSD type documentation (see src/README.md).
+  # --------------------------------------------------------------------------
+
+  indig_csd_types: ["IRI", "IGD", "NL", "S-É", "TAL", "TWL"]

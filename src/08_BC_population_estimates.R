@@ -14,11 +14,15 @@
 # The data is downloaded in CSV format and saved to the out folder
 # updated: 2025-02-20 we need the age groups, so redo this step
 
-pacman::p_load(tidyverse, readxl, safepaths,bcdata)
+pacman::p_load(tidyverse, readxl, safepaths, bcdata, config)
 library(dplyr)
 library(tidyr)
 library(janitor)
 library(datadictionary)
+
+# Year-sensitive refresh parameters (record IDs, year range) — ADR-0005
+source("R/config.R")
+year_config <- load_year_config()
 
 # only need to run once to find the right record id in data catalogue.
 # bcdc_search("municipality-population")
@@ -26,12 +30,16 @@ library(datadictionary)
 # bcdc_browse("86839277-986a-4a29-9f70-fa9b1166f6cb")
 
 
-bc_sub_provincial_population_estimates_and_projections <- bcdc_get_record("86839277-986a-4a29-9f70-fa9b1166f6cb")
+bc_sub_provincial_population_estimates_and_projections <- bcdc_get_record(
+  year_config$bcdc$population_record_id
+)
 
-bcdc_tidy_resources('86839277-986a-4a29-9f70-fa9b1166f6cb')
-# 7 Regional Districts (Census Divisions) is what we need. 
-municipality_population_df <- bcdc_get_data('86839277-986a-4a29-9f70-fa9b1166f6cb', 
-                                            resource = '0e15d04d-127c-457a-b999-20800c929927')
+bcdc_tidy_resources(year_config$bcdc$population_record_id)
+# 7 Regional Districts (Census Divisions) is what we need.
+municipality_population_df <- bcdc_get_data(
+  year_config$bcdc$population_record_id,
+  resource = year_config$bcdc$population_resource_id
+)
 
 # check the length of the regions
 municipality_population_df %>%
@@ -85,9 +93,10 @@ TMF_CSD <- TMF %>%
   rename(COUNT_POSTAL_CODE = n)
   
 
-# Transform TMF_CSD data frame to include a continuous YEAR column ranging from 2000 to 2024, and to fill in missing values appropriately,
+# Transform TMF_CSD data frame to include a continuous YEAR column from the
+# configured population-estimates range, filling missing values appropriately.
 
-years <- 2000:2024
+years <- year_config$population_estimates$year_range[1]:year_config$population_estimates$year_range[2]
 
 complete_data <- TMF_CSD %>%
   distinct( CDCSD, CSD, MUNNAME) %>%

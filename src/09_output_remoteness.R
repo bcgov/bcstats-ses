@@ -55,6 +55,10 @@ library(patchwork)
 # Load the rlang package for the bang-bang operator
 library(rlang)
 source("./src/utils.R") # get the functions for plotting maps
+
+# Year-sensitive refresh parameters (URLs, shapefile/geocoded paths) — ADR-0005
+source("R/config.R")
+year_config <- load_year_config()
 ###################################################################
 # # boundary files
 # https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21
@@ -73,7 +77,7 @@ options(timeout = 600)
 ###########################################################################################
 # get the Dissemination Geographies Relationship File from statscan
 ###########################################################################################
-geouid_url = "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/dguid-idugd/files-fichiers/2021_98260004.zip"
+geouid_url = year_config$dguid_url
 
 download.file(geouid_url, destfile = "./out/2021_98260004.zip")
 
@@ -101,7 +105,7 @@ bc_csd_daid_df <- bc_daid_df %>%
 ###########################################################################################
 
 # get the csd file from statscan
-SGC_2021_url = "https://www.statcan.gc.ca/en/statistical-programs/document/sgc-cgt-2021-structure-eng.csv"
+SGC_2021_url = year_config$sgc_structure_url
 
 download.file(SGC_2021_url, destfile = "./out/sgc-cgt-2021-structure-eng.csv")
 
@@ -147,7 +151,7 @@ bc_csdid_name_daid_2021_df %>%
 #       exdir = use_network_path("2024 SES Index/data/raw_data/remoteness/lda_000a21a_e"))
 # ## READ DISSEMINATION BLOCKS
 file_path <- use_network_path(
-  "2024 SES Index/data/raw_data/remoteness/lda_000a21a_e/lda_000b21a_e.shp"
+  file.path(year_config$project_folder, year_config$da_boundary_shp)
 )
 #
 # # Load the dissemination area shapefile
@@ -168,7 +172,7 @@ da_shapefile <- da_shapefile %>%
 # unzip(use_network_path("2024 SES Index/data/raw_data/remoteness/lcsd000b21a_e.zip"),
 #       exdir = use_network_path("2024 SES Index/data/raw_data/remoteness/"))
 file_path <- use_network_path(
-  "2024 SES Index/data/raw_data/remoteness/lcsd000b21a_e/lcsd000b21a_e.shp"
+  file.path(year_config$project_folder, year_config$remoteness$csd_boundary_shp)
 )
 # Load the dissemination area shapefile
 csd_shapefile <- st_read(file_path)
@@ -199,7 +203,7 @@ csd_shapefile %>%
 # we are going to use this one.
 # zik files are just zip files, so read_csv can handle them directly.
 new_da_servicebc_file_path_2 = use_network_path(
-  "2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_servicebc_20250212_150617.zik"
+  file.path(year_config$project_folder, year_config$remoteness$servicebc_geocoded)
 )
 new_da_servicebc_df2 <- read_csv(new_da_servicebc_file_path_2)
 new_da_servicebc_df2 %>% glimpse()
@@ -210,7 +214,7 @@ new_da_servicebc_df2 %>%
 # 2,715 ??
 # new data for hospital
 new_da_hospital_file_path = use_network_path(
-  "2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_hospitals_20250219_100047.zik"
+  file.path(year_config$project_folder, year_config$remoteness$hospital_geocoded)
 )
 
 new_da_hospital_df <- read_csv(new_da_hospital_file_path)
@@ -219,7 +223,7 @@ new_da_hospital_df %>% glimpse()
 
 # new data for school
 new_da_school_file_path = use_network_path(
-  "2024 SES Index/data/raw_data/remoteness/30_percent_site_Hybrid_geocoder_DA_nearest_schools_20250222_180651.zik"
+  file.path(year_config$project_folder, year_config$remoteness$school_geocoded)
 )
 
 new_da_school_df <- read_csv(new_da_school_file_path)
@@ -240,7 +244,7 @@ new_da_school_df %>%
 # geodata team fixed them.
 # replacement of those addresses that missed coordinates or are not connected to road network
 replacement_file_path = use_network_path(
-  "2024 SES Index/data/raw_data/remoteness/proximity_analysis_route_salvaging"
+  file.path(year_config$project_folder, year_config$remoteness$proximity_analysis)
 )
 replacement_files <- list.files(
   replacement_file_path,
@@ -282,7 +286,7 @@ address_sf_with_da <- address_sf_with_da %>%
 address_sf_with_da %>%
   st_drop_geometry() %>%
   write_csv(use_network_path(
-    "2024 SES Index/data/raw_data/remoteness/bc_address_with_da.csv"
+    file.path(year_config$project_folder, year_config$remoteness$address_with_da_csv)
   ))
 
 
@@ -309,7 +313,7 @@ avg_dist_drvtime_by_da_service %>%
 
 avg_dist_drvtime_by_da_service %>%
   write_csv(use_network_path(
-    "2024 SES Index/data/output/remoteness/avg_dist_drvtime_by_da_facility.csv"
+    file.path(year_config$project_folder, year_config$remoteness$avg_dist_drvtime_csv)
   ))
 
 
@@ -402,7 +406,7 @@ CSD_REMOTENESS_BY_FACILITY %>%
 
 CSD_REMOTENESS_BY_FACILITY %>%
   write_csv(use_network_path(
-    "2024 SES Index/data/output/remoteness/CSD_REMOTENESS_BY_FACILITY.csv"
+    file.path(year_config$project_folder, year_config$remoteness$csd_remoteness_csv)
   ))
 
 

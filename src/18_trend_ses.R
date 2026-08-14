@@ -21,12 +21,16 @@ source("./src/utils.R") # Load configuration using config package
 # This will automatically look for a file named config.yml in the current and parent directory
 config <- config::get()
 
+# Year-sensitive refresh parameters (index exports, CSD shapefile) — ADR-0005
+source("R/config.R")
+year_config <- load_year_config()
+
 #Setting paths
 bc_ses_project_lan_path <- config$lan_path
 
 bc_ses_exports <- file.path(
   bc_ses_project_lan_path,
-  "2024 SES Index/exports/2025-07-31-initial-index-results"
+  file.path(year_config$project_folder, year_config$index_exports_path)
 )
 # get the trend of total index
 longitudinal_total_index <- read_csv(file.path(
@@ -70,5 +74,5 @@ library(tmap)
 # read in the shapefile for CSDs
 csd_sf <- st_read(file.path(
   bc_ses_project_lan_path,
-  "2021 Census Boundary Files - 2023 Release/csd_2021.shp"
+  file.path(year_config$project_folder, year_config$csd_boundary_2021_shp)
 ))  

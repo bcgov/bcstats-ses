@@ -473,7 +473,7 @@ log_info("==== PART 2: Load CITZ data at PHH_ID level ====")
 # ---- 5.1) Load CITZ micro-data ----
 citz_path <- file.path(
   lan_path,
-  "2024 SES Index/data/raw_data/internet_connectivity/CITZ",
+  file.path(year_config$project_folder, year_config$citz_folder),
   "CITZ_SHR_Connectivity_Status_January2025.csv"
 )
 log_info("Loading CITZ data: {citz_path}")

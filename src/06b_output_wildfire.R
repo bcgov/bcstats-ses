@@ -91,7 +91,7 @@ wildfires |>
 das <- sf::st_read(
   file.path(
     lan_path,
-    "2024 SES Index/data/other/StatsCAN_sgc/lda_000a21a_e/lda_000b21a_e.shp"
+    file.path(year_config$project_folder, year_config$da_boundary_shp)
   )
 )
 da_to_csd <- read_csv(
@@ -198,7 +198,7 @@ intersection_concise <- intersection %>%
   arrange(desc(pcnt_fire_2))
 
 #--------test distinct DAUID by year---------------------
-YEAR_RANGE <- 2016:2025
+YEAR_RANGE <- year_config$wildfire$test_year_range[1]:year_config$wildfire$test_year_range[2]
 intersection_concise %>%
   filter(substr(DAUID, 1, 2) == "59", FIRE_YEAR %in% YEAR_RANGE) %>%
   group_by(FIRE_YEAR) %>%
@@ -207,7 +207,7 @@ intersection_concise %>%
   )
 
 intersection_concise |> count(FIRE_YEAR)
-YEAR_RANGE <- 2011:2025
+YEAR_RANGE <- year_config$wildfire$summary_year_range[1]:year_config$wildfire$summary_year_range[2]
 #--------final report by year---------------------
 intersection_byyear <- intersection_concise %>%
   filter(
