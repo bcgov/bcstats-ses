@@ -29,6 +29,10 @@ source("./src/utils.R") # Load configuration using config package
 # This will automatically look for a file named config.yml in the current and parent directory
 config <- config::get()
 
+# Year-sensitive refresh parameters (index exports, geo layers) — ADR-0005
+source("R/config.R")
+year_config <- load_year_config()
+
 bc_ses_project_lan_path = config$lan_path
 
 #################################################################
@@ -121,7 +125,7 @@ bc_ses_project_lan_path = config$lan_path
 chsa <- geojson_read(
   file.path(
     bc_ses_project_lan_path,
-    "2024 SES Index\\data\\other\\StatsCAN_sgc\\chsa_2022_wgs.json"
+    file.path(year_config$project_folder, year_config$chsa_geojson)
   ),
   what = "sp"
 )
@@ -230,7 +234,7 @@ writeLines(
   topojson_data,
   file.path(
     bc_ses_project_lan_path,
-    "2024 SES Index\\data\\other\\StatsCAN_sgc\\lower_mainland_chsa.json"
+    file.path(year_config$project_folder, year_config$lower_mainland_chsa_json)
   )
 )
 #
@@ -264,7 +268,7 @@ chsa_tbl |> glimpse()
 # create a long format table by staking CSD and CHSA level indices
 data_path <- file.path(
   bc_ses_project_lan_path,
-  "2024 SES Index/exports/2025-07-31-initial-index-results"
+  file.path(year_config$project_folder, year_config$index_exports_path)
 )
 
 index_data_path <- list.files(data_path, full.names = TRUE) |>
@@ -461,13 +465,13 @@ index_contribution_data_combined |>
 # Load data dictionary
 longitudinal_model_input_data_dictionary <- read_csv(file.path(
   bc_ses_project_lan_path,
-  "2024 SES Index/exports/2025-07-31-initial-index-results",
+  file.path(year_config$project_folder, year_config$index_exports_path),
   "longitudinal_model_input_data_dictionary_2025-07-21.csv"
 ))
 
 detail_model_input_data_dictionary <- read_csv(file.path(
   bc_ses_project_lan_path,
-  "2024 SES Index/exports/2025-07-31-initial-index-results",
+  file.path(year_config$project_folder, year_config$index_exports_path),
   "robust_model_input_data_dictionary_2025-07-21.csv"
 ))
 
@@ -704,7 +708,7 @@ sgc_structure_csd_BC <- sgc_structure_csd |>
 sgc_structure_csd_BC |>
   readr::write_csv(file.path(
     bc_ses_project_lan_path,
-    "2024 SES Index\\data\\other\\StatsCAN_sgc\\sgc_structure_csd_BC.csv"
+    file.path(year_config$project_folder, year_config$sgc_structure_csv)
   ))
 
 #########################################################################################

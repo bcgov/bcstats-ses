@@ -47,17 +47,24 @@ pacman::p_load(
 ## Turn off spherical geometry
 sf::sf_use_s2(FALSE)
 
+# Load configs (ADR-0005). NOTE: this script previously relied on lan_path
+# leaking from another script's session — now loads its own.
+config <- config::get()
+source("R/config.R")
+year_config <- load_year_config()
+lan_path <- config$lan_path
+
 ###################################################################
 # BC Wildfire Fire Perimeters - Historical
 # https://catalogue.data.gov.bc.ca/dataset/22c7cb44-1463-48f7-8e47-88857f207702
 ###################################################################
 
 ## READ HISTORICAL WILDFIRES
-bcdc_get_record("22c7cb44-1463-48f7-8e47-88857f207702")
+bcdc_get_record(year_config$bcdc$wildfire_historic_record_id)
 
 # Access the full 'Resources' data frame using:
-bcdc_tidy_resources('22c7cb44-1463-48f7-8e47-88857f207702')
-MIN_FIRE_YEAR <- 2000
+bcdc_tidy_resources(year_config$bcdc$wildfire_historic_record_id)
+MIN_FIRE_YEAR <- year_config$wildfire$min_fire_year
 # Query and filter data using:
 BC_wildfire_perimeter_historic <- bcdc_query_geodata(
   '22c7cb44-1463-48f7-8e47-88857f207702'
@@ -183,12 +190,12 @@ bcdc_get_record("cdfc2d7b-c046-4bf0-90ac-4897232619e1")
 # Available Resources (1):
 # 1. View WMS getCapabilities request details (wms)
 # Access the full 'Resources' data frame using:
-bcdc_tidy_resources('cdfc2d7b-c046-4bf0-90ac-4897232619e1')
+bcdc_tidy_resources(year_config$bcdc$wildfire_current_record_id)
 # Query and filter data
 BC_wildfire_perimeter_current <- bcdc_query_geodata(
-  'cdfc2d7b-c046-4bf0-90ac-4897232619e1'
+  year_config$bcdc$wildfire_current_record_id
 ) %>%
-  filter(FIRE_YEAR >= 2024) %>% # The data in BC data has one row FIRE_NUMBER == 'G51564' for 2023 which is duplicated since it is in historic dataset.
+  filter(FIRE_YEAR >= year_config$wildfire$historic_end_year) %>% # The data in BC data has one row FIRE_NUMBER == 'G51564' for 2023 which is duplicated since it is in historic dataset.
   collect() %>%
   mutate(FIRE_LABEL = paste(FIRE_YEAR, FIRE_NUMBER, sep = '-'))
 
@@ -271,14 +278,14 @@ BC_wildfire_perimeter %>% # Save to a new file (optional)
 # ## READ DISSEMINATION DAs
 file_path <- file.path(
   lan_path,
-  "2024 SES Index/data/other/StatsCAN_sgc/lda_000a21a_e/lda_000b21a_e.shp"
+  file.path(year_config$project_folder, year_config$da_boundary_shp)
 )
 
 
 if (!file.exists(file_path)) {
   # grab the file from "Statistics Canada", only run once.
   download.file(
-    "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lda_000b21a_e.zip",
+    year_config$da_boundary_url,
     destfile = use_network_path(
       "data/other/StatsCAN_sgc/lda_000a21a_e/lda_000a21a_e.zip"
     )

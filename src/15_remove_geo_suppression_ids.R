@@ -40,6 +40,10 @@ source("./src/utils.R")
 # Load configuration
 config <- config::get()
 
+# Year-sensitive refresh parameters (output_year, indig CSD types) — ADR-0005
+source("R/config.R")
+year_config <- load_year_config()
+
 cancensus::set_cancensus_cache_path(
   config$file_path$cancensus_cache_path
 )
@@ -50,14 +54,13 @@ cancensus::set_cancensus_cache_path(
 #-------------------------------------------------------------------------------------------
 
 # Output path for data catalogue products
-output_year <- 2023 # Set year parameter here
+output_year <- year_config$output_year # [year-bearing] catalogue output year
 
 
 output_path <- file.path(
   config$lan_path,
-  "2024 SES Index",
-  "bc data catalogue",
-  "Data Catalogue final products",
+  year_config$project_folder,
+  year_config$data_catalogue_folder,
   as.character(output_year)
 )
 
@@ -158,7 +161,7 @@ bc_csds |> count(CSDTYPE)
 # S-É: 	Indian settlement / Établissement indien
 # TAL = Tla'amin Lands
 # TWL – Tsawwassen Lands
-indig_csd_types <- c('IRI', 'IGD', 'NL', 'S-É', 'TAL', 'TWL')
+indig_csd_types <- year_config$indig_csd_types
 
 cat("Indigenous CSD types being suppressed:\n")
 cat("  ", paste(indig_csd_types, collapse = ", "), "\n\n")

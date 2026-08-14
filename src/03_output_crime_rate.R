@@ -339,7 +339,7 @@ crime_rate_dict <- create_dictionary(
 write_csv2(crime_rate_dict, here::here("out/Crime_Rate_Dict_DIP.csv"))
 write.csv2(
   crime_rate_dict,
-  use_network_path("2024 SES Index/data/output/Crime_Rate_Dict_DIP.csv")
+  use_network_path(file.path(year_config$project_folder, year_config$crime_dict_output))
 )
 
 log_info("Wrote crime rate data dictionary to DIP and LAN")

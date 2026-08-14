@@ -40,6 +40,13 @@ log_info <- function(msg) {
   print(paste(Sys.time(), "|", msg))
 }
 
+# Load configs (ADR-0005). NOTE: lan_path previously leaked from another
+# script's session; this script now loads its own.
+config <- config::get()
+source("R/config.R")
+year_config <- load_year_config()
+lan_path <- config$lan_path
+
 # Load LFS data from StatsCan
 cansim_id <- "14-10-0457-01"
 log_info(glue::glue("Loading LFS data from StatsCan table {cansim_id}..."))
@@ -120,7 +127,7 @@ print(LFS)
 
 # Load SLA geography linkage file
 SLA_file <- glue::glue(
-  "{lan_path}/2024 SES Index/data/StatsCanLFS/SLA2016_FinalClassification.xlsx"
+  "{lan_path}/{year_config$project_folder}/{year_config$sla_file}"
 )
 log_info(glue::glue("Loading SLA linkage file from: {SLA_file}"))
 SLA_raw <- readxl::read_excel(SLA_file)

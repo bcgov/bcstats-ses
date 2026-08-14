@@ -23,6 +23,10 @@ source("./src/utils.R") # get the functions for plotting maps and retrieve table
 config <- config::get()
 # use this config <- config::get(config = "development" ) to switch to development environment.
 
+# Year-sensitive refresh parameters (download URLs, data folders) — ADR-0005
+source("R/config.R")
+year_config <- load_year_config()
+
 # Extract settings from config
 
 lan_path <- config$lan_path
@@ -41,14 +45,14 @@ province = "British Columbia"
 # check if csv file already exists
 CISR_csv_folder = file.path(
   config::get("lan_path"),
-  "2024 SES Index/data/raw_data/StatsCAN_CISR_CISV_CIMD/CISR_CISV/"
+  file.path(year_config$project_folder, year_config$cisr_cisv_folder)
 )
 CISR_csv_file = file.path(CISR_csv_folder, "cisr_scores_quintiles-eng.csv")
 
 
 # Download CISR data
 cisr_data <- download_and_process_dataset(
-  url = "https://www150.statcan.gc.ca/pub/45-20-0001/2025001/csv/cisr-eng.zip",
+  url = year_config$cisr_url,
   csv_folder = CISR_csv_folder,
   file_name = "cisr_scores_quintiles-eng.csv"
 ) %>%
@@ -96,14 +100,14 @@ write_csv(cisr_data_dict, file.path(CISR_csv_folder, "cisr_data_dict.csv"))
 # check if csv file already exists
 CISV_csv_folder = file.path(
   config::get("lan_path"),
-  "2024 SES Index/data/raw_data/StatsCAN_CISR_CISV_CIMD/CISR_CISV/"
+  file.path(year_config$project_folder, year_config$cisr_cisv_folder)
 )
 CISV_csv_file = file.path(CISR_csv_folder, "cisv_scores_quintiles-eng.csv")
 
 
 # Download CISR data
 cisv_data <- download_and_process_dataset(
-  url = "https://www150.statcan.gc.ca/pub/45-20-0001/2025001/csv/cisv-eng.zip",
+  url = year_config$cisv_url,
   csv_folder = CISV_csv_folder,
   file_name = "cisv_scores_quintiles-eng.csv",
   filter_pattern = "cisv_scores_quintiles"
@@ -161,14 +165,14 @@ write_csv(cisv_data_dict, file.path(CISV_csv_folder, "cisv_data_dict.csv"))
 # check if csv file already exists
 CIMD_csv_folder = file.path(
   config::get("lan_path"),
-  "2024 SES Index/data/raw_data/StatsCAN_CISR_CISV_CIMD/CIMD/"
+  file.path(year_config$project_folder, year_config$cimd_folder)
 )
 CIMD_csv_file = file.path(CIMD_csv_folder, "bc_scores_quintiles_EN.csv")
 
 
 # Download CISR data
 cidm_data <- download_and_process_dataset(
-  url = "https://www150.statcan.gc.ca/pub/45-20-0001/2023001/csv/bc_scores_quintiles_csv-eng.zip.zip",
+  url = year_config$cimd_url,
   csv_folder = CIMD_csv_folder,
   file_name = "bc_scores_quintiles_EN.csv",
   filter_pattern = "sbc_scores_quintiles_EN"

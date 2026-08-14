@@ -81,8 +81,12 @@ config <- config::get()
 # use this config <- config::get(config = "development" ) to switch to development environment.
 
 # Shared helpers (ADR-0009): connect_db + the extracted CHSADA weighting
+source("R/config.R")
 source("R/db.R")
 source("R/transformations.R")
+
+# Year-sensitive refresh parameters (CHSA lookup ranges, BCDC record IDs)
+year_config <- load_year_config()
 
 # Extract settings from config
 gcs_table <- config$tables$gcs
@@ -177,7 +181,7 @@ gcs_data |>
 # it may cause problem later
 
 # start working on DB2021 and CHSA
-# each row/year is expanded to 2019:2023
+# each row/year is expanded to the configured 2021-census-era range
 gcs_chsa_db_lookup_2021 <- gcs_data %>%
   count(
     CHSA,
@@ -185,7 +189,9 @@ gcs_chsa_db_lookup_2021 <- gcs_data %>%
     DBUID = DB_2021,
     name = "CNT_POSTALCODE"
   ) %>%
-  tidyr::expand_grid(YEAR = 2019:2023) %>%
+  tidyr::expand_grid(
+    YEAR = year_config$chsa_lookup$range_2021_census[1]:year_config$chsa_lookup$range_2021_census[2]
+  ) %>%
   left_join(chsa_data)
 
 
@@ -197,7 +203,9 @@ gcs_chsa_db_lookup_2016 <- gcs_data %>%
     DBUID = DB_2016,
     name = "CNT_POSTALCODE"
   ) %>%
-  tidyr::expand_grid(YEAR = 2016:2018) %>%
+  tidyr::expand_grid(
+    YEAR = year_config$chsa_lookup$range_2016_census[1]:year_config$chsa_lookup$range_2016_census[2]
+  ) %>%
   left_join(chsa_data)
 
 
@@ -257,7 +265,9 @@ db_da_chsa_2021_jonathan |> glimpse()
 # 52423 DBs
 
 db_da_chsa_2016_2023_jonathan <- db_da_chsa_2021_jonathan |>
-  expand_grid(YEAR = 2016:2023) |>
+  expand_grid(
+    YEAR = year_config$chsa_lookup$range_db_pop[1]:year_config$chsa_lookup$range_db_pop[2]
+  ) |>
   select(YEAR, CHSA, CHSA_NAME, DBUID)
 
 db_da_chsa_2016_2023_jonathan |> glimpse()
@@ -427,7 +437,8 @@ bc_db_da_chsa_pop <- bc_db_da_chsa_pop |>
     POPULATION = if_else(
       DBUID %in%
         (db_multiple_chsa |> distinct(DBUID) |> pull(DBUID)) &
-        (YEAR %in% 2016:2018),
+        (YEAR %in%
+          year_config$chsa_lookup$range_2016_census[1]:year_config$chsa_lookup$range_2016_census[2]),
       POPULATION / 2,
       POPULATION
     )
@@ -532,7 +543,7 @@ write_csv(
 
 db_da_chsa_pop_csv_folder = file.path(
   config::get("lan_path"),
-  "2024 SES Index/data/raw_data/chsa_da_crosswalk/"
+  file.path(year_config$project_folder, year_config$chsa_da_crosswalk_folder)
 )
 
 write_csv(
