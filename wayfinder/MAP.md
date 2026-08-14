@@ -19,6 +19,7 @@ A regression-safe, annually-refreshable data-cleaning pipeline: the existing num
 
 - [#1 Testability audit](tickets/01-testability-audit.md) — ~10% of pipeline logic is CI-testable (it's I/O-bound); existing crime-rate test is a local-only snapshot, not testthat; top unit-test candidates are `parse_speed`/`compute_combined_max` (`14_connectivity.R`) and `remove_geographies` (`15_…`); `utils.R` has zero testable functions.
 - [#2 Config audit](tickets/02-config-audit.md) — 64 hardcoded values across 17 scripts (46 → `config_year.yml`, 3 → `config.yml`, 15 inline); only `03`/`04` read `config_year.yml` today; **critical:** `06b` used a stale GCS snapshot (`FCT_GCS_202509` vs configured `FCT_GCS_202606`) → fixed in #9; no secrets exposed.
+- [#3 Testing strategy](tickets/03-testing-strategy.md) — two tiers: unit tests for pure logic (CI) + golden-CSV snapshot tests for DB-coupled pipelines (local LAN, self-skip via `skip_if_no_db()`). Mocking rejected — mocks don't catch real data-shape changes. See [ADR-0008](../docs/adr/0008-testing-strategy.md).
 - [#4 Config architecture & annual-refresh contract](tickets/04-config-architecture.md) — split 46 tracked (`config_year.yml`) / 3 server-detail (`config.yml`) / 15 inline; refresh contract = `refresh_year` sentinel + `validate_refresh()` that fails fast on year-value drift (would've caught the 06b bug). See [ADR-0005](../docs/adr/0005-config-architecture.md).
 - [#5 CI design](tickets/05-ci-design.md) — R matrix 4.5.2 (lock) + 4.6.1 (dev); DB/LAN tests self-skip via `skip_if_no_db()`; lint/format gate on changed files (per #6); full pipeline never runs in CI. See [ADR-0007](../docs/adr/0007-ci-design.md).
 - [#6 lint/format adoption](tickets/06-lint-format-adoption.md) — restyle-on-touch: CI gates only PR-changed files; `styler` blocks (dry-run), `lintr` advisory. No 8k-line churn. See [ADR-0006](../docs/adr/0006-lint-format-adoption.md).
@@ -31,7 +32,7 @@ A regression-safe, annually-refreshable data-cleaning pipeline: the existing num
 |---|-------|------|--------|-----------|
 | 1 | [Testability audit](tickets/01-testability-audit.md) | research | **resolved** | — |
 | 2 | [Config audit](tickets/02-config-audit.md) | research | **resolved** | — |
-| 3 | [Testing strategy](tickets/03-testing-strategy.md) | grilling | open | — |
+| 3 | [Testing strategy](tickets/03-testing-strategy.md) | grilling | **resolved** | — |
 | 4 | [Config architecture & annual-refresh contract](tickets/04-config-architecture.md) | grilling | **resolved** | — |
 | 5 | [CI design](tickets/05-ci-design.md) | grilling | **resolved** | — |
 | 6 | [lint/format adoption](tickets/06-lint-format-adoption.md) | grilling | **resolved** | — |
@@ -39,11 +40,11 @@ A regression-safe, annually-refreshable data-cleaning pipeline: the existing num
 | 8 | [Secrets/reproducibility audit](tickets/08-secrets-reproducibility-audit.md) | task | **resolved** | — |
 | 9 | [Fix 06b stale GCS snapshot](tickets/09-fix-06b-stale-gcs-snapshot.md) | task | **resolved** | — |
 
-**Frontier (open · unblocked · unclaimed):** #3, #7.
+**Frontier (open · unblocked · unclaimed):** #7.
 
 ## Not yet specified
 
-- The earlier fog — *"how DB-coupled logic ever gets test coverage"* — **graduated** into #3 (testing strategy) once #1 established only ~10% is pure/testable. #3 will decide whether the remaining ~90% gets coverage (mocks? LAN-only integration?) or is accepted as untested. No new fog yet.
+- No fog remains — the graduated patch (DB-coupled test coverage) resolved as [#3](tickets/03-testing-strategy.md)'s two-tier answer. The last open ticket, [#7](tickets/07-modularization-scope.md), takes its targets directly from [#1](tickets/01-testability-audit.md)'s findings.
 
 ## Out of scope
 
