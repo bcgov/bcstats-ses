@@ -22,6 +22,6 @@
 
 ⚠️ **Data impact:** `06b` now resolves wildfire geography against `FCT_GCS_202606` (was `202509`) — **wildfire outputs will change**. Action required: re-run `06b` in the secure environment and verify/regenerate downstream wildfire outputs.
 
-⚠️ **Deployment note:** the fix is committed on the `wayfinder/refactor-best-practices` branch. To deploy, move it to an appropriate branch (bugfix off `main` or onto `sei_2024_release`), re-run `06b`, and confirm outputs.
+✅ **Deployment complete:** the fix is deployed on `bugfix/06b-stale-gcs-snapshot` (commit `0151585`, pushed; code-only cherry-pick off `origin/main` — no wayfinder artifacts). **Open the PR:** https://github.com/bcgov/bcstats-ses/pull/new/bugfix/06b-stale-gcs-snapshot — then re-run `06b` on the LAN and verify wildfire outputs against `FCT_GCS_202606`.
 
 The linter's "symbol not in scope" warnings (dplyr/sf/DBI functions) are pre-existing and file-wide — a `pacman::p_load()` limitation, not from this fix.
