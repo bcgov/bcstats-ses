@@ -40,9 +40,13 @@ jobs:
           r-version: ${{ matrix.r }}
           use-public-rspm: true
 
-      - name: Install pure-logic test dependencies
-        run: |
-          Rscript -e 'options(repos = c(CRAN = "https://cloud.r-project.org")); install.packages(c("testthat", "config", "dplyr", "stringr"))'
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::testthat
+            any::config
+            any::dplyr
+            any::stringr
 
       - name: Run tests (pure logic; DB/LAN tests self-skip)
         run: |
@@ -61,9 +65,11 @@ jobs:
           r-version: "4.5.2"
           use-public-rspm: true
 
-      - name: Install lintr + styler
-        run: |
-          Rscript -e 'options(repos = c(CRAN = "https://cloud.r-project.org")); install.packages(c("lintr", "styler"))'
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::lintr
+            any::styler
 
       - name: Determine changed R files
         id: changed
