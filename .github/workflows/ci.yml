@@ -1,0 +1,111 @@
+# CI for the BC SES data-prep pipeline (wayfinder ADR-0006 / ADR-0007).
+#
+# The pipeline depends on a secure LAN / SQL Server that CI does NOT have,
+# so CI guards code quality + testable logic ONLY — never an end-to-end run.
+#   - styler: BLOCKING gate, on PR-changed .R/.r files only (restyle-on-touch).
+#   - lintr:  ADVISORY, on changed files (reports, does not fail the build).
+#   - testthat: pure-logic tests run; DB/LAN tests self-skip (skip_if_no_db).
+#
+# NOTE on renv: renv.lock pins the FULL Windows geospatial stack (sf, odbc,
+# arrow, terra...) which cannot practically restore on ubuntu, and renv/
+# itself is gitignored. CI therefore installs only the minimal pure-logic
+# tier (testthat/config/dplyr/stringr) — everything the non-DB tests need.
+# The LAN environment keeps using renv::restore() unchanged.
+# R matrix: 4.5.2 (matches renv.lock) + 4.6.1 (developers' local version).
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (R ${{ matrix.r }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        r: ["4.5.2", "4.6.1"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: ${{ matrix.r }}
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::testthat
+            any::config
+            any::dplyr
+            any::stringr
+
+      - name: Run tests (pure logic; DB/LAN tests self-skip)
+        run: |
+          Rscript -e 'testthat::test_dir("tests/testthat", stop_on_failure = TRUE)'
+
+  lint-format:
+    name: lint + format (changed files)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need the base ref to diff changed files
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.5.2"
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::lintr
+            any::styler
+
+      - name: Determine changed R files
+        id: changed
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          if [ -z "$base" ]; then base="$(git rev-parse HEAD~1)"; fi
+          files="$(git diff --name-only "$base" HEAD -- '*.R' '*.r' | tr '\n' ' ')"
+          echo "files=$files" >> "$GITHUB_OUTPUT"
+          echo "Changed R files: $files"
+
+      - name: styler (BLOCKING — changed files must be styled)
+        if: steps.changed.outputs.files != ''
+        run: |
+          Rscript -e '
+            files <- strsplit(trimws("${{ steps.changed.outputs.files }}"), "\\s+")[[1]]
+            files <- files[file.exists(files)]
+            if (length(files) == 0) quit(status = 0)
+            before <- vapply(files, function(f) paste(readLines(f), collapse="\n"), character(1))
+            styler::style_file(files)
+            after <- vapply(files, function(f) paste(readLines(f), collapse="\n"), character(1))
+            changed <- files[before != after]
+            if (length(changed) > 0) {
+              cat("::error::styler would reformat:\n")
+              cat(paste(" -", changed, collapse = "\n"), "\n")
+              cat("Run styler::style_file() on these locally and commit.\n")
+              quit(status = 1)
+            }
+            cat("styler: all changed files already clean.\n")
+          '
+
+      - name: lintr (ADVISORY — reports, does not fail the build)
+        if: steps.changed.outputs.files != ''
+        continue-on-error: true
+        run: |
+          Rscript -e '
+            files <- strsplit(trimws("${{ steps.changed.outputs.files }}"), "\\s+")[[1]]
+            files <- files[file.exists(files)]
+            for (f in files) print(lintr::lint(f))
+          '
