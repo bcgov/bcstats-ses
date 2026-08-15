@@ -1,0 +1,22 @@
+# lintr config (wayfinder ADR-0006). lintr runs ADVISORY in CI (reports,
+# does not block), so this is tuned to surface real issues over style noise
+# in a codebase that has never been linted. Tighten over time as the
+# backlog is triaged; styler handles formatting as the blocking gate.
+linters: linters_with_defaults(
+    # off: pre-existing conventions that would flood the advisory report
+    object_name_linter = NULL,        # mixed snake/camel/UPPER across the pipeline
+    line_length_linter = NULL,        # many long SQL strings and pipes
+    commented_code_linter = NULL,     # scripts keep exploratory code in comments
+    object_length_linter = NULL,
+    # keep: these catch genuine problems
+    # (undesirable_function, undesirable_operator, seq_linter,
+    #  vector_logic, T_and_F_symbol, unused_import, ... stay at defaults)
+    indentation_linter = NULL         # styler owns formatting
+  )
+exclusions: list(
+    "renv",
+    "tests/testthat",   # test fixtures use their own conventions
+    "analysis",         # exploratory, out of the pipeline (ADR-0002)
+    "apps/experimental" # demo apps, kept for reference (ADR-0002)
+  )
+encoding: "UTF-8"

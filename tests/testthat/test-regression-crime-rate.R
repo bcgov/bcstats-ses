@@ -54,8 +54,10 @@ test_that("crime rate pipeline output matches golden snapshot", {
     run_pipeline()
     current <- read_output()
     readr::write_excel_csv2(current, snapshot_file)
-    message("RECORDED baseline: ", snapshot_file,
-      " (", nrow(current), " rows). Review and commit, then re-run.")
+    message(
+      "RECORDED baseline: ", snapshot_file,
+      " (", nrow(current), " rows). Review and commit, then re-run."
+    )
   } else {
     # ---------------- REPLAY MODE ----------------
     run_pipeline()

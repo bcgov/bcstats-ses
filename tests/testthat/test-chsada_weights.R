@@ -29,8 +29,8 @@ test_that("compute_chsada_weights computes nested population totals", {
   # All three DBs collapse into ONE CHSADA row: 20+80+100 = 200
   expect_equal(nrow(year1), 1)
   expect_equal(year1$chsada_pop, 200)
-  expect_equal(year1$da_pop, 200)      # DA 01 total = 200 (all in CHSA A)
-  expect_equal(year1$chsa_pop, 200)    # CHSA A total = 200
+  expect_equal(year1$da_pop, 200) # DA 01 total = 200 (all in CHSA A)
+  expect_equal(year1$chsa_pop, 200) # CHSA A total = 200
 })
 
 test_that("compute_chsada_weights derives the two allocation weights", {
