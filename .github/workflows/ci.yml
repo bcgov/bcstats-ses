@@ -5,6 +5,12 @@
 #   - styler: BLOCKING gate, on PR-changed .R/.r files only (restyle-on-touch).
 #   - lintr:  ADVISORY, on changed files (reports, does not fail the build).
 #   - testthat: pure-logic tests run; DB/LAN tests self-skip (skip_if_no_db).
+#
+# NOTE on renv: renv.lock pins the FULL Windows geospatial stack (sf, odbc,
+# arrow, terra...) which cannot practically restore on ubuntu, and renv/
+# itself is gitignored. CI therefore installs only the minimal pure-logic
+# tier (testthat/config/dplyr/stringr) — everything the non-DB tests need.
+# The LAN environment keeps using renv::restore() unchanged.
 # R matrix: 4.5.2 (matches renv.lock) + 4.6.1 (developers' local version).
 
 name: CI
@@ -34,11 +40,13 @@ jobs:
           r-version: ${{ matrix.r }}
           use-public-rspm: true
 
-      - uses: r-lib/actions/setup-renv@v2
+      - name: Install pure-logic test dependencies
+        run: |
+          Rscript -e 'install.packages(c("testthat", "config", "dplyr", "stringr"))'
 
       - name: Run tests (pure logic; DB/LAN tests self-skip)
         run: |
-          Rscript -e 'testthat::test_local(stop_on_failure = TRUE)'
+          Rscript -e 'testthat::test_dir("tests/testthat", stop_on_failure = TRUE)'
 
   lint-format:
     name: lint + format (changed files)
@@ -55,7 +63,7 @@ jobs:
 
       - name: Install lintr + styler
         run: |
-          Rscript -e 'install.packages(c("lintr", "styler"), repos = "https://packagemanager.posit.co/cran/latest")'
+          Rscript -e 'install.packages(c("lintr", "styler"))'
 
       - name: Determine changed R files
         id: changed
