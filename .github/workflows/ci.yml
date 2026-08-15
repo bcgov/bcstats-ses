@@ -42,7 +42,7 @@ jobs:
 
       - name: Install pure-logic test dependencies
         run: |
-          Rscript -e 'install.packages(c("testthat", "config", "dplyr", "stringr"))'
+          Rscript -e 'options(repos = c(CRAN = "https://cloud.r-project.org")); install.packages(c("testthat", "config", "dplyr", "stringr"))'
 
       - name: Run tests (pure logic; DB/LAN tests self-skip)
         run: |
@@ -63,7 +63,7 @@ jobs:
 
       - name: Install lintr + styler
         run: |
-          Rscript -e 'install.packages(c("lintr", "styler"))'
+          Rscript -e 'options(repos = c(CRAN = "https://cloud.r-project.org")); install.packages(c("lintr", "styler"))'
 
       - name: Determine changed R files
         id: changed
