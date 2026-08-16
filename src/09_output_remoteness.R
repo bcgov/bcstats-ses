@@ -150,7 +150,7 @@ bc_csdid_name_daid_2021_df %>%
 # unzip(use_network_path("2024 SES Index/data/raw_data/remoteness/lda_000a21a_e.zip"),
 #       exdir = use_network_path("2024 SES Index/data/raw_data/remoteness/lda_000a21a_e"))
 # ## READ DISSEMINATION BLOCKS
-file_path <- use_network_path(
+file_path <- file.path(lan_path,
   file.path(year_config$project_folder, year_config$da_boundary_shp)
 )
 #
@@ -171,7 +171,7 @@ da_shapefile <- da_shapefile %>%
 # )
 # unzip(use_network_path("2024 SES Index/data/raw_data/remoteness/lcsd000b21a_e.zip"),
 #       exdir = use_network_path("2024 SES Index/data/raw_data/remoteness/"))
-file_path <- use_network_path(
+file_path <- file.path(lan_path,
   file.path(year_config$project_folder, year_config$remoteness$csd_boundary_shp)
 )
 # Load the dissemination area shapefile
@@ -202,7 +202,7 @@ csd_shapefile %>%
 # geodata team creates another batch for service bc with address id.
 # we are going to use this one.
 # zik files are just zip files, so read_csv can handle them directly.
-new_da_servicebc_file_path_2 = use_network_path(
+new_da_servicebc_file_path_2 = file.path(lan_path,
   file.path(year_config$project_folder, year_config$remoteness$servicebc_geocoded)
 )
 new_da_servicebc_df2 <- read_csv(new_da_servicebc_file_path_2)
@@ -213,7 +213,7 @@ new_da_servicebc_df2 %>%
   filter(tag == 'nan')
 # 2,715 ??
 # new data for hospital
-new_da_hospital_file_path = use_network_path(
+new_da_hospital_file_path = file.path(lan_path,
   file.path(year_config$project_folder, year_config$remoteness$hospital_geocoded)
 )
 
@@ -222,7 +222,7 @@ new_da_hospital_df %>% glimpse()
 # Rows: 614,459
 
 # new data for school
-new_da_school_file_path = use_network_path(
+new_da_school_file_path = file.path(lan_path,
   file.path(year_config$project_folder, year_config$remoteness$school_geocoded)
 )
 
