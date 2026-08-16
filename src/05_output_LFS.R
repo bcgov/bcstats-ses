@@ -10,10 +10,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and limitations under the License.
 
-# Get years for file naming
-last_year <- as.character(max(as.numeric(format(LFS$REF_DATE, "%Y"))))
-current_year <- format(Sys.Date(), "%Y")
-
 pacman::p_load(
   cancensus,
   geojsonsf,
@@ -59,6 +55,12 @@ LFS <- LFS_raw |>
   filter(str_detect(GEO, "British Columbia")) |>
   mutate(GEO = str_replace(GEO, ", British Columbia", ""))
 log_info(glue::glue("Filtered to BC: {nrow(LFS)} rows"))
+
+# Get years for file naming
+# REF_DATE arrives as a character "YYYY-MM"; substr() extracts the year
+# without depending on a Date method dispatch.
+last_year <- max(substr(LFS$REF_DATE, 1, 4))
+current_year <- format(Sys.Date(), "%Y")
 
 # Clean column names to screaming snake case
 LFS <- LFS |>
@@ -281,3 +283,4 @@ lfs_dict_output_file <- here::here(
 log_info(glue::glue("Writing LFS dictionary to: {lfs_dict_output_file}"))
 write.csv2(LFS_dict, lfs_dict_output_file)
 log_info("LFS dictionary written successfully")
+

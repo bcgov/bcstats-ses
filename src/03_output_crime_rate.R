@@ -37,6 +37,7 @@ lan_path <- config::get("lan_path")
 # Update values in config_year.yml at each annual refresh.
 # load_year_config() also runs validate_refresh() (ADR-0005).
 source("R/config.R")
+source("R/db.R")
 year_config <- load_year_config()
 
 # ---------------------------------------------------------------------------
@@ -205,16 +206,7 @@ log_info(glue::glue(
 # TMF_file <- use_network_path("2024 SES Index/data/raw_data/TMF/GCS_202406.csv")
 # use the GCS file in the decimal/unary database
 
-db_config <- config::get("data_server")
-my_schema <- db_config$myschema
-
-con <- DBI::dbConnect(
-  odbc(),
-  Driver = db_config$driver,
-  Server = db_config$server,
-  Database = db_config$database,
-  Trusted_Connection = "Yes"
-)
+con <- connect_db(config::get())
 
 log_info("Connected to SQL Server database")
 
@@ -230,11 +222,11 @@ TMF <- tbl(
 TMF <- TMF %>%
   mutate(
     DA_NUM = str_c("59", as.character(CD_2021), as.character(DA_2021), sep = "")
-  )
+  )|> collect()
 
 TMF_CR <-
-  TMF %>%
-  janitor::clean_names(case = "screaming_snake") %>%
+  TMF  %>% 
+  janitor::clean_names(case = "screaming_snake") %>% 
   count(CD_2021, DA_2021, DA_NUM, RESP)
 
 DA_RESP_lookup_long <- DA_RESP_lookup %>%
@@ -242,7 +234,7 @@ DA_RESP_lookup_long <- DA_RESP_lookup %>%
     DA_2021 = str_pad(DA_2021, width = 4, pad = "0", side = "left")
   ) %>%
   left_join(
-    TMF_CR %>% mutate(RESP = as.character(RESP)) |> collect(),
+    TMF_CR %>% mutate(RESP = as.character(RESP)) ,
     by = c("DA_2021" = "DA_2021", "RESP" = "RESP") # the combination of short DA_2021 and RESP is unique, which gives us the unique long DA_NUM
   )
 
@@ -337,10 +329,10 @@ crime_rate_dict <- create_dictionary(
 )
 # write the dictionary to DIP, since the data has ',' in the cells, we use write.csv2
 write_csv2(crime_rate_dict, here::here("out/Crime_Rate_Dict_DIP.csv"))
-write.csv2(
-  crime_rate_dict,
-  use_network_path(file.path(year_config$project_folder, year_config$crime_dict_output))
-)
+# write.csv2(
+#   crime_rate_dict,
+#   use_network_path(file.path(year_config$project_folder, year_config$crime_dict_output))
+# )
 
 log_info("Wrote crime rate data dictionary to DIP and LAN")
 log_info("03_output_crime_rate.R completed successfully")
