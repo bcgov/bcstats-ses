@@ -40,8 +40,9 @@ A regression-safe, annually-refreshable data-cleaning pipeline: the existing num
 | 7 | [Modularization scope](tickets/07-modularization-scope.md) | grilling | **resolved** | — |
 | 8 | [Secrets/reproducibility audit](tickets/08-secrets-reproducibility-audit.md) | task | **resolved** | — |
 | 9 | [Fix 06b stale GCS snapshot](tickets/09-fix-06b-stale-gcs-snapshot.md) | task | **resolved** | — |
+| 10 | [Split or retire 06a (wildfire superseded approach)](tickets/10-split-or-retire-06a.md) | grilling | open | — |
 
-**Frontier: empty — map complete.** All 9 tickets resolved. The way to the destination is fully specified; what remains is build work (see **Handoff** below).
+**Frontier:** [#10 Split or retire 06a](tickets/10-split-or-retire-06a.md) — the one open ticket (opened post-completion, surfaced by the 06a/06b review during build-out). The original nine are all resolved; the build work they specified is delivered (r-helpers → config-migration → tests → ci).
 
 ## Handoff — the build work this map specifies
 
