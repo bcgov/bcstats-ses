@@ -16,9 +16,17 @@
 
 # Quick comment: Brett is on vacation right now (2024-12-02) and I'm hoping he has some background information on this dataset (for example, what columns do we care about, etc.). I'm forging ahead in the meantime using my intuition.
 
-pacman::p_load(tidyverse, config, bcdata, janitor, safepaths, datadictionary)
+pacman::p_load(tidyverse, config, bcdata, janitor, datadictionary)
 
-SLA_file = use_network_path("data/StatsCanLFS/SLA2016_FinalClassification.xlsx")
+# LAN path via config (safepaths retired); SLA file path via year config —
+# same convention as 05_output_LFS.R.
+source("R/config.R")
+year_config <- load_year_config()
+
+SLA_file <- file.path(
+  config::get("lan_path"),
+  file.path(year_config$project_folder, year_config$sla_file)
+)
 SLA = readxl::read_excel(SLA_file)
 
 # only BC - this is weird but I think it's correct - since when was BC the 59th province?

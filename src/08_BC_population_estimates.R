@@ -53,14 +53,12 @@ municipality_population_df %>%
 # Import TMF file to verify the CSD code in population estimate
 ######################################################################################
 
-# The GCS 202406 csv file is provided by Econ team and saved in LAN. Need safe network path to get it.
-# The network path should be set to a location that could be save in the environment variable SAFEPATHS_NETWORK_PATH or a config file.
-# if the safepaths does not work, switch to config file.
+# The GCS 202406 csv file is provided by Econ team and saved in LAN.
+# LAN access via config::get("lan_path") (safepaths retired).
 
-stopifnot(Sys.getenv("SAFEPATHS_NETWORK_PATH") != "")
+lan_path <- config::get("lan_path")
 
-TMF_file  <-  use_network_path("data/raw_data/TMF/GCS_202406.csv")
-# TMF_file  <-  file.path(config::get("lan_path"),"2024 SES Index/data/raw_data/TMF/GCS_202406.csv")
+TMF_file  <-  file.path(lan_path, year_config$project_folder, "data/raw_data/TMF/GCS_202406.csv")
 TMF <- read_csv(TMF_file)
 
 
@@ -144,7 +142,7 @@ municipality_population_CSD_df <- municipality_population_df %>%
 municipality_population_CSD_df  %>%
   write_csv("out/BC_municipality_CSD_population_estimate.csv")
 municipality_population_CSD_df  %>%
-  write_csv(use_network_path("data/Output/BC_municipality_CSD_population_estimate.csv"))
+  write_csv(file.path(lan_path, year_config$project_folder, "data/Output/BC_municipality_CSD_population_estimate.csv"))
 
 # create a dictionary of the data types
 #################################################################################################
@@ -169,7 +167,7 @@ municipality_population_CSD_dict <- create_dictionary(municipality_population_CS
                                                             id_var = c("CDCSD", "YEAR"),
                                                             var_labels = municipality_population_CSD_labels)
 # 
-file_path <- use_network_path("data/Output/BC_municipality_CSD_population_estimate_dict.csv")
+file_path <- file.path(lan_path, year_config$project_folder, "data/Output/BC_municipality_CSD_population_estimate_dict.csv")
 write.csv(municipality_population_CSD_dict, file = file_path)
 file_path <- "out/BC_municipality_CSD_population_estimate_dict.csv"
 write.csv(municipality_population_CSD_dict, file = file_path)
