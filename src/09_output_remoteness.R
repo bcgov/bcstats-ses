@@ -248,7 +248,8 @@ new_da_school_df %>%
 # Previously, there were 2000 invalid rows in each dataset, no coordinates, no DA id, and no address id.
 # geodata team fixed them.
 # replacement of those addresses that missed coordinates or are not connected to road network
-replacement_file_path <- use_network_path(
+replacement_file_path <- file.path(
+  lan_path,
   file.path(year_config$project_folder, year_config$remoteness$proximity_analysis)
 )
 replacement_files <- list.files(
@@ -290,7 +291,8 @@ address_sf_with_da <- address_sf_with_da %>%
 # for each address.
 address_sf_with_da %>%
   st_drop_geometry() %>%
-  write_csv(use_network_path(
+  write_csv(file.path(
+    lan_path,
     file.path(year_config$project_folder, year_config$remoteness$address_with_da_csv)
   ))
 
@@ -317,7 +319,8 @@ avg_dist_drvtime_by_da_service %>%
 # No row missing distance value since all the addresses and DA information are from geodata team by sampling. Not full picture.
 
 avg_dist_drvtime_by_da_service %>%
-  write_csv(use_network_path(
+  write_csv(file.path(
+    lan_path,
     file.path(year_config$project_folder, year_config$remoteness$avg_dist_drvtime_csv)
   ))
 
@@ -410,7 +413,8 @@ CSD_REMOTENESS_BY_FACILITY %>%
   write_csv("./out/CSD_REMOTENESS_BY_FACILITY.csv")
 
 CSD_REMOTENESS_BY_FACILITY %>%
-  write_csv(use_network_path(
+  write_csv(file.path(
+    lan_path,
     file.path(year_config$project_folder, year_config$remoteness$csd_remoteness_csv)
   ))
 
