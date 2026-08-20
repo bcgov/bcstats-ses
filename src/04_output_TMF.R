@@ -29,7 +29,8 @@ library(dplyr)
 library(datadictionary)
 library(readr)
 library(readxl)
-
+source("R/config.R")
+source("R/db.R")
 ## -------------------------- Logging Setup ------------------------------------------------------
 ## -----------------------------------------------------------------------------------------------
 log_file <- "./R/execution_log.txt"
@@ -77,13 +78,7 @@ log_info <- function(msg) {
 db_config <- config::get("data_server")
 # my_schema <- db_config$myschema  # unused in this script
 
-con <- DBI::dbConnect(
-  odbc::odbc(),
-  Driver = db_config$driver,
-  Server = db_config$server,
-  Database = db_config$database,
-  Trusted_Connection = "Yes"
-)
+con <- connect_db(config::get())
 
 log_info("Connected to SQL Server database")
 
@@ -92,7 +87,7 @@ lan_path <- config::get("lan_path")
 # Year-sensitive, non-secret refresh parameters (git-tracked).
 # Update values in config_year.yml at each annual refresh.
 # load_year_config() also runs validate_refresh() (ADR-0005).
-source("R/config.R")
+
 year_config <- load_year_config()
 
 

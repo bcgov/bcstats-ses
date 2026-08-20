@@ -67,7 +67,7 @@ bcdc_tidy_resources(year_config$bcdc$wildfire_historic_record_id)
 MIN_FIRE_YEAR <- year_config$wildfire$min_fire_year
 # Query and filter data using:
 BC_wildfire_perimeter_historic <- bcdc_query_geodata(
-  '22c7cb44-1463-48f7-8e47-88857f207702'
+  "22c7cb44-1463-48f7-8e47-88857f207702"
 ) %>%
   filter(FIRE_YEAR >= MIN_FIRE_YEAR) %>%
   collect()
@@ -76,11 +76,14 @@ BC_wildfire_perimeter_historic <- bcdc_query_geodata(
 # show all the features
 BC_wildfire_perimeter_historic %>% glimpse()
 # Rows: 6,749
-BC_wildfire_perimeter_historic %>% # Save to a new file (optional)
-  st_write(use_network_path(
-    "data/raw_data/Wildfire/Wildfires_DB/Input/BC_wildfire_perimeter_historic.geojson"
-  ))
-
+# BC_wildfire_perimeter_historic %>% # Save to a new file (optional)
+#   st_write(use_network_path(
+#     "data/raw_data/Wildfire/Wildfires_DB/Input/BC_wildfire_perimeter_historic.geojson"
+#   ))
+BC_wildfire_perimeter_historic |>
+  st_drop_geometry() |>
+  count(FIRE_YEAR) |>
+  arrange(-FIRE_YEAR)
 
 # Check current CRS
 print(st_crs(BC_wildfire_perimeter_historic))
@@ -197,17 +200,17 @@ BC_wildfire_perimeter_current <- bcdc_query_geodata(
 ) %>%
   filter(FIRE_YEAR >= year_config$wildfire$historic_end_year) %>% # The data in BC data has one row FIRE_NUMBER == 'G51564' for 2023 which is duplicated since it is in historic dataset.
   collect() %>%
-  mutate(FIRE_LABEL = paste(FIRE_YEAR, FIRE_NUMBER, sep = '-'))
+  mutate(FIRE_LABEL = paste(FIRE_YEAR, FIRE_NUMBER, sep = "-"))
 
 # TODO [MAGIC NUMBER]: 2024 should be a configurable parameter
 # TODO: Consider: CURRENT_YEAR_THRESHOLD <- 2024 or derive from Sys.Date()
 
 print(st_crs(BC_wildfire_perimeter_current))
 
-BC_wildfire_perimeter_current %>% # Save to a new file (optional)
-  st_write(use_network_path(
-    "data/raw_data/Wildfire/Wildfires_DB/Input/BC_wildfire_perimeter_current.geojson"
-  ))
+# BC_wildfire_perimeter_current %>% # Save to a new file (optional)
+#   st_write(use_network_path(
+#     "data/raw_data/Wildfire/Wildfires_DB/Input/BC_wildfire_perimeter_current.geojson"
+#   ))
 
 # TODO [CODE DUPLICATION]: Similar pattern as historical data (lines 66-69)
 # TODO: Consider extracting into shared function: save_wildfire_perimeter(data, output_path)
@@ -247,7 +250,7 @@ print(common_columns) # ["b"]
 # TODO: Or convert to meaningful validation: stopifnot(length(unique_to_df1) == expected_count)
 
 # Bind rows
-BC_wildfire_perimeter = bind_rows(
+BC_wildfire_perimeter <- bind_rows(
   BC_wildfire_perimeter_historic,
   BC_wildfire_perimeter_current
 ) %>%
@@ -267,56 +270,35 @@ BC_wildfire_perimeter %>% # Save to a new file (optional)
 # TODO: Standardize output paths - consider config-based path management
 # TODO: Example: output_dir <- config::get("wildfire_output_dir") %||% "out/"
 
-###################################################################
-# # boundary files
-# https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/index2021-eng.cfm?year=21
-#
-# # geographic attribute file
-# https://www12.statcan.gc.ca/census-recensement/2021/geo/aip-pia/attribute-attribs/index-eng.cfm
-###################################################################
 
-# ## READ DISSEMINATION DAs
-file_path <- file.path(
-  lan_path,
-  file.path(year_config$project_folder, year_config$da_boundary_shp)
-)
+# install.packages(c("bcmaps", "sf"))
 
+library(bcmaps)
+library(sf)
 
-if (!file.exists(file_path)) {
-  # grab the file from "Statistics Canada", only run once.
-  download.file(
-    year_config$da_boundary_url,
-    destfile = use_network_path(
-      "data/other/StatsCAN_sgc/lda_000a21a_e/lda_000a21a_e.zip"
-    )
-  )
-  unzip(
-    use_network_path(
-      "data/other/StatsCAN_sgc/lda_000a21a_e/lda_000a21a_e.zip"
-    ),
-    exdir = use_network_path(
-      "data/other/StatsCAN_sgc/lda_000a21a_e/lda_000a21a_e"
-    )
-  )
-}
+# The bcmaps package already includes a shortcut function for Census Dissemination Areas (DAs), and under the hood it pulls the layer from the BC Data Catalogue using bcdata. The documentation shows that census_dissemination_area() downloads the dataset from BC Data Catalogue record a091fd65-d682-4a24-8c0e-68de7c87e3a3
+
+# Download DA boundaries
+da <- census_dissemination_area()
+
+# Check
+plot(st_geometry(da))
+
+# # Save as ESRI Shapefile
+# st_write(
+#   da,
+#   "C:/temp/bc_dissemination_areas.shp",
+#   delete_layer = TRUE
+# )
 
 
-# Load the dissemination area shapefile
-
-BC_PROVINCE_CODE <- "59"
-
-DAs <- st_read(file_path) %>%
-  filter(PRUID == BC_PROVINCE_CODE) %>%
-  st_transform(, crs = st_crs(BC_wildfire_perimeter_historic)) %>% # stick to bc albers
-  mutate(DA_AREA = units::drop_units(st_area(.)))
-# DA_AREA is the area of the DA in square meters and larger than the LANDAREA, which is the land area in hectares.
-
-DAs %>% glimpse()
 # 7,848 rows, 5 columns.
+
+da |> glimpse()
 
 # Ensure geometries are valid
 BC_wildfire_perimeter_projected <- st_make_valid(BC_wildfire_perimeter)
-DAs_projected <- st_make_valid(DAs)
+DAs_projected <- st_make_valid(da)
 
 ## COMBINE DAs AND FIRES # Perform the intersection
 BC_DA_wildfire_perimeter_projected <- st_intersection(
@@ -411,7 +393,7 @@ BC_DA_wildfire_perimeter_grouped <- BC_DA_wildfire_perimeter_projected %>%
     geometry = st_union(geometry), # Union geometries within each group DA and year
     .groups = "drop"
   ) %>%
-  ungroup %>%
+  ungroup() %>%
   mutate(TOTAL_FIRE_AREA = units::drop_units(st_area(geometry))) # Calculate the total area
 
 
@@ -448,10 +430,10 @@ BC_DA_wildfire_perimeter_grouped %>%
 
 BC_DA_wildfire_perimeter_grouped <- BC_DA_wildfire_perimeter_grouped %>%
   arrange(FIRE_YEAR, DAUID, DA_AREA, LANDAREA)
-file_path <- use_network_path(
-  "data/Output/Wildfires_DB/BC_DA_grouped_wildfires_2000_2024.csv"
-)
-write.csv(BC_DA_wildfire_perimeter_grouped, file = file_path)
+# file_path <- use_network_path(
+#   "data/Output/Wildfires_DB/BC_DA_grouped_wildfires_2000_2024.csv"
+# )
+# write.csv(BC_DA_wildfire_perimeter_grouped, file = file_path)
 file_path <- "out/BC_DA_grouped_wildfires_2000_2024.csv"
 write.csv(
   BC_DA_wildfire_perimeter_grouped %>% st_drop_geometry(),
@@ -462,10 +444,10 @@ write.csv(
 # TODO: Consider: year_range <- paste(range(BC_DA_wildfire_perimeter_grouped$FIRE_YEAR), collapse = "_")
 
 # the geospatial data could be saved ad geojson.
-file_path <- use_network_path(
-  "data/Output/Wildfires_DB/BC_DA_grouped_wildfires_2000_2024.geojson"
-)
-st_write(BC_DA_wildfire_perimeter_grouped, dsn = file_path)
+# file_path <- use_network_path(
+#   "data/Output/Wildfires_DB/BC_DA_grouped_wildfires_2000_2024.geojson"
+# )
+# st_write(BC_DA_wildfire_perimeter_grouped, dsn = file_path)
 file_path <- "out/BC_DA_grouped_wildfires_2000_2024.geojson"
 st_write(BC_DA_wildfire_perimeter_grouped, dsn = file_path)
 
@@ -515,10 +497,10 @@ BC_DA_wildfire_perimeter_grouped_dict <- create_dictionary(
 )
 
 
-file_path <- use_network_path(
-  "data/Output/Wildfires_DB/BC_DA_wildfire_perimeter_grouped_dict.csv"
-)
-write.csv(BC_DA_wildfire_perimeter_grouped_dict, file = file_path)
+# file_path <- use_network_path(
+#   "data/Output/Wildfires_DB/BC_DA_wildfire_perimeter_grouped_dict.csv"
+# )
+# write.csv(BC_DA_wildfire_perimeter_grouped_dict, file = file_path)
 file_path <- "out/BC_DA_wildfire_perimeter_grouped_dict.csv"
 write.csv(BC_DA_wildfire_perimeter_grouped_dict, file = file_path)
 
@@ -527,10 +509,10 @@ write.csv(BC_DA_wildfire_perimeter_grouped_dict, file = file_path)
 # The full wild fire table with details of each wild fire.
 ###################################################################
 
-file_path <- use_network_path(
-  "data/Output/Wildfires_DB/BC_DA_wildfire_perimeter_2000_2004.csv"
-)
-write.csv(BC_DA_wildfire_perimeter %>% st_drop_geometry(), file = file_path)
+# file_path <- use_network_path(
+#   "data/Output/Wildfires_DB/BC_DA_wildfire_perimeter_2000_2004.csv"
+# )
+# write.csv(BC_DA_wildfire_perimeter %>% st_drop_geometry(), file = file_path)
 file_path <- "out/BC_DA_wildfire_perimeter_2000_2004.csv"
 write.csv(BC_DA_wildfire_perimeter %>% st_drop_geometry(), file = file_path)
 
@@ -538,10 +520,10 @@ write.csv(BC_DA_wildfire_perimeter %>% st_drop_geometry(), file = file_path)
 # TODO: The variable name suggests 2000-2024 range but filename says 2000-2004
 
 # the geospatial data could be saved ad geojson.
-file_path <- use_network_path(
-  "data/Output/Wildfires_DB/BC_DA_wildfires_2000_2024.geojson"
-)
-st_write(BC_DA_wildfire_perimeter, dsn = file_path)
+# file_path <- use_network_path(
+#   "data/Output/Wildfires_DB/BC_DA_wildfires_2000_2024.geojson"
+# )
+# st_write(BC_DA_wildfire_perimeter, dsn = file_path)
 file_path <- "out/BC_DA_wildfires_2000_2024.geojson"
 st_write(BC_DA_wildfire_perimeter, dsn = file_path)
 
@@ -600,10 +582,10 @@ BC_DA_wildfire_perimeter_dict <- create_dictionary(
   var_labels = BC_DA_wildfire_perimeter_labels
 )
 
-file_path <- use_network_path(
-  "data/Output/Wildfires_DB/BC_DA_wildfire_perimeter_dict.csv"
-)
-write.csv(BC_DA_wildfire_perimeter_dict, file = file_path)
+# file_path <- use_network_path(
+#   "data/Output/Wildfires_DB/BC_DA_wildfire_perimeter_dict.csv"
+# )
+# write.csv(BC_DA_wildfire_perimeter_dict, file = file_path)
 file_path <- "out/BC_DA_wildfire_perimeter_dict.csv"
 write.csv(BC_DA_wildfire_perimeter_dict, file = file_path)
 
