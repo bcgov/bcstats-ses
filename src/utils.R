@@ -135,7 +135,8 @@ plot_csd_avg_map_fn <- function(
       dpi = 300
     )
     ggsave(
-      use_network_path(
+      file.path(
+        config::get("lan_path"),
         glue::glue(
           "2024 SES Index/data/output/remoteness/csd_{fill_var_name}_{facility_name}.png"
         )
@@ -348,7 +349,8 @@ compare_two_csd_in_map <- function(
     )
 
     ggsave(
-      use_network_path(
+      file.path(
+        config::get("lan_path"),
         glue::glue(
           "2024 SES Index/data/output/remoteness/two_csd_{CSD1}_{CSD2}_{facility}_{stringr::str_to_title(fill_var_name)}.png"
         )
@@ -370,8 +372,8 @@ tbl_long_cols_mssql <- function(con, schema, table) {
   cols_info <- DBI::dbGetQuery(
     con,
     sprintf(
-      "SELECT 
-         COLUMN_NAME as name, 
+      "SELECT
+         COLUMN_NAME as name,
          DATA_TYPE as data_type,
          CHARACTER_MAXIMUM_LENGTH as column_size
        FROM INFORMATION_SCHEMA.COLUMNS
