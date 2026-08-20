@@ -108,7 +108,7 @@ log_info(glue::glue("Opening cansim connection for table {cansim_id}..."))
 connection <- cansim::get_cansim_connection(
   cansim_id,
   cache_path = Sys.getenv("CANSIM_CACHE_PATH"),
-  format = 'sqlite',
+  format = "sqlite",
   refresh = TRUE # only occasionally refresh since this table was updated in Frequency: Annual Table: 35-10-0184-01 (formerly CANSIM 252-0081) Release date: 2025-07-22
 )
 log_info("cansim connection established")
@@ -154,7 +154,7 @@ bc_crime_stats <- connection %>%
     # GEO=="British Columbia",
     # str_starts( GEOUID, "59"),
     REF_DATE >= as.character(crime_start_year), # focus on most recent years
-    Violations %in% violations_selected_list$VIOLATIONS, #c("Assault, level 1 [1430]"   ,"Assault, level 2, weapon or bodily harm [1420]"   ) ,  #  ,
+    Violations %in% violations_selected_list$VIOLATIONS, # c("Assault, level 1 [1430]"   ,"Assault, level 2, weapon or bodily harm [1420]"   ) ,  #  ,
     Statistics %in%
       c("Rate per 100,000 population", "Percentage change in rate")
   ) %>%
@@ -193,7 +193,7 @@ DA_RESP_lookup <- readxl::read_excel(
 )
 
 DA_RESP_lookup <- DA_RESP_lookup %>%
-  filter(!is.na(RESP) & !RESP == 'NULL') %>%
+  filter(!is.na(RESP) & !RESP == "NULL") %>%
   janitor::clean_names(case = "screaming_snake") # clean the names. We prefer all uppercase
 
 log_info(glue::glue(
@@ -222,11 +222,12 @@ TMF <- tbl(
 TMF <- TMF %>%
   mutate(
     DA_NUM = str_c("59", as.character(CD_2021), as.character(DA_2021), sep = "")
-  )|> collect()
+  ) |>
+  collect()
 
 TMF_CR <-
-  TMF  %>% 
-  janitor::clean_names(case = "screaming_snake") %>% 
+  TMF %>%
+  janitor::clean_names(case = "screaming_snake") %>%
   count(CD_2021, DA_2021, DA_NUM, RESP)
 
 DA_RESP_lookup_long <- DA_RESP_lookup %>%
@@ -234,7 +235,7 @@ DA_RESP_lookup_long <- DA_RESP_lookup %>%
     DA_2021 = str_pad(DA_2021, width = 4, pad = "0", side = "left")
   ) %>%
   left_join(
-    TMF_CR %>% mutate(RESP = as.character(RESP)) ,
+    TMF_CR %>% mutate(RESP = as.character(RESP)),
     by = c("DA_2021" = "DA_2021", "RESP" = "RESP") # the combination of short DA_2021 and RESP is unique, which gives us the unique long DA_NUM
   )
 

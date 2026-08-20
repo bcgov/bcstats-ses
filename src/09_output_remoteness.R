@@ -69,7 +69,7 @@ year_config <- load_year_config()
 ###################################################################
 
 # To retrieve an option
-getOption('timeout')
+getOption("timeout")
 # [1] 60
 # To set an option
 options(timeout = 600)
@@ -77,19 +77,19 @@ options(timeout = 600)
 ###########################################################################################
 # get the Dissemination Geographies Relationship File from statscan
 ###########################################################################################
-geouid_url = year_config$dguid_url
+geouid_url <- year_config$dguid_url
 
 download.file(geouid_url, destfile = "./out/2021_98260004.zip")
 
 unzip("./out/2021_98260004.zip", exdir = "./out/2021_98260004")
 
-daid_file_path = "./out/2021_98260004/2021_98260004.csv"
+daid_file_path <- "./out/2021_98260004/2021_98260004.csv"
 
 # read csv all columns as strings instead of numbers
-daid_df = read_csv(daid_file_path, col_types = cols(.default = "c"))
+daid_df <- read_csv(daid_file_path, col_types = cols(.default = "c"))
 daid_df %>% glimpse()
 bc_daid_df <- daid_df %>%
-  filter(PRDGUID_PRIDUGD == '2021A000259') # BC
+  filter(PRDGUID_PRIDUGD == "2021A000259") # BC
 
 bc_daid_df %>%
   count(PRDGUID_PRIDUGD, CDDGUID_DRIDUGD, CSDDGUID_SDRIDUGD) %>%
@@ -105,13 +105,13 @@ bc_csd_daid_df <- bc_daid_df %>%
 ###########################################################################################
 
 # get the csd file from statscan
-SGC_2021_url = year_config$sgc_structure_url
+SGC_2021_url <- year_config$sgc_structure_url
 
 download.file(SGC_2021_url, destfile = "./out/sgc-cgt-2021-structure-eng.csv")
 
 
-sgc_2021_df = read_csv(SGC_2021_url, col_types = cols(.default = "c"))
-bc_sgc_2021_df = sgc_2021_df %>%
+sgc_2021_df <- read_csv(SGC_2021_url, col_types = cols(.default = "c"))
+bc_sgc_2021_df <- sgc_2021_df %>%
   filter(str_sub(Code, 1, 2) == "59")
 bc_csd_sgc_2021_df <- bc_sgc_2021_df %>%
   filter(`Hierarchical structure` %in% c("Census subdivision"))
@@ -150,14 +150,15 @@ bc_csdid_name_daid_2021_df %>%
 # unzip(use_network_path("2024 SES Index/data/raw_data/remoteness/lda_000a21a_e.zip"),
 #       exdir = use_network_path("2024 SES Index/data/raw_data/remoteness/lda_000a21a_e"))
 # ## READ DISSEMINATION BLOCKS
-file_path <- file.path(lan_path,
+file_path <- file.path(
+  lan_path,
   file.path(year_config$project_folder, year_config$da_boundary_shp)
 )
 #
 # # Load the dissemination area shapefile
 da_shapefile <- st_read(file_path)
 da_shapefile <- da_shapefile %>%
-  filter(PRUID == '59') %>%
+  filter(PRUID == "59") %>%
   st_transform(crs = 3005)
 ###########################################################################################
 # CSD shp file
@@ -171,7 +172,8 @@ da_shapefile <- da_shapefile %>%
 # )
 # unzip(use_network_path("2024 SES Index/data/raw_data/remoteness/lcsd000b21a_e.zip"),
 #       exdir = use_network_path("2024 SES Index/data/raw_data/remoteness/"))
-file_path <- file.path(lan_path,
+file_path <- file.path(
+  lan_path,
   file.path(year_config$project_folder, year_config$remoteness$csd_boundary_shp)
 )
 # Load the dissemination area shapefile
@@ -179,7 +181,7 @@ csd_shapefile <- st_read(file_path)
 
 
 csd_shapefile <- csd_shapefile %>%
-  filter(PRUID == '59') %>%
+  filter(PRUID == "59") %>%
   st_transform(crs = 3005)
 
 csd_shapefile %>%
@@ -202,7 +204,8 @@ csd_shapefile %>%
 # geodata team creates another batch for service bc with address id.
 # we are going to use this one.
 # zik files are just zip files, so read_csv can handle them directly.
-new_da_servicebc_file_path_2 = file.path(lan_path,
+new_da_servicebc_file_path_2 <- file.path(
+  lan_path,
   file.path(year_config$project_folder, year_config$remoteness$servicebc_geocoded)
 )
 new_da_servicebc_df2 <- read_csv(new_da_servicebc_file_path_2)
@@ -210,10 +213,11 @@ new_da_servicebc_df2 %>% glimpse()
 # Rows: 614,459
 
 new_da_servicebc_df2 %>%
-  filter(tag == 'nan')
+  filter(tag == "nan")
 # 2,715 ??
 # new data for hospital
-new_da_hospital_file_path = file.path(lan_path,
+new_da_hospital_file_path <- file.path(
+  lan_path,
   file.path(year_config$project_folder, year_config$remoteness$hospital_geocoded)
 )
 
@@ -222,7 +226,8 @@ new_da_hospital_df %>% glimpse()
 # Rows: 614,459
 
 # new data for school
-new_da_school_file_path = file.path(lan_path,
+new_da_school_file_path <- file.path(
+  lan_path,
   file.path(year_config$project_folder, year_config$remoteness$school_geocoded)
 )
 
@@ -243,7 +248,7 @@ new_da_school_df %>%
 # Previously, there were 2000 invalid rows in each dataset, no coordinates, no DA id, and no address id.
 # geodata team fixed them.
 # replacement of those addresses that missed coordinates or are not connected to road network
-replacement_file_path = use_network_path(
+replacement_file_path <- use_network_path(
   file.path(year_config$project_folder, year_config$remoteness$proximity_analysis)
 )
 replacement_files <- list.files(
@@ -269,7 +274,7 @@ address_sf_with_da <- new_da_servicebc_df2 %>%
   bind_rows(replacement_df) %>%
   janitor::clean_names(case = "screaming_snake") %>%
   filter(!FID == 112684) %>% # remove duplicated rows
-  filter(TAG != 'nan') %>% # remove the rows without coordinates for facilities
+  filter(TAG != "nan") %>% # remove the rows without coordinates for facilities
   mutate(ADDRESS_ALBERS_X = SITE_ALBERS_X, ADDRESS_ALBERS_Y = SITE_ALBERS_Y) %>%
   st_as_sf(coords = c("SITE_ALBERS_X", "SITE_ALBERS_Y"), crs = 3005)
 # 1841998 features and 13 fields
@@ -352,7 +357,7 @@ CSD_DA_address_dist_drvtime %>%
 
 # why TAG_2 is NA?
 # # a CSD level summary table: average drive time and distance, and number of address.
-CSD_REMOTENESS_BY_FACILITY = CSD_DA_address_dist_drvtime %>%
+CSD_REMOTENESS_BY_FACILITY <- CSD_DA_address_dist_drvtime %>%
   group_by(CSDID, MUN_NAME_2021, TAG_2) %>%
   summarise(
     AVG_DRV_TIME_SEC = mean(DRV_TIME_SEC, na.rm = T), # data from geodata team
@@ -417,7 +422,7 @@ CSD_REMOTENESS_BY_FACILITY %>%
 #   Plot the results to visually validate that points are correctly joined to their respective dissemination areas:
 
 # create a sf object for the facility which will be used for plotting with the geometry column.
-facility_sf = address_sf_with_da %>%
+facility_sf <- address_sf_with_da %>%
   st_drop_geometry() %>%
   mutate(DAID = as.character(DAID)) %>%
   # filter(!is.na(COORD_X)) %>% # remove the rows without coordinates for facilities
@@ -500,7 +505,7 @@ plot_bc_address_map(
 # Create a color map plot using ggplot2 to visualize the average distance to the nearest facility by csd.
 ################################################################
 
-csd_avg_address_dist_sf = csd_shapefile %>%
+csd_avg_address_dist_sf <- csd_shapefile %>%
   left_join(CSD_REMOTENESS_BY_FACILITY, join_by("CSDUID" == "CSDID"))
 
 # the color in the CSD show the level of the remoteness

@@ -67,7 +67,7 @@ bcdc_tidy_resources(year_config$bcdc$wildfire_historic_record_id)
 MIN_FIRE_YEAR <- year_config$wildfire$min_fire_year
 # Query and filter data using:
 BC_wildfire_perimeter_historic <- bcdc_query_geodata(
-  '22c7cb44-1463-48f7-8e47-88857f207702'
+  "22c7cb44-1463-48f7-8e47-88857f207702"
 ) %>%
   filter(FIRE_YEAR >= MIN_FIRE_YEAR) %>%
   collect()
@@ -80,7 +80,10 @@ BC_wildfire_perimeter_historic %>% glimpse()
 #   st_write(use_network_path(
 #     "data/raw_data/Wildfire/Wildfires_DB/Input/BC_wildfire_perimeter_historic.geojson"
 #   ))
-BC_wildfire_perimeter_historic |> st_drop_geometry() |> count(FIRE_YEAR) |> arrange(-FIRE_YEAR)
+BC_wildfire_perimeter_historic |>
+  st_drop_geometry() |>
+  count(FIRE_YEAR) |>
+  arrange(-FIRE_YEAR)
 
 # Check current CRS
 print(st_crs(BC_wildfire_perimeter_historic))
@@ -197,7 +200,7 @@ BC_wildfire_perimeter_current <- bcdc_query_geodata(
 ) %>%
   filter(FIRE_YEAR >= year_config$wildfire$historic_end_year) %>% # The data in BC data has one row FIRE_NUMBER == 'G51564' for 2023 which is duplicated since it is in historic dataset.
   collect() %>%
-  mutate(FIRE_LABEL = paste(FIRE_YEAR, FIRE_NUMBER, sep = '-'))
+  mutate(FIRE_LABEL = paste(FIRE_YEAR, FIRE_NUMBER, sep = "-"))
 
 # TODO [MAGIC NUMBER]: 2024 should be a configurable parameter
 # TODO: Consider: CURRENT_YEAR_THRESHOLD <- 2024 or derive from Sys.Date()
@@ -247,7 +250,7 @@ print(common_columns) # ["b"]
 # TODO: Or convert to meaningful validation: stopifnot(length(unique_to_df1) == expected_count)
 
 # Bind rows
-BC_wildfire_perimeter = bind_rows(
+BC_wildfire_perimeter <- bind_rows(
   BC_wildfire_perimeter_historic,
   BC_wildfire_perimeter_current
 ) %>%
@@ -266,7 +269,6 @@ BC_wildfire_perimeter %>% # Save to a new file (optional)
 # TODO [INCONSISTENT OUTPUT PATH]: Using relative path "out/" vs use_network_path() elsewhere
 # TODO: Standardize output paths - consider config-based path management
 # TODO: Example: output_dir <- config::get("wildfire_output_dir") %||% "out/"
-
 
 
 # install.packages(c("bcmaps", "sf"))
@@ -391,7 +393,7 @@ BC_DA_wildfire_perimeter_grouped <- BC_DA_wildfire_perimeter_projected %>%
     geometry = st_union(geometry), # Union geometries within each group DA and year
     .groups = "drop"
   ) %>%
-  ungroup %>%
+  ungroup() %>%
   mutate(TOTAL_FIRE_AREA = units::drop_units(st_area(geometry))) # Calculate the total area
 
 

@@ -46,7 +46,7 @@ lan_path <- config$lan_path
 # Load LFS data from StatsCan
 cansim_id <- "14-10-0457-01"
 log_info(glue::glue("Loading LFS data from StatsCan table {cansim_id}..."))
-LFS_raw <- cansim::get_cansim_connection(cansim_id, format = 'sqlite') |>
+LFS_raw <- cansim::get_cansim_connection(cansim_id, format = "sqlite") |>
   collect()
 log_info(glue::glue("Loaded LFS raw data: {nrow(LFS_raw)} rows"))
 
@@ -96,7 +96,7 @@ log_info(glue::glue("Filtered to estimates only: {nrow(LFS)} rows"))
 LFS <- LFS |>
   mutate(
     GEO_TYPE = str_extract(GEO, "\\[(.+)\\]", group = 1),
-    .after = 'GEO'
+    .after = "GEO"
   ) |>
   mutate(REGION = str_remove(GEO, " \\[.+\\]")) |>
   select(-GEO)
@@ -150,63 +150,63 @@ SLA$CSD <- substr(SLA$CSD, 3, nchar(SLA$CSD))
 
 # Lookup table to fill in missing SLA_NAMEs based on CMA mapping
 SLA_lookup <- tribble(
-  ~CMA                   ,
-  ~SLA_NAME              ,
-                     905 ,
-  "Cranbrook"            ,
-                     907 ,
-  "Nelson"               ,
-                     910 ,
-  "Trail"                ,
-                     913 ,
-  "Penticton"            ,
-                     915 ,
-  "Kelowna"              ,
-                     918 ,
-  "Vernon"               ,
-                     920 ,
-  "Salmon Arm"           ,
-                     925 ,
-  "Kamloops"             ,
-                     930 ,
-  "Chilliwack"           ,
-                     932 ,
-  "Abbotsford - Mission" ,
-                     933 ,
-  "Vancouver"            ,
-                     934 ,
-  "Squamish"             ,
-                     935 ,
-  "Victoria"             ,
-                     936 ,
-  "Ladysmith"            ,
-                     937 ,
-  "Duncan"               ,
-                     938 ,
-  "Nanaimo"              ,
-                     939 ,
-  "Parksville"           ,
-                     940 ,
-  "Port Alberni"         ,
-                     943 ,
-  "Courtenay"            ,
-                     944 ,
-  "Campbell River"       ,
-                     945 ,
-  "Powell River"         ,
-                     950 ,
-  "Williams Lake"        ,
-                     952 ,
-  "Quesnel"              ,
-                     955 ,
-  "Prince Rupert"        ,
-                     965 ,
-  "Terrace"              ,
-                     970 ,
-  "Prince George"        ,
-                     975 ,
-  "Dawson Creek"         ,
-                     977 ,
+  ~CMA,
+  ~SLA_NAME,
+  905,
+  "Cranbrook",
+  907,
+  "Nelson",
+  910,
+  "Trail",
+  913,
+  "Penticton",
+  915,
+  "Kelowna",
+  918,
+  "Vernon",
+  920,
+  "Salmon Arm",
+  925,
+  "Kamloops",
+  930,
+  "Chilliwack",
+  932,
+  "Abbotsford - Mission",
+  933,
+  "Vancouver",
+  934,
+  "Squamish",
+  935,
+  "Victoria",
+  936,
+  "Ladysmith",
+  937,
+  "Duncan",
+  938,
+  "Nanaimo",
+  939,
+  "Parksville",
+  940,
+  "Port Alberni",
+  943,
+  "Courtenay",
+  944,
+  "Campbell River",
+  945,
+  "Powell River",
+  950,
+  "Williams Lake",
+  952,
+  "Quesnel",
+  955,
+  "Prince Rupert",
+  965,
+  "Terrace",
+  970,
+  "Prince George",
+  975,
+  "Dawson Creek",
+  977,
   "Fort St. John"
 )
 
@@ -242,7 +242,7 @@ LFS <- LFS |>
   inner_join(
     SLA,
     by = join_by("REGION" == "SLA_NAME"),
-    relationship = 'many-to-many'
+    relationship = "many-to-many"
   )
 log_info(glue::glue("LFS joined with SLA: {nrow(LFS)} rows"))
 
@@ -261,7 +261,6 @@ log_info("LFS output written successfully")
 
 LFS_dict_labels <- c(
   "REF_DATE" = "The month and year of the observation (in '%b %Y' format)",
-
   "GEO_TYPE" = "A census metropolitan area (CMA) is formed by one or more adjacent municipalities centered on a population centre known as the core. A CMA must have a total population of at least 100,000 of which 50,000 or more must live in the core. \n\n  A census agglomeration (CA) is formed by one or more adjacent municipalities centered on a population centre known as the core. A CA must have a core population of at least 10,000 based on data from the previous Census of Population Program. \n\n  A self-contained labour area (SLA) is a functional area composed of census subdivisions which are not already included in a CMA or CA. All three types of regions are determined using commuting flows derived from census program place of work data.",
   "REGION" = "Self-contained Labour Areas (SLA) name. SLA are functional areas composed of Census Subdivisions (CSD) grouped according according to commuting patterns (OECD, 2020).",
   "LABOUR_FORCE_CHARACTERISTICS" = "The employment rate is the small area estimate of the number of employed persons expressed as a percentage of the population 15 years of age and older. Estimates are percentages, rounded to the nearest tenth.\n\n  The unemployment rate is the number of unemployed people as a percentage of the labour force (employed and unemployed). The unemployment rate is the number of unemployed persons expressed as a percentage of the labour force. Unemployed persons are those who were without work, had looked for work in the past four weeks, and were available for work. Those persons on layoff or who had a new job to start in four weeks or less are also considered unemployed. The labour force is all civilian, non-institutionalized persons 15 years or age and older who were employed or unemployed. Estimates are percentages, rounded to the nearest tenth.\n\n  Employment is the small area estimate of the number of persons who worked for pay or profit, or had a job but were not at work due to own illness or disability, personal or family responsibilities, labour dispute, vacation, or other reason. Estimates are rounded to the nearest ten.",
@@ -283,4 +282,3 @@ lfs_dict_output_file <- here::here(
 log_info(glue::glue("Writing LFS dictionary to: {lfs_dict_output_file}"))
 write.csv2(LFS_dict, lfs_dict_output_file)
 log_info("LFS dictionary written successfully")
-
