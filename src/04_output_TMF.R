@@ -68,7 +68,7 @@ log_info <- function(msg) {
 # The GCS 202406 csv file is provided by Econ team and saved in LAN. Need safe network path to get it.
 # stopifnot(Sys.getenv("SAFEPATHS_NETWORK_PATH") != "")
 
-# TMF_file <- use_network_path("2024 SES Index/data/raw_data/TMF/GCS_202406.csv")
+# TMF_file <- use_network_path("data/raw_data/TMF/GCS_202406.csv")
 
 # TMF <- read_csv(TMF_file)
 
@@ -161,7 +161,7 @@ TMF_dict <- create_dictionary(TMF, id_var = "POSTALCODE", var_labels = NULL)
 # manually create a item field in this detail dataframe to join the TMF_dict dataframe
 
 TMF_dict_detail <- read_csv(glue::glue(
-  "{lan_path}/2024 SES Index/docs/TMF_data_dict.csv"
+  "{lan_path}/{year_config$project_folder}/docs/TMF_data_dict.csv"
 ))
 # View(TMF_dict_detail)  # interactive exploration
 
@@ -246,7 +246,7 @@ log_info("Wrote TMF data dictionary DIP output")
 
 # Path to the Excel file
 file_path <- glue::glue(
-  "{lan_path}/2024 SES Index/data/raw_data/TMF/GCS_Lookup_Table.xlsx"
+  "{lan_path}/{year_config$project_folder}/data/raw_data/TMF/GCS_Lookup_Table.xlsx"
 )
 
 # Specify the prefix for the CSV files
