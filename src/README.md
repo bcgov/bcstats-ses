@@ -47,7 +47,8 @@ Scripts are numbered by pipeline stage. See [`../CONTEXT.md`](../CONTEXT.md) for
 | `03_output_crime_rate.R` | Processes BC crime statistics |
 | `04_output_TMF.R` | Creates Translation Master File |
 | `05_output_LFS.R` | Processes Labour Force Survey data |
-| `06a_output_wildfire.R` / `06b_output_wildfire.R` | Processes wildfire data (two parts) |
+| `06a_output_wildfire.R` | Wildfire perimeters from the BC Data Catalogue API (kept runnable — the catalogue can be fresher than the local file) |
+| `06b_output_wildfire.R` | Wildfire outputs from geodata local files + SQL (production path) |
 | `07_SLA.R` | Processes SLA education data |
 | `08_BC_population_estimates.R` | Creates population estimates |
 | `09_output_remoteness.R` | Calculates remoteness indices |

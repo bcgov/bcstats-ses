@@ -186,9 +186,7 @@ log_info(glue::glue(
 ###########################################################################
 
 DA_RESP_lookup <- readxl::read_excel(
-  path = glue::glue(
-    "{lan_path}/2024 SES Index/data/raw_data/crime_rate/Pop by DA and RESP.xlsx"
-  ),
+  path = file.path(lan_path, year_config$project_folder, year_config$crime_da_resp_lookup),
   sheet = "DA RESP"
 )
 
@@ -289,13 +287,21 @@ crime_data_end_year <- max(
   na.rm = TRUE
 )
 
+# Actual year span of the data (may differ from crime_start_year because
+# filtering can drop early years); used for the output filename, mirroring
+# the wildfire naming convention (src/06a_output_wildfire.R).
+crime_year_range <- range(
+  as.numeric(bc_da_crime_stats_year_weighted_by_pop$REF_DATE),
+  na.rm = TRUE
+)
+
 # since the data has ',' in the cells, we use write.csv2
 if (!dir.exists("out")) {
   dir.create("out")
 }
 
 crime_rate_output_file <- here::here(glue::glue(
-  "out/BC_DA_Crime_Rate_DIP_{crime_data_end_year}.csv"
+  "out/BC_DA_Crime_Rate_DIP_{crime_year_range[1]}_{crime_year_range[2]}.csv"
 ))
 
 write_csv2(bc_da_crime_stats_year_weighted_by_pop, crime_rate_output_file)

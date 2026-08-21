@@ -59,6 +59,15 @@ Preparing catalogue- or downstream-ready outputs from the cleaned, suppressed da
 **Explore** (out-of-pipeline):
 Analysis and experimental applications kept for reference, not part of the cleaning pipeline.
 
+## Wildfire sources
+
+**Catalogue perimeter (BCDC)**:
+Wildfire perimeters published to the BC Data Catalogue; the source that updates first after a fire season.
+_Avoid_: Treating the catalogue pull as superseded — it is the fresher source whenever the local file lags.
+
+**Local perimeter file**:
+The geodata team's wildfire perimeter file; the source delivered wildfire outputs are built from, refreshed after the catalogue.
+
 ## Disclosure control
 
 **Geo-suppression**:

@@ -263,7 +263,7 @@ BC_wildfire_perimeter %>% count(FIRE_YEAR)
 
 BC_wildfire_perimeter %>% # Save to a new file (optional)
   # st_write( use_network_path("data/raw_data/Wildfire/Wildfires_DB/Input/BC_wildfire_perimeter.geojson"))
-  st_write("out/BC_wildfire_perimeter.geojson")
+  st_write("out/BC_wildfire_perimeter.geojson", delete_dsn = TRUE)
 # Writing 7097 features with 20 fields and geometry
 
 # TODO [INCONSISTENT OUTPUT PATH]: Using relative path "out/" vs use_network_path() elsewhere
@@ -300,14 +300,26 @@ da |> glimpse()
 BC_wildfire_perimeter_projected <- st_make_valid(BC_wildfire_perimeter)
 DAs_projected <- st_make_valid(da)
 
+DAs_projected |> glimpse()
+
+BC_wildfire_perimeter_projected |> glimpse()
+
 ## COMBINE DAs AND FIRES # Perform the intersection
 BC_DA_wildfire_perimeter_projected <- st_intersection(
-  DAs_projected,
+  DAs_projected |>     
+    mutate(
+    DA_AREA_HECTARES = FEATURE_AREA_SQM / 10000 # DA_AREA_HECTARES is the size of the land in dissemination block in hectares (estimated)
+    )  %>%
+    select(
+      DAUID = DISSEMINATION_AREA_ID,
+      DA_AREA = FEATURE_AREA_SQM, 
+      DA_AREA_HECTARES, geometry),
   BC_wildfire_perimeter_projected
 ) %>%
   select(
-    DAUID,
+    DAUID ,
     DA_AREA,
+    DA_AREA_HECTARES,
     FIRE_LABEL,
     FIRE_NUMBER,
     FIRE_YEAR,
@@ -317,7 +329,8 @@ BC_DA_wildfire_perimeter_projected <- st_intersection(
     TRACK_DATE,
     FIRE_SIZE_HECTARES,
     FEATURE_AREA_SQM,
-    everything()
+    FEATURE_LENGTH_M
+    # everything()
   ) %>%
   arrange(DAUID, FIRE_LABEL)
 # 7969 features and 11 fields
@@ -337,11 +350,12 @@ BC_DA_wildfire_perimeter <- BC_DA_wildfire_perimeter_projected %>%
   select(c(
     DAUID,
     DA_AREA,
-    LANDAREA,
+    DA_AREA_HECTARES,
     FIRE_LABEL,
     FIRE_NUMBER,
     FIRE_YEAR,
     FIRE_CAUSE,
+    FIRE_STATUS,
     FIRE_DATE,
     FIRE_SIZE_HECTARES,
     FEATURE_AREA_SQM,
@@ -381,7 +395,7 @@ overlap_results %>%
 
 # Group by year and region, then union fire areas
 BC_DA_wildfire_perimeter_grouped <- BC_DA_wildfire_perimeter_projected %>%
-  group_by(FIRE_YEAR, DAUID, DA_AREA, LANDAREA) %>%
+  group_by(FIRE_YEAR, DAUID, DA_AREA, DA_AREA_HECTARES) %>%
   summarise(
     N_FIRE = n(),
     FIRE_NUMBER_LIST = str_c(FIRE_NUMBER, collapse = ", ", na.rm = TRUE),
@@ -401,6 +415,7 @@ MAX_PERCENT <- 100
 # Get percentage of fire area
 BC_DA_wildfire_perimeter_grouped <- BC_DA_wildfire_perimeter_grouped %>%
   mutate(
+
     FIRE_PERCENT_DA = 100 * as.numeric(TOTAL_FIRE_AREA) / as.numeric(DA_AREA), # one DA could have three fires in one year, so the percent could small but the total percent could be large.
     FIRE_PERCENT_FIRE = 100 *
       as.numeric(TOTAL_FIRE_AREA) /
@@ -429,27 +444,29 @@ BC_DA_wildfire_perimeter_grouped %>%
 # TODO: This would reduce duplication and ensure consistent output handling
 
 BC_DA_wildfire_perimeter_grouped <- BC_DA_wildfire_perimeter_grouped %>%
-  arrange(FIRE_YEAR, DAUID, DA_AREA, LANDAREA)
+  arrange(FIRE_YEAR, DAUID, DA_AREA, DA_AREA_HECTARES)
 # file_path <- use_network_path(
 #   "data/Output/Wildfires_DB/BC_DA_grouped_wildfires_2000_2024.csv"
 # )
 # write.csv(BC_DA_wildfire_perimeter_grouped, file = file_path)
-file_path <- "out/BC_DA_grouped_wildfires_2000_2024.csv"
+# Derive the actual min/max fire years from the data so output filenames
+# stay truthful at each annual refresh instead of hardcoding "2000_2024".
+wildfire_year_range <- range(BC_DA_wildfire_perimeter_grouped$FIRE_YEAR)
+file_path <- sprintf("out/BC_DA_grouped_wildfires_%s_%s.csv", wildfire_year_range[1], wildfire_year_range[2])
 write.csv(
   BC_DA_wildfire_perimeter_grouped %>% st_drop_geometry(),
   file = file_path
 )
-
-# TODO [HARDCODED DATE RANGE]: "2000_2024" in filename should be derived from actual data
-# TODO: Consider: year_range <- paste(range(BC_DA_wildfire_perimeter_grouped$FIRE_YEAR), collapse = "_")
 
 # the geospatial data could be saved ad geojson.
 # file_path <- use_network_path(
 #   "data/Output/Wildfires_DB/BC_DA_grouped_wildfires_2000_2024.geojson"
 # )
 # st_write(BC_DA_wildfire_perimeter_grouped, dsn = file_path)
-file_path <- "out/BC_DA_grouped_wildfires_2000_2024.geojson"
-st_write(BC_DA_wildfire_perimeter_grouped, dsn = file_path)
+file_path <- sprintf("out/BC_DA_grouped_wildfires_%s_%s.geojson", wildfire_year_range[1], wildfire_year_range[2])
+# sf::st_write() has no overwrite argument (it is silently swallowed by ...);
+# delete_dsn = TRUE removes an existing file datasource before writing.
+st_write(BC_DA_wildfire_perimeter_grouped, dsn = file_path, delete_dsn = TRUE)
 
 #################################################################################################
 # Data dictionary for grouped dataset
@@ -461,8 +478,8 @@ BC_DA_wildfire_perimeter_grouped_labels <- c(
   "FIRE_YEAR" = "Year of the Wildfire",
   "DAUID" = "Dissemination block unique ID",
   "DA_AREA" = "Size of the dissemination block in square meters (estimated)",
-  "LANDAREA" = "Size of the land in dissemination block in hectares (estimated)",
-  "FIRE_NUMBER" = "Wildfire number (some fires in the same area but different years may share the same fire number)",
+  "DA_AREA_HECTARES" = "Size of the land in dissemination block in hectares (estimated)",
+  "FIRE_NUMBER_LIST" = "Wildfire number (some fires in the same area but different years may share the same fire number)",
   "N_FIRE" = "The total numbers the wildfire",
   "SIMPLE_SUM_FIRE_SIZE_HECTARES" = "The simple total size of all wildfire in the DA within the year in Hectares (reported)",
   "SIMPLE_SUM_FEATURE_AREA_SQM" = "The simple total size of all wildfire in the DA within the year in square meters (reported/estimated)",
@@ -513,19 +530,20 @@ write.csv(BC_DA_wildfire_perimeter_grouped_dict, file = file_path)
 #   "data/Output/Wildfires_DB/BC_DA_wildfire_perimeter_2000_2004.csv"
 # )
 # write.csv(BC_DA_wildfire_perimeter %>% st_drop_geometry(), file = file_path)
-file_path <- "out/BC_DA_wildfire_perimeter_2000_2004.csv"
+file_path <- sprintf("out/BC_DA_wildfire_perimeter_%s_%s.csv", wildfire_year_range[1], wildfire_year_range[2])
 write.csv(BC_DA_wildfire_perimeter %>% st_drop_geometry(), file = file_path)
 
 # TODO [TYPO IN FILENAME]: "2000_2004" - is this intentional or should be "2000_2024"?
 # TODO: The variable name suggests 2000-2024 range but filename says 2000-2004
+# (Resolved: filenames now derive the range from the data.)
 
 # the geospatial data could be saved ad geojson.
 # file_path <- use_network_path(
 #   "data/Output/Wildfires_DB/BC_DA_wildfires_2000_2024.geojson"
 # )
 # st_write(BC_DA_wildfire_perimeter, dsn = file_path)
-file_path <- "out/BC_DA_wildfires_2000_2024.geojson"
-st_write(BC_DA_wildfire_perimeter, dsn = file_path)
+file_path <- sprintf("out/BC_DA_wildfires_%s_%s.geojson", wildfire_year_range[1], wildfire_year_range[2])
+st_write(BC_DA_wildfire_perimeter, dsn = file_path, delete_dsn = TRUE)
 
 #################################################################################################
 # Data dictionary for full dataset
@@ -534,23 +552,23 @@ st_write(BC_DA_wildfire_perimeter, dsn = file_path)
 library(datadictionary)
 
 names(BC_DA_wildfire_perimeter)
+# Labels must match the columns of BC_DA_wildfire_perimeter (after
+# st_drop_geometry()) exactly: labelled::`var_label<-` assigns named character
+# vectors by position and errors on any length mismatch. Keep this vector in
+# column order when the upstream select() changes.
 BC_DA_wildfire_perimeter_labels <- c(
-  "FIRE_LABEL_DA" = "Unique ID for each element of the data, combination of FIRE_LABEL and DAUID.",
-  "FIRE_LABEL" = "Wildfire unique ID, combination of FIRE_NUMBER and FIRE_YEAR.",
   "DAUID" = "Dissemination block unique ID",
+  "DA_AREA" = "Size of the dissemination block in square meters (estimated)",
+  "DA_AREA_HECTARES" = "Size of the land in dissemination block in hectares (estimated)",
+  "FIRE_LABEL" = "Wildfire unique ID, combination of FIRE_NUMBER and FIRE_YEAR.",
   "FIRE_NUMBER" = "Wildfire number (some fires in the same area but different years may share the same fire number)",
   "FIRE_YEAR" = "Year of the Wildfire",
   "FIRE_CAUSE" = "Cause of the wildfire (Missing for current wildfires)",
-  "FIRE_DATE" = "Estimated date of the Wildfire (Missing for current wildfires)",
-  "TRACK_DATE" = "Date when the wildfire was tracked (only for current wildfires)",
   "FIRE_STATUS" = "Status of the wildfire (Off, under control, etc.) only for current wildfires",
+  "FIRE_DATE" = "Estimated date of the Wildfire (Missing for current wildfires)",
   "FIRE_SIZE_HECTARES" = "Size of the wildfire in Hectares (reported)",
-  "FIRE_AREA_SQM" = "Size of the wildfire in square meters (reported/estimated)",
-  "DA_AREA" = "Size of the dissemination block in square meters (estimated)",
-  "FIRE_DA_AREA_SQM" = "Size of the portion of the wildfire that belongs to the dissemination block in square meters (estimated)",
-  "FIRE_PERCENT_DA" = "Size of the fire (portion that match with dissemination block) as a percent of the dissemination block. (Estimated)",
-  "FIRE_PERCENT_FIRE" = "Size of the wildfire portion as a percentage of the total Wildfire (estimated)",
-  "ESTIMATED_AREA" = "Dummy variable equal to 1 if the FIRE_AREA_SQM was estimated rather than keep the reported value (only for cases where the FIRE originally was reported in separated parts)"
+  "FEATURE_AREA_SQM" = "Size of the wildfire in square meters (reported/estimated)",
+  "FEATURE_LENGTH_M" = "Perimeter length of the wildfire in meters (reported/estimated)"
 )
 
 # Print the label vector
@@ -566,6 +584,8 @@ setdiff(names(BC_DA_wildfire_perimeter), names(BC_DA_wildfire_perimeter_labels))
 
 # TODO [INCONSISTENT COLUMN NAMES]: The data dictionary uses "FIRE_AREA_SQM" but code uses "FEATURE_AREA_SQM"
 # TODO: Standardize column naming convention across the script
+# (Partially resolved 2026-08: label vector realigned to the actual columns;
+#  FIRE_LABEL_DA no longer exists, so the id key is its components.)
 
 BC_DA_wildfire_perimeter <- BC_DA_wildfire_perimeter %>%
   mutate(
@@ -578,7 +598,7 @@ BC_DA_wildfire_perimeter <- BC_DA_wildfire_perimeter %>%
 BC_DA_wildfire_perimeter_dict <- create_dictionary(
   BC_DA_wildfire_perimeter %>%
     st_drop_geometry(),
-  id_var = "FIRE_LABEL_DA",
+  id_var = c("FIRE_LABEL", "DAUID"),
   var_labels = BC_DA_wildfire_perimeter_labels
 )
 
