@@ -26,6 +26,7 @@ A regression-safe, annually-refreshable data-cleaning pipeline: the existing num
 - [#7 Modularization scope](tickets/07-modularization-scope.md) — four extractions into `R/`: CHSADA weighting algo (pure, tested), relocate the 3 already-pure functions, `connect_db()` (dedupes 6 scripts + fixes the `config$database` vs `config$data_server` key inconsistency), `load_year_config()` (load + `validate_refresh()`, avoids 17× duplication). See [ADR-0009](../docs/adr/0009-modularization-scope.md).
 - [#8 Secrets/reproducibility audit](tickets/08-secrets-reproducibility-audit.md) — clean bill: no secrets tracked (`Trusted_Connection=Yes` is non-secret Windows auth); `.Renviron` + `config.yml` gitignored; `config_year.yml` non-secret; `safepaths` used consistently. Minor: machine-specific cache paths in tracked config (defer to #4).
 - [#9 Fix 06b stale GCS snapshot](tickets/09-fix-06b-stale-gcs-snapshot.md) — confirmed leftover bug; `06b` now reads the GCS table from `config_year.yml` via `sprintf` (was hardcoded `FCT_GCS_202509`); R parse clean. ⚠️ **Data impact:** re-run `06b` to regenerate wildfire outputs against `FCT_GCS_202606`; fix currently on the wayfinder branch.
+- [#10 Split or retire 06a](tickets/10-split-or-retire-06a.md) — keep both: 06a stays runnable as the BCDC-API path (the catalogue updates can be fresher than the local geodata file); the duplicated transform lives in 06b alone (no extraction, per ADR-0009); the 2026-08-20 06a fixes committed for merge.
 
 ## Ticket index
 
@@ -40,9 +41,9 @@ A regression-safe, annually-refreshable data-cleaning pipeline: the existing num
 | 7 | [Modularization scope](tickets/07-modularization-scope.md) | grilling | **resolved** | — |
 | 8 | [Secrets/reproducibility audit](tickets/08-secrets-reproducibility-audit.md) | task | **resolved** | — |
 | 9 | [Fix 06b stale GCS snapshot](tickets/09-fix-06b-stale-gcs-snapshot.md) | task | **resolved** | — |
-| 10 | [Split or retire 06a (wildfire superseded approach)](tickets/10-split-or-retire-06a.md) | grilling | open | — |
+| 10 | [Split or retire 06a (wildfire superseded approach)](tickets/10-split-or-retire-06a.md) | grilling | **resolved** | — |
 
-**Frontier:** [#10 Split or retire 06a](tickets/10-split-or-retire-06a.md) — the one open ticket (opened post-completion, surfaced by the 06a/06b review during build-out). The original nine are all resolved; the build work they specified is delivered (r-helpers → config-migration → tests → ci).
+**Frontier:** none — all ten tickets resolved; the map is complete. Remaining work is the Handoff build-out below (in progress: scripts `01`–`06a` tested and fixed through 2026-08-20; `06b` next).
 
 ## Handoff — the build work this map specifies
 
